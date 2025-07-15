@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Classroom</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <section id="auth-section" class="active">
+            <h2>Login / Register</h2>
+            <form id="login-form">
+                <h3>Login</h3>
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <form id="register-form">
+                <h3>Register</h3>
+                <input type="text" id="register-username" placeholder="Username" required>
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <select id="register-role">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                </select>
+                <button type="submit">Register</button>
+            </form>
+            <p id="auth-message"></p>
+        </section>
+
+        <section id="dashboard-section" class="hidden">
+            <h2>Welcome to Your Dashboard!</h2>
+            <p>Classroom ID: <span id="classroom-id-display"></span></p>
+            <nav>
+                <button id="nav-classroom">Classroom</button>
+                <button id="nav-settings">Settings</button>
+                <button id="logout-btn">Logout</button>
+            </nav>
+        </section>
+
+        <section id="classroom-section" class="hidden">
+            <h2>Virtual Classroom</h2>
+            <div class="classroom-controls">
+                <button id="show-whiteboard">Whiteboard</button>
+                <button id="show-library">Library</button>
+                <button id="show-assessment">Assessment</button>
+                <button id="back-to-dashboard">Back to Dashboard</button>
+            </div>
+
+            <div id="whiteboard-area" class="classroom-feature active-feature">
+                <h3>Shared Whiteboard</h3>
+                <canvas id="whiteboard-canvas"></canvas>
+                <div class="whiteboard-tools">
+                    <button id="tool-draw">Draw</button>
+                    <button id="tool-text">Text</button>
+                    <button id="tool-shape">Shape</button>
+                    <input type="color" id="whiteboard-color" value="#000000">
+                    <button id="clear-whiteboard">Clear</button>
+                    <button id="next-page">Next Page</button>
+                    <button id="prev-page">Previous Page</button>
+                </div>
+            </div>
+
+            <div id="library-area" class="classroom-feature hidden-feature">
+                <h3>Library Management</h3>
+                <input type="file" id="library-upload-file" multiple>
+                <button id="library-upload-btn">Upload Files</button>
+                <ul id="library-file-list">
+                    </ul>
+            </div>
+
+            <div id="assessment-area" class="classroom-feature hidden-feature">
+                <h3>Assessment Preparation</h3>
+                <form id="create-assessment-form">
+                    <input type="text" id="assessment-title" placeholder="Assessment Title" required>
+                    <textarea id="assessment-description" placeholder="Description"></textarea>
+                    <button type="submit">Create Assessment</button>
+                </form>
+                <div id="assessment-list">
+                    </div>
+            </div>
+
+            <div class="communication-section">
+                <div id="chat-box">
+                    <h3>Chat</h3>
+                    <div id="chat-messages"></div>
+                    <input type="text" id="chat-input" placeholder="Type your message...">
+                    <button id="send-chat-btn">Send</button>
+                </div>
+                <div id="video-broadcast">
+                    <h3>Live Broadcast</h3>
+                    <video id="local-video" autoplay muted></video>
+                    <video id="remote-video" autoplay></video>
+                    <button id="start-broadcast">Start Broadcast</button>
+                    <button id="join-broadcast">Join Broadcast</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="settings-section" class="hidden">
+            <h2>User Settings</h2>
+            <form id="update-profile-form">
+                <label for="settings-username">Username:</label>
+                <input type="text" id="settings-username">
+                <label for="settings-email">Email:</label>
+                <input type="email" id="settings-email" disabled>
+                <button type="submit">Update Profile</button>
+            </form>
+            <button id="back-to-dashboard-from-settings">Back to Dashboard</button>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
