@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const navSettings = document.getElementById('nav-settings');
     const logoutBtn = document.getElementById('logout-btn');
 
+    const createClassroomSection = document.getElementById('create-classroom-section'); // New: Admin-only section
     const newClassroomNameInput = document.getElementById('new-classroom-name');
     const createClassroomBtn = document.getElementById('create-classroom-btn');
     const classroomMessage = document.getElementById('classroom-message');
@@ -65,12 +66,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const penWidthInput = document.getElementById('pen-width');
     const widthValueSpan = document.getElementById('width-value');
     const clearBoardBtn = document.getElementById('clear-whiteboard-btn');
+    const whiteboardTools = document.getElementById('whiteboard-tools'); // New: for admin-only visibility
+    const whiteboardRoleMessage = document.getElementById('whiteboard-role-message'); // New: for role-specific messages
 
     // Video Broadcast Elements (moved from classroom.js)
     const startBroadcastBtn = document.getElementById('start-broadcast');
     const endBroadcastBtn = document.getElementById('end-broadcast');
     const localVideo = document.getElementById('local-video');
     const remoteVideoContainer = document.getElementById('remote-video-container');
+    const broadcastRoleMessage = document.getElementById('broadcast-role-message'); // New: for role-specific messages
+
+    // Library Elements
+    const libraryFileInput = document.getElementById('library-file-input'); // New: for admin-only visibility
+    const uploadLibraryFilesBtn = document.getElementById('upload-library-files-btn'); // New: for admin-only visibility
+    const libraryRoleMessage = document.getElementById('library-role-message'); // New: for role-specific messages
 
     // Assessment Elements (NEW)
     const assessmentCreationForm = document.getElementById('assessment-creation-form');
@@ -162,6 +171,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    /**
+     * Updates UI elements based on the current user's role.
+     * Elements with `data-admin-only` are shown only for admins.
+     * Elements with `data-user-only` are shown only for regular users.
+     */
+    function updateUIBasedOnRole() {
+        const isAdmin = currentUser && currentUser.role === 'admin';
+        const isUser = currentUser && currentUser.role === 'user';
+
+        document.querySelectorAll('[data-admin-only]').forEach(el => {
+            el.classList.toggle('hidden', !isAdmin);
+            el.classList.toggle('admin-feature-highlight', isAdmin);
+        });
+
+        document.querySelectorAll('[data-user-only]').forEach(el => {
+            el.classList.toggle('hidden', !isUser);
+            el.classList.toggle('user-view-subtle', isUser);
+        });
+
+        // Specific messages for restricted features
+        if (whiteboardRoleMessage) {
+            whiteboardRoleMessage.classList.toggle('hidden', isAdmin);
+            whiteboardRoleMessage.textContent = isAdmin ? '' : 'Only administrators can draw on the whiteboard.';
+        }
+        if (broadcastRoleMessage) {
+            broadcastRoleMessage.classList.toggle('hidden', isAdmin);
+            broadcastRoleMessage.textContent = isAdmin ? '' : 'Only administrators can start a video broadcast.';
+        }
+        if (libraryRoleMessage) {
+            libraryRoleMessage.classList.toggle('hidden', isAdmin);
+            libraryRoleMessage.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
+        }
+
+        // Adjust canvas pointer events for non-admins
+        if (whiteboardCanvas) {
+            whiteboardCanvas.style.pointerEvents = isAdmin ? 'auto' : 'none';
+        }
+    }
+
+
     async function loadUserClassrooms() {
         if (!currentUser || !currentUser.id) {
             console.warn("No current user to load classrooms for.");
@@ -209,12 +258,23 @@ document.addEventListener('DOMContentLoaded', () => {
         showClassroomSubSection(whiteboardArea); // Default to whiteboard
         updateNavActiveState(navWhiteboard); // Update active nav button
 
+        // Apply role-based UI immediately upon entering classroom
+        updateUIBasedOnRole();
+
         // --- Direct calls to merged classroom functionality ---
         initializeSocketIO();
         setupWhiteboardControls(); // Ensure whiteboard controls are set up
-        // Reset broadcast buttons state
-        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
-        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+        
+        // Reset broadcast buttons state based on role
+        if (currentUser && currentUser.role === 'admin') {
+            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+            if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+        } else {
+            // Hide broadcast buttons for non-admins
+            if (startBroadcastBtn) startBroadcastBtn.classList.add('hidden');
+            if (endBroadcastBtn) endBroadcastBtn.classList.add('hidden');
+        }
+
 
         // Hide share link display when entering a new classroom
         shareLinkDisplay.classList.add('hidden');
@@ -222,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Load assessments when entering classroom
         loadAssessments();
+        loadLibraryFiles(); // Load library files
     }
 
     // --- Socket.IO Initialization (merged from classroom.js) ---
@@ -424,6 +485,8 @@ document.addEventListener('DOMContentLoaded', () => {
             classroomIdDisplay.textContent = currentClassroom ? currentClassroom.id : 'N/A';
             loadUserClassrooms();
             updateNavActiveState(navDashboard);
+            updateUIBasedOnRole(); // Apply role-based UI on dashboard load
+
             // Handle direct classroom link access (e.g., /classroom/<id>)
             const pathParts = window.location.pathname.split('/');
             if (pathParts[1] === 'classroom' && pathParts.length > 2) {
@@ -453,6 +516,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             showSection(authSection);
+            // Ensure no role-specific elements are visible if not logged in
+            document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
+                el.classList.add('hidden');
+            });
         }
     }
 
@@ -495,7 +562,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = result.user;
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     displayMessage(authMessage, result.message, false);
-                    checkLoginStatus(); // Navigate to dashboard
+                    checkLoginStatus(); // Navigate to dashboard and apply role-based UI
                 } else {
                     displayMessage(authMessage, result.error, true);
                 }
@@ -563,9 +630,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (whiteboardCtx) {
                         whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
                     }
-                    // Hide whiteboard controls if they were shown
-                    document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
-                            .forEach(control => control.style.display = 'none');
+                    // Hide all role-specific controls on logout
+                    document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
+                        el.classList.add('hidden');
+                        el.classList.remove('admin-feature-highlight', 'user-view-subtle');
+                    });
+                    // Clear role messages
+                    document.querySelectorAll('.role-message').forEach(msg => {
+                        msg.classList.add('hidden');
+                        msg.textContent = '';
+                    });
+
                     // Clear chat messages
                     if (chatMessages) chatMessages.innerHTML = '';
                     // Clear remote videos
@@ -586,6 +661,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const classroomName = newClassroomNameInput.value;
             if (!classroomName) {
                 displayMessage(classroomMessage, 'Please enter a classroom name.', true);
+                return;
+            }
+            if (currentUser.role !== 'admin') {
+                displayMessage(classroomMessage, 'Only administrators can create classrooms.', true);
                 return;
             }
 
@@ -650,6 +729,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
+            updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
             // --- Direct calls for cleanup ---
             if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
                 socket.emit('leave', { 'classroomId': currentClassroom.id });
@@ -664,8 +744,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (whiteboardCtx) {
                 whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             }
-            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
-                    .forEach(control => control.style.display = 'none');
             // Clear chat messages
             if (chatMessages) chatMessages.innerHTML = '';
             // Clear remote videos
@@ -707,8 +785,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (whiteboardCtx) {
                 whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             }
-            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
-                    .forEach(control => control.style.display = 'none');
             // Clear chat messages
             if (chatMessages) chatMessages.innerHTML = '';
             // Clear remote videos
@@ -722,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
+            updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
             // --- Direct calls for cleanup ---
             if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
                 socket.emit('leave', { 'classroomId': currentClassroom.id });
@@ -736,8 +813,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (whiteboardCtx) {
                 whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             }
-            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
-                    .forEach(control => control.style.display = 'none');
             // Clear chat messages
             if (chatMessages) chatMessages.innerHTML = '';
             // Clear remote videos
@@ -753,6 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
+            updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
         });
     }
 
@@ -764,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navWhiteboard.addEventListener('click', () => { showClassroomSubSection(whiteboardArea); updateNavActiveState(navWhiteboard); });
     }
     if (navLibrary) {
-        navLibrary.addEventListener('click', () => { showClassroomSubSection(librarySection); updateNavActiveState(navLibrary); });
+        navLibrary.addEventListener('click', () => { showClassroomSubSection(librarySection); updateNavActiveState(navLibrary); loadLibraryFiles(); });
     }
     if (navAssessments) {
         navAssessments.addEventListener('click', () => {
@@ -890,60 +966,8 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`[Whiteboard] Canvas dimensions set: ${whiteboardCanvas.width}x${whiteboardCanvas.height}`);
 
 
-        // Select all controls within the whiteboard-tools div
-        const allWhiteboardControls = document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span');
-
-        // Disable/enable whiteboard controls based on user role
-        if (currentUser && currentUser.role !== 'admin') {
-            console.log("[Whiteboard] Disabling whiteboard controls for non-admin user.");
-            allWhiteboardControls.forEach(control => {
-                control.style.display = 'none'; // Hide controls
-                control.disabled = true; // Disable if visible
-            });
-            whiteboardCanvas.style.pointerEvents = 'none'; // Make canvas non-interactive
-        } else {
-            console.log("[Whiteboard] Enabling whiteboard controls for admin user.");
-            allWhiteboardControls.forEach(control => {
-                // Ensure share-whiteboard-btn and join-broadcast are not hidden/disabled by this block
-                // (though share button might be handled elsewhere for visibility)
-                if (control.id !== 'share-whiteboard-btn' && control.id !== 'join-broadcast') {
-                    control.style.display = 'inline-block';
-                    control.disabled = false;
-                }
-            });
-            whiteboardCanvas.style.pointerEvents = 'auto'; // Make canvas interactive
-        }
-
-        if (penColorInput) {
-            penColorInput.addEventListener('change', (e) => {
-                penColor = e.target.value;
-                whiteboardCtx.strokeStyle = penColor;
-                console.log(`[Whiteboard] Pen color changed to: ${penColor}`);
-            });
-        }
-
-        if (penWidthInput) {
-            penWidthInput.addEventListener('input', (e) => {
-                penWidth = parseInt(e.target.value);
-                if (widthValueSpan) widthValueSpan.textContent = `${penWidth}px`;
-                whiteboardCtx.lineWidth = penWidth;
-                console.log(`[Whiteboard] Pen width changed to: ${penWidth}`);
-            });
-            if (widthValueSpan) widthValueSpan.textContent = `${penWidthInput.value}px`;
-        }
-
-        if (clearBoardBtn) {
-            clearBoardBtn.addEventListener('click', () => {
-                // FIX: Use currentClassroom.id
-                if (socket && currentClassroom && currentClassroom.id && currentUser && currentUser.role === 'admin') {
-                    console.log(`[Whiteboard] Sending clear command for classroom: ${currentClassroom.id}`);
-                    socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id });
-                } else if (currentUser && currentUser.role !== 'admin') {
-                    alert("Only administrators can clear the whiteboard.");
-                }
-            });
-        }
-
+        // Whiteboard drawing is admin-only, controlled by updateUIBasedOnRole
+        // The event listeners themselves should only trigger drawing if the role is admin
         whiteboardCanvas.addEventListener('mousedown', (e) => {
             if (currentUser && currentUser.role === 'admin') {
                 isDrawing = true;
@@ -1011,6 +1035,36 @@ document.addEventListener('DOMContentLoaded', () => {
         whiteboardCtx.stroke();
     }
 
+    if (penColorInput) {
+        penColorInput.addEventListener('change', (e) => {
+            penColor = e.target.value;
+            whiteboardCtx.strokeStyle = penColor;
+            console.log(`[Whiteboard] Pen color changed to: ${penColor}`);
+        });
+    }
+
+    if (penWidthInput) {
+        penWidthInput.addEventListener('input', (e) => {
+            penWidth = parseInt(e.target.value);
+            if (widthValueSpan) widthValueSpan.textContent = `${penWidth}px`;
+            whiteboardCtx.lineWidth = penWidth;
+            console.log(`[Whiteboard] Pen width changed to: ${penWidth}`);
+        });
+        if (widthValueSpan) widthValueSpan.textContent = `${penWidthInput.value}px`;
+    }
+
+    if (clearBoardBtn) {
+        clearBoardBtn.addEventListener('click', () => {
+            // FIX: Use currentClassroom.id
+            if (socket && currentClassroom && currentClassroom.id && currentUser && currentUser.role === 'admin') {
+                console.log(`[Whiteboard] Sending clear command for classroom: ${currentClassroom.id}`);
+                socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id });
+            } else if (currentUser && currentUser.role !== 'admin') {
+                alert("Only administrators can clear the whiteboard.");
+            }
+        });
+    }
+
 
     // --- Video Broadcasting Functionality (WebRTC - merged from classroom.js) ---
 
@@ -1040,8 +1094,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("[WebRTC] Local stream acquired.");
 
             alert('Broadcast started!');
-            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
-            if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+            if (startBroadcastBtn) startBroadcastBtn.disabled = true;
+            if (endBroadcastBtn) endBroadcastBtn.disabled = false;
 
         } catch (err) {
             console.error('[WebRTC] Error accessing media devices:', err);
@@ -1141,6 +1195,83 @@ document.addEventListener('DOMContentLoaded', () => {
                 .catch(error => console.error('[WebRTC] Error creating offer:', error));
         }
     }
+
+    // --- Library Functionality ---
+    const libraryFilesList = document.getElementById('library-files-list');
+
+    if (uploadLibraryFilesBtn) {
+        uploadLibraryFilesBtn.addEventListener('click', async () => {
+            if (!currentClassroom || !currentClassroom.id) {
+                alert('Please enter a classroom first.');
+                return;
+            }
+            if (currentUser.role !== 'admin') {
+                alert('Only administrators can upload files to the library.');
+                return;
+            }
+
+            const fileInput = document.getElementById('library-file-input');
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                alert('Please select files to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('files', files[i]);
+            }
+            formData.append('classroomId', currentClassroom.id);
+
+            try {
+                const response = await fetch('/api/upload-library-files', {
+                    method: 'POST',
+                    body: formData // No Content-Type header needed for FormData
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert(result.message);
+                    fileInput.value = ''; // Clear the file input
+                    loadLibraryFiles(); // Reload the list of files
+                } else {
+                    alert('Error uploading files: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error uploading files:', error);
+                alert('An error occurred during file upload.');
+            }
+        });
+    }
+
+    async function loadLibraryFiles() {
+        if (!currentClassroom || !currentClassroom.id) {
+            libraryFilesList.innerHTML = '<p>Select a classroom to view library files.</p>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/library-files/${currentClassroom.id}`);
+            const files = await response.json();
+            libraryFilesList.innerHTML = ''; // Clear previous list
+
+            if (files.length === 0) {
+                libraryFilesList.innerHTML = '<p>No files in this library yet.</p>';
+            } else {
+                const ul = document.createElement('ul');
+                files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="${file.url}" target="_blank">${file.filename}</a>`;
+                    ul.appendChild(li);
+                });
+                libraryFilesList.appendChild(ul);
+            }
+        } catch (error) {
+            console.error('Error loading library files:', error);
+            libraryFilesList.innerHTML = '<p>Failed to load library files.</p>';
+        }
+    }
+
 
     // --- Assessment Functionality (NEW) ---
 
@@ -1275,21 +1406,27 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Show/hide assessment creation form based on user role
-        if (currentUser && currentUser.role === 'admin') {
-            assessmentCreationForm.classList.remove('hidden');
-            // Ensure initial question field is present if admin
-            if (questionsContainer.children.length === 0) {
-                addQuestionField();
-            }
-        } else {
-            assessmentCreationForm.classList.add('hidden');
-        }
-
         // Hide other assessment views
         takeAssessmentContainer.classList.add('hidden');
         viewSubmissionsContainer.classList.add('hidden');
         assessmentListContainer.classList.remove('hidden');
+
+        // Show/hide assessment creation form based on user role
+        if (currentUser && currentUser.role === 'admin') {
+            assessmentCreationForm.classList.remove('hidden');
+            assessmentCreationForm.classList.add('admin-feature-highlight');
+            takeAssessmentContainer.classList.add('hidden'); // Ensure student view is hidden
+            viewSubmissionsContainer.classList.remove('hidden'); // Ensure admin view is shown
+            // Ensure initial question field is present if admin
+            if (questionsContainer.children.length === 0) {
+                addQuestionField();
+            }
+        } else { // User role
+            assessmentCreationForm.classList.add('hidden');
+            assessmentCreationForm.classList.remove('admin-feature-highlight');
+            takeAssessmentContainer.classList.add('hidden'); // Start with list, not take form
+            viewSubmissionsContainer.classList.add('hidden'); // Hide submissions for user
+        }
 
 
         try {
@@ -1469,6 +1606,7 @@ document.addEventListener('DOMContentLoaded', () => {
         assessmentCreationForm.classList.add('hidden');
         takeAssessmentContainer.classList.add('hidden');
         viewSubmissionsContainer.classList.remove('hidden');
+        viewSubmissionsContainer.classList.add('admin-feature-highlight'); // Highlight for admin view
 
         submissionsAssessmentTitle.textContent = `Submissions for: ${title}`;
         submissionsList.innerHTML = ''; // Clear previous submissions
