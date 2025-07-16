@@ -72,11 +72,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const localVideo = document.getElementById('local-video');
     const remoteVideoContainer = document.getElementById('remote-video-container');
 
+    // Assessment Elements (NEW)
+    const assessmentCreationForm = document.getElementById('assessment-creation-form');
+    const assessmentTitleInput = document.getElementById('assessment-title');
+    const assessmentDescriptionTextarea = document.getElementById('assessment-description');
+    const questionsContainer = document.getElementById('questions-container');
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    const submitAssessmentBtn = document.getElementById('submit-assessment-btn');
+    const assessmentCreationMessage = document.getElementById('assessment-creation-message');
+    const assessmentListContainer = document.getElementById('assessment-list-container');
+    const assessmentListDiv = document.getElementById('assessment-list');
+    const takeAssessmentContainer = document.getElementById('take-assessment-container');
+    const takeAssessmentTitle = document.getElementById('take-assessment-title');
+    const takeAssessmentDescription = document.getElementById('take-assessment-description');
+    const takeAssessmentForm = document.getElementById('take-assessment-form');
+    const submitAnswersBtn = document.getElementById('submit-answers-btn');
+    const assessmentSubmissionMessage = document.getElementById('assessment-submission-message');
+    const backToAssessmentListBtn = document.getElementById('back-to-assessment-list-btn');
+    const viewSubmissionsContainer = document.getElementById('view-submissions-container');
+    const submissionsAssessmentTitle = document.getElementById('submissions-assessment-title');
+    const submissionsList = document.getElementById('submissions-list');
+    const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
+
 
     // --- Global Variables (moved from classroom.js) ---
     let socket;
     let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
     let currentClassroom = JSON.parse(localStorage.getItem('currentClassroom')) || null;
+    let currentAssessmentToTake = null; // Stores the assessment being taken by a student
 
     // WebRTC Variables
     let localStream;
@@ -196,6 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide share link display when entering a new classroom
         shareLinkDisplay.classList.add('hidden');
         shareLinkInput.value = '';
+
+        // Load assessments when entering classroom
+        loadAssessments();
     }
 
     // --- Socket.IO Initialization (merged from classroom.js) ---
@@ -209,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[Socket.IO] Connected. SID:', socket.id);
             // FIX: Use currentClassroom.id
             if (currentClassroom && currentClassroom.id) {
-                socket.emit('join', { 'classroomId': currentClassroom.id });
+                socket.emit('join', { 'classroomId': currentClassroom.id, 'role': currentUser.role });
             } else {
                 console.error('[Socket.IO] Cannot join classroom: currentClassroom.id is undefined.');
             }
@@ -741,7 +767,11 @@ document.addEventListener('DOMContentLoaded', () => {
         navLibrary.addEventListener('click', () => { showClassroomSubSection(librarySection); updateNavActiveState(navLibrary); });
     }
     if (navAssessments) {
-        navAssessments.addEventListener('click', () => { showClassroomSubSection(assessmentsSection); updateNavActiveState(navAssessments); });
+        navAssessments.addEventListener('click', () => {
+            showClassroomSubSection(assessmentsSection);
+            updateNavActiveState(navAssessments);
+            loadAssessments(); // Load assessments when navigating to this section
+        });
     }
 
     // Update Profile
@@ -803,7 +833,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (copyShareLinkBtn) {
-        copyShareLink.addEventListener('click', () => {
+        copyShareLinkBtn.addEventListener('click', () => {
             shareLinkInput.select(); // Select the text in the input field
             shareLinkInput.setSelectionRange(0, 99999); // For mobile devices
             document.execCommand('copy'); // Copy the text
@@ -1010,8 +1040,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("[WebRTC] Local stream acquired.");
 
             alert('Broadcast started!');
-            if (startBroadcastBtn) startBroadcastBtn.disabled = true;
-            if (endBroadcastBtn) endBroadcastBtn.disabled = false;
+            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+            if (endBroadcastBtn) endBroadcastBtn.disabled = true;
 
         } catch (err) {
             console.error('[WebRTC] Error accessing media devices:', err);
@@ -1112,6 +1142,383 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Assessment Functionality (NEW) ---
+
+    let questionCounter = 0; // To keep track of questions in the creation form
+
+    function addQuestionField() {
+        questionCounter++;
+        const questionItem = document.createElement('div');
+        questionItem.classList.add('question-item');
+        questionItem.innerHTML = `
+            <label>Question ${questionCounter}:</label>
+            <input type="text" class="question-text" placeholder="Enter question text" required>
+            <select class="question-type">
+                <option value="text">Text Answer</option>
+                <option value="mcq">Multiple Choice</option>
+            </select>
+            <div class="mcq-options hidden">
+                <input type="text" class="mcq-option" placeholder="Option A">
+                <input type="text" class="mcq-option" placeholder="Option B">
+                <input type="text" class="mcq-option" placeholder="Option C">
+                <input type="text" class="mcq-option" placeholder="Option D">
+                <input type="text" class="mcq-correct-answer" placeholder="Correct Option (e.g., A, B)">
+            </div>
+        `;
+        questionsContainer.appendChild(questionItem);
+
+        // Add event listener for question type change
+        const questionTypeSelect = questionItem.querySelector('.question-type');
+        const mcqOptionsDiv = questionItem.querySelector('.mcq-options');
+
+        questionTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'mcq') {
+                mcqOptionsDiv.classList.remove('hidden');
+            } else {
+                mcqOptionsDiv.classList.add('hidden');
+            }
+        });
+    }
+
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', addQuestionField);
+    }
+
+    if (submitAssessmentBtn) {
+        submitAssessmentBtn.addEventListener('click', async () => {
+            if (!currentClassroom || !currentClassroom.id) {
+                displayMessage(assessmentCreationMessage, 'Please select a classroom first.', true);
+                return;
+            }
+            if (currentUser.role !== 'admin') {
+                displayMessage(assessmentCreationMessage, 'Only administrators can create assessments.', true);
+                return;
+            }
+
+            const title = assessmentTitleInput.value.trim();
+            const description = assessmentDescriptionTextarea.value.trim();
+            const questions = [];
+
+            if (!title) {
+                displayMessage(assessmentCreationMessage, 'Assessment title is required.', true);
+                return;
+            }
+
+            const questionItems = questionsContainer.querySelectorAll('.question-item');
+            if (questionItems.length === 0) {
+                displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
+                return;
+            }
+
+            questionItems.forEach(item => {
+                const questionText = item.querySelector('.question-text').value.trim();
+                const questionType = item.querySelector('.question-type').value;
+                const question = {
+                    question_text: questionText,
+                    question_type: questionType
+                };
+
+                if (questionType === 'mcq') {
+                    const options = Array.from(item.querySelectorAll('.mcq-option')).map(input => input.value.trim());
+                    const correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
+                    question.options = options.filter(opt => opt !== ''); // Only add non-empty options
+                    question.correct_answer = correctAnswer;
+                }
+                questions.push(question);
+            });
+
+            // Basic validation for questions
+            const isValid = questions.every(q => {
+                if (!q.question_text) return false;
+                if (q.question_type === 'mcq' && (q.options.length < 2 || !q.correct_answer)) return false;
+                return true;
+            });
+
+            if (!isValid) {
+                displayMessage(assessmentCreationMessage, 'Please ensure all questions have text, and MCQ questions have at least two options and a correct answer.', true);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/create-assessment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        classroomId: currentClassroom.id,
+                        title: title,
+                        description: description,
+                        questions: questions
+                    })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    displayMessage(assessmentCreationMessage, result.message, false);
+                    assessmentTitleInput.value = '';
+                    assessmentDescriptionTextarea.value = '';
+                    questionsContainer.innerHTML = ''; // Clear questions
+                    questionCounter = 0; // Reset counter
+                    addQuestionField(); // Add initial empty question field
+                    loadAssessments(); // Reload the list of assessments
+                } else {
+                    displayMessage(assessmentCreationMessage, result.error, true);
+                }
+            } catch (error) {
+                console.error('Error creating assessment:', error);
+                displayMessage(assessmentCreationMessage, 'An error occurred while creating the assessment.', true);
+            }
+        });
+    }
+
+    async function loadAssessments() {
+        if (!currentClassroom || !currentClassroom.id) {
+            assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
+            return;
+        }
+
+        // Show/hide assessment creation form based on user role
+        if (currentUser && currentUser.role === 'admin') {
+            assessmentCreationForm.classList.remove('hidden');
+            // Ensure initial question field is present if admin
+            if (questionsContainer.children.length === 0) {
+                addQuestionField();
+            }
+        } else {
+            assessmentCreationForm.classList.add('hidden');
+        }
+
+        // Hide other assessment views
+        takeAssessmentContainer.classList.add('hidden');
+        viewSubmissionsContainer.classList.add('hidden');
+        assessmentListContainer.classList.remove('hidden');
+
+
+        try {
+            const response = await fetch(`/api/assessments/${currentClassroom.id}`);
+            const assessments = await response.json();
+            assessmentListDiv.innerHTML = ''; // Clear previous list
+
+            if (assessments.length === 0) {
+                assessmentListDiv.innerHTML = '<p>No assessments available in this classroom.</p>';
+            } else {
+                assessments.forEach(assessment => {
+                    const assessmentItem = document.createElement('div');
+                    assessmentItem.classList.add('assessment-item');
+                    assessmentItem.innerHTML = `
+                        <div>
+                            <h4>${assessment.title}</h4>
+                            <p>${assessment.description || 'No description'}</p>
+                            <p>Created by: ${assessment.creator_username} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                            ${currentUser.role === 'admin' ? 
+                                `<button class="view-submissions-btn" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>` :
+                                `<button class="take-assessment-btn" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`
+                            }
+                        </div>
+                    `;
+                    assessmentListDiv.appendChild(assessmentItem);
+                });
+
+                document.querySelectorAll('.take-assessment-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const assessmentId = e.target.dataset.assessmentId;
+                        const assessmentTitle = e.target.dataset.assessmentTitle;
+                        const assessmentDescription = e.target.dataset.assessmentDescription;
+                        takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
+                    });
+                });
+
+                document.querySelectorAll('.view-submissions-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const assessmentId = e.target.dataset.assessmentId;
+                        const assessmentTitle = e.target.dataset.assessmentTitle;
+                        viewSubmissions(assessmentId, assessmentTitle);
+                    });
+                });
+            }
+        } catch (error) {
+            console.error('Error loading assessments:', error);
+            assessmentListDiv.innerHTML = '<p>Failed to load assessments.</p>';
+        }
+    }
+
+    async function takeAssessment(assessmentId, title, description) {
+        currentAssessmentToTake = { id: assessmentId, title: title, description: description };
+
+        assessmentListContainer.classList.add('hidden');
+        assessmentCreationForm.classList.add('hidden'); // Hide creation form
+        takeAssessmentContainer.classList.remove('hidden');
+        viewSubmissionsContainer.classList.add('hidden'); // Hide submissions view
+
+        takeAssessmentTitle.textContent = title;
+        takeAssessmentDescription.textContent = description;
+        takeAssessmentForm.innerHTML = ''; // Clear previous questions
+        assessmentSubmissionMessage.textContent = ''; // Clear submission message
+
+        try {
+            const response = await fetch(`/api/assessment/${assessmentId}/questions`);
+            const questions = await response.json();
+
+            if (questions.length === 0) {
+                takeAssessmentForm.innerHTML = '<p>No questions found for this assessment.</p>';
+                submitAnswersBtn.disabled = true;
+                return;
+            }
+            submitAnswersBtn.disabled = false;
+
+            questions.forEach((question, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.classList.add('question-display');
+                questionDiv.dataset.questionId = question.id;
+                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text}</label>`;
+
+                if (question.question_type === 'text') {
+                    const textarea = document.createElement('textarea');
+                    textarea.name = `question-${question.id}`;
+                    textarea.placeholder = 'Your answer here...';
+                    textarea.rows = 3;
+                    questionDiv.appendChild(textarea);
+                } else if (question.question_type === 'mcq' && question.options) {
+                    question.options.forEach((option, optIndex) => {
+                        const optionId = `q${question.id}-opt${optIndex}`;
+                        const radioInput = document.createElement('input');
+                        radioInput.type = 'radio';
+                        radioInput.name = `question-${question.id}`;
+                        radioInput.id = optionId;
+                        radioInput.value = option;
+                        radioInput.classList.add('mcq-option-radio');
+
+                        const label = document.createElement('label');
+                        label.htmlFor = optionId;
+                        label.textContent = option;
+                        label.classList.add('mcq-option-label');
+
+                        questionDiv.appendChild(radioInput);
+                        questionDiv.appendChild(label);
+                        questionDiv.appendChild(document.createElement('br'));
+                    });
+                }
+                takeAssessmentForm.appendChild(questionDiv);
+            });
+        } catch (error) {
+            console.error('Error loading assessment questions:', error);
+            takeAssessmentForm.innerHTML = '<p>Failed to load questions.</p>';
+            submitAnswersBtn.disabled = true;
+        }
+    }
+
+    if (submitAnswersBtn) {
+        submitAnswersBtn.addEventListener('click', async () => {
+            if (!currentAssessmentToTake || !currentClassroom || !currentClassroom.id) {
+                displayMessage(assessmentSubmissionMessage, 'No assessment selected.', true);
+                return;
+            }
+
+            const answers = [];
+            const questionDivs = takeAssessmentForm.querySelectorAll('.question-display');
+
+            questionDivs.forEach(qDiv => {
+                const questionId = qDiv.dataset.questionId;
+                let userAnswer = '';
+
+                const textarea = qDiv.querySelector('textarea');
+                const radioInputs = qDiv.querySelectorAll('input[type="radio"]:checked');
+
+                if (textarea) {
+                    userAnswer = textarea.value.trim();
+                } else if (radioInputs.length > 0) {
+                    userAnswer = radioInputs[0].value;
+                }
+                answers.push({ questionId: questionId, answer: userAnswer });
+            });
+
+            try {
+                const response = await fetch('/api/submit-assessment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        assessmentId: currentAssessmentToTake.id,
+                        classroomId: currentClassroom.id,
+                        answers: answers
+                    })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    displayMessage(assessmentSubmissionMessage, `Assessment submitted! Your score: ${result.score}/${result.total_questions}`, false);
+                    submitAnswersBtn.disabled = true; // Prevent re-submission
+                    // Optionally, clear the form or navigate back
+                } else {
+                    displayMessage(assessmentSubmissionMessage, result.error, true);
+                }
+            } catch (error) {
+                console.error('Error submitting assessment:', error);
+                displayMessage(assessmentSubmissionMessage, 'An error occurred during submission.', true);
+            }
+        });
+    }
+
+    if (backToAssessmentListBtn) {
+        backToAssessmentListBtn.addEventListener('click', () => {
+            currentAssessmentToTake = null;
+            loadAssessments(); // Go back to the list of assessments
+        });
+    }
+
+    async function viewSubmissions(assessmentId, title) {
+        assessmentListContainer.classList.add('hidden');
+        assessmentCreationForm.classList.add('hidden');
+        takeAssessmentContainer.classList.add('hidden');
+        viewSubmissionsContainer.classList.remove('hidden');
+
+        submissionsAssessmentTitle.textContent = `Submissions for: ${title}`;
+        submissionsList.innerHTML = ''; // Clear previous submissions
+
+        try {
+            const response = await fetch(`/api/assessment/${assessmentId}/submissions`);
+            const submissions = await response.json();
+
+            if (submissions.length === 0) {
+                submissionsList.innerHTML = '<p>No submissions yet for this assessment.</p>';
+                return;
+            }
+
+            submissions.forEach(submission => {
+                const submissionItem = document.createElement('div');
+                submissionItem.classList.add('submission-item');
+                submissionItem.innerHTML = `
+                    <h5>Submitted by: ${submission.student_username} on ${new Date(submission.submitted_at).toLocaleString()}</h5>
+                    <p>Score: ${submission.score}/${submission.total_questions}</p>
+                `;
+                
+                submission.answers.forEach(answer => {
+                    const answerPair = document.createElement('div');
+                    answerPair.classList.add('question-answer-pair');
+                    answerPair.innerHTML = `
+                        <p><strong>Q:</strong> ${answer.question_text}</p>
+                        <p><strong>Your Answer:</strong> ${answer.user_answer || 'N/A'}</p>
+                    `;
+                    if (answer.is_correct !== undefined && answer.is_correct !== null) {
+                        answerPair.innerHTML += `<p><strong>Correct:</strong> ${answer.is_correct ? 'Yes' : 'No'} (Expected: ${answer.correct_answer || 'N/A'})</p>`;
+                        answerPair.style.backgroundColor = answer.is_correct ? '#e6ffe6' : '#ffe6e6'; // Light green for correct, light red for incorrect
+                    } else if (answer.correct_answer) { // Show correct answer for text questions if available
+                        answerPair.innerHTML += `<p><strong>Expected Answer:</strong> ${answer.correct_answer}</p>`;
+                    }
+                    submissionItem.appendChild(answerPair);
+                });
+                submissionsList.appendChild(submissionItem);
+            });
+
+        } catch (error) {
+            console.error('Error loading submissions:', error);
+            submissionsList.innerHTML = '<p>Failed to load submissions.</p>';
+        }
+    }
+
+    if (backToAssessmentListFromSubmissionsBtn) {
+        backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => {
+            loadAssessments(); // Go back to the list of assessments
+        });
+    }
 
     // --- Initial Load ---
     checkLoginStatus(); // Initialize app state based on login status
