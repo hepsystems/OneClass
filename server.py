@@ -1,5 +1,12 @@
 # server.py
 
+# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
+import gevent.monkey
+gevent.monkey.patch_all()
+# If the error persists, you could try: gevent.monkey.patch_all(ssl=False)
+# However, try without ssl=False first, as it might affect other SSL operations.
+
+# --- Standard Imports ---
 from flask import Flask, request, jsonify, send_from_directory
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -7,26 +14,16 @@ import os
 import uuid
 from datetime import datetime
 from flask_sock import Sock # For WebSockets
-import json # <--- ADDED: json module is used in WebSocket handling
-# from pymongo import MongoClient # <--- REMOVED: No longer needed if using Flask-PyMongo consistently
+import json # json module is used in WebSocket handling
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
 # --- MongoDB Configuration & Connection ---
-# Set MONGO_URI in app.config BEFORE initializing PyMongo.
-# This ensures Flask-PyMongo uses the correct URI from your environment variable.
 app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/oneclass_db')
-# Added '/oneclass_db' to the default local URI for consistency with your collection definitions.
-
-mongo = PyMongo(app) # Initialize Flask-PyMongo using the URI from app.config
+mongo = PyMongo(app)
 sock = Sock(app)
 
-# REMOVED: The following lines create a *separate* MongoClient instance,
-# leading to redundant connections and potential inconsistencies.
-# client = MongoClient(MONGO_URI)
-# db = client.oneclass_db
-
-# MongoDB Collections (Now correctly using mongo.db which is managed by Flask-PyMongo)
+# MongoDB Collections
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 library_files_collection = mongo.db.library_files
@@ -245,13 +242,6 @@ def chat_websocket(ws):
         print(f"WebSocket disconnected: {username} from classroom {class_room_id}")
 
 if __name__ == '__main__':
-    # To run with Flask-Sock, you typically use a production-ready WSGI server like Gunicorn or Gevent.
-    # For development, you can run it directly:
-    # app.run(debug=True, port=5000)
-    # However, `flask run` (which uses Werkzeug) doesn't fully support WebSockets natively without
-    # an additional layer. For simple testing, you *might* get away with it, but for robust WS,
-    # use a dedicated server.
-    # Example for development using Gevent with Flask-Sock:
     from gevent.pywsgi import WSGIServer
     from geventwebsocket.handler import WebSocketHandler
 
