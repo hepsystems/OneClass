@@ -1,3 +1,5 @@
+# server.py
+
 from flask import Flask, request, jsonify, send_from_directory
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -5,18 +7,26 @@ import os
 import uuid
 from datetime import datetime
 from flask_sock import Sock # For WebSockets
-from pymongo import MongoClient
+import json # <--- ADDED: json module is used in WebSocket handling
+# from pymongo import MongoClient # <--- REMOVED: No longer needed if using Flask-PyMongo consistently
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
-mongo = PyMongo(app)
+
+# --- MongoDB Configuration & Connection ---
+# Set MONGO_URI in app.config BEFORE initializing PyMongo.
+# This ensures Flask-PyMongo uses the correct URI from your environment variable.
+app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/oneclass_db')
+# Added '/oneclass_db' to the default local URI for consistency with your collection definitions.
+
+mongo = PyMongo(app) # Initialize Flask-PyMongo using the URI from app.config
 sock = Sock(app)
 
+# REMOVED: The following lines create a *separate* MongoClient instance,
+# leading to redundant connections and potential inconsistencies.
+# client = MongoClient(MONGO_URI)
+# db = client.oneclass_db
 
-MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/') # This line correctly reads from environment variables
-client = MongoClient(MONGO_URI)
-db = client.oneclass_db
-
-# MongoDB Collections
+# MongoDB Collections (Now correctly using mongo.db which is managed by Flask-PyMongo)
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 library_files_collection = mongo.db.library_files
@@ -199,7 +209,7 @@ def chat_websocket(ws):
     # Add this WebSocket to the group for the specific classroom
     if class_room_id not in connected_websockets:
         connected_websockets[class_room_id] = {}
-    
+
     # Store by a unique identifier, e.g., username + a unique ID for multiple tabs
     ws_id = f"{username}-{uuid.uuid4()}"
     connected_websockets[class_room_id][ws_id] = ws
@@ -212,7 +222,7 @@ def chat_websocket(ws):
                 data = json.loads(message)
                 data['username'] = username # Add sender's username
                 data['classroomId'] = class_room_id # Ensure classroom ID is in message
-                
+
                 # Broadcast message to all participants in the same classroom
                 for _ws_id, client_ws in connected_websockets.get(class_room_id, {}).items():
                     if client_ws != ws: # Don't send back to sender
@@ -235,8 +245,6 @@ def chat_websocket(ws):
         print(f"WebSocket disconnected: {username} from classroom {class_room_id}")
 
 if __name__ == '__main__':
-    import json # Import json for WebSocket handling
-
     # To run with Flask-Sock, you typically use a production-ready WSGI server like Gunicorn or Gevent.
     # For development, you can run it directly:
     # app.run(debug=True, port=5000)
