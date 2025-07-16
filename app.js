@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
-    let penColor = '#000000'; // Default black
+    let penColor = '#FFFFFF'; // Default white
     let penWidth = 2; // Default width
 
 
