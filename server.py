@@ -106,6 +106,7 @@ def login():
 
     session['user_id'] = user['id'] # Store user ID in session
     session['username'] = user['username'] # Store username in session
+    session['role'] = user['role'] # Store role in session
     session.permanent = True # Make session permanent
 
     return jsonify({
@@ -122,6 +123,7 @@ def login():
 def logout():
     session.pop('user_id', None)
     session.pop('username', None)
+    session.pop('role', None) # Clear role from session
     return jsonify({"message": "Logged out successfully"}), 200
 
 @app.route('/api/update-profile', methods=['POST'])
@@ -295,7 +297,8 @@ def join_classroom():
             {"$addToSet": {"participants": user_id}} # Add user to participants if not already there
         )
         # Notify existing participants that a new user joined via Socket.IO
-        socketio.emit('participant_join', {'username': session.get('username'), 'classroomId': classroom_id}, room=classroom_id)
+        # Changed to emit with user_id, which can be used to send whiteboard history to specific user
+        socketio.emit('participant_join', {'username': session.get('username'), 'user_id': user_id, 'classroomId': classroom_id}, room=classroom_id)
         return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
     else:
         return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
@@ -358,6 +361,7 @@ def on_join(data):
     print(f"{username} ({user_id}) joined room: {classroomId}")
 
     # Optionally, broadcast to others in the room
+    # The client-side 'participant_join' now also emits the user_id
     emit('participant_join', {'username': username, 'user_id': user_id}, room=classroomId, include_sid=False) # Exclude sender
 
 
@@ -401,17 +405,23 @@ def handle_whiteboard_data(data):
         print("Missing classroomId for whiteboard data.")
         return
 
-    # Broadcast whiteboard data to all other clients in the same room
-    # The client that sent the data already has it, so no need to send back
-    emit('whiteboard_data', data, room=classroomId, include_sid=False)
+    # If it's a history request for a specific recipient
+    recipient_id = data.get('recipient_id')
+    if data.get('action') == 'history' and recipient_id:
+        # Emit only to the specified recipient's Socket.IO ID (which is their request.sid)
+        emit('whiteboard_data', data, room=recipient_id)
+    else:
+        # Broadcast whiteboard data to all other clients in the same room
+        # The client that sent the data already has it, so no need to send back
+        emit('whiteboard_data', data, room=classroomId, include_sid=False)
 
 @socketio.on('start_broadcast')
 def handle_start_broadcast(data):
     classroomId = data.get('classroomId')
-    peer_id = data.get('peer_id')
+    peer_id = data.get('peer_id') # This is the socket.id of the broadcaster
     if not classroomId or not peer_id:
         return
-
+    # Notify others in the room that a new broadcast has started, providing the broadcaster's peer_id (socket.id)
     emit('webrtc_offer', {'peer_id': peer_id}, room=classroomId, include_sid=False)
 
 @socketio.on('webrtc_offer')
