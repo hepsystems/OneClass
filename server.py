@@ -5,11 +5,16 @@ import os
 import uuid
 from datetime import datetime
 from flask_sock import Sock # For WebSockets
+from pymongo import MongoClient
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
-app.config["MONGO_URI"] = "mongodb+srv://your_user:your_password@your_cluster.mongodb.net/virtual_classroom?retryWrites=true&w=majority"
 mongo = PyMongo(app)
 sock = Sock(app)
+
+
+MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/') # This line correctly reads from environment variables
+client = MongoClient(MONGO_URI)
+db = client.oneclass_db
 
 # MongoDB Collections
 users_collection = mongo.db.users
