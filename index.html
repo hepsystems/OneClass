@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtual Classroom</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+    <link rel="stylesheet" href="/style.css"> <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -45,72 +44,70 @@
                 <button id="nav-settings">Settings</button>
                 <button id="logout-btn">Logout</button>
             </nav>
-            <h2>Welcome to Your Dashboard!</h2>
-            <p>Classroom ID: <span id="classroom-id-display">N/A</span></p> <p>Logged in as: <span id="current-username-display"></span></p>
+            <h2>Dashboard</h2>
+            <p>Welcome, <span id="current-username-display"></span>!</p>
+            <p>Current Classroom ID: <span id="classroom-id-display">N/A</span></p>
 
-            <div class="dashboard-content">
-                <div class="dashboard-section-item">
-                    <h3>Create New Classroom</h3>
-                    <input type="text" id="new-classroom-name" placeholder="Classroom Name" required>
-                    <button id="create-classroom-btn">Create Classroom</button>
-                    <p id="classroom-message"></p>
-                </div>
-                <div class="dashboard-section-item">
-                    <h3>Join Existing Classroom</h3>
-                    <input type="text" id="join-classroom-id" placeholder="Classroom ID" required>
-                    <button id="join-classroom-btn">Join Classroom</button>
-                    <p id="join-classroom-message"></p>
-                </div>
-                <div class="dashboard-section-item">
-                    <h3>Your Classrooms</h3>
-                    <ul id="classroom-list">
-                        </ul>
-                </div>
+            <div id="create-join-classroom">
+                <h3>Create New Classroom</h3>
+                <input type="text" id="new-classroom-name" placeholder="Classroom Name" required>
+                <button id="create-classroom-btn">Create Classroom</button>
+                <p id="classroom-message"></p>
+
+                <h3>Join Existing Classroom</h3>
+                <input type="text" id="join-classroom-id" placeholder="Classroom ID" required>
+                <button id="join-classroom-btn">Join Classroom</button>
+                <p id="join-classroom-message"></p>
             </div>
+
+            <h3>Your Classrooms</h3>
+            <ul id="classroom-list">
+                <li>Loading classrooms...</li>
+            </ul>
         </section>
 
         <section id="classroom-section" class="hidden">
             <nav class="main-nav">
                 <button id="back-to-dashboard">Back to Dashboard</button>
-                <span class="classroom-name-display">Classroom: <span id="class-name-value"></span></span>
-                <span class="classroom-id-text">ID: <span id="class-code"></span></span>
+                <button id="nav-whiteboard" class="active-nav">Whiteboard</button>
                 <button id="nav-chat">Chat</button>
-                <button id="nav-whiteboard">Whiteboard</button>
                 <button id="nav-library">Library</button>
                 <button id="nav-assessments">Assessments</button>
             </nav>
+            <h2 id="class-name-value"></h2>
+            <p>Class Code: <span id="class-code"></span></p>
 
             <div class="classroom-content">
                 <div id="whiteboard-area" class="classroom-sub-section active">
-                    <h3>Interactive Whiteboard & Live Broadcast</h3>
+                    <h3>Whiteboard</h3>
                     <div id="whiteboard-tools">
-                        <button id="pen-tool">Pen</button>
-                        <button id="eraser-tool">Eraser</button>
-                        <label for="pen-color">Color:</label>
-                        <input type="color" id="pen-color" value="#000000"> <label for="pen-width">Width:</label>
+                        <label for="pen-color">Pen Color:</label>
+                        <input type="color" id="pen-color" value="#000000">
+                        <label for="pen-width">Pen Width: <span id="width-value">2px</span></label>
                         <input type="range" id="pen-width" min="1" max="10" value="2">
-                        <span id="width-value">2px</span>
                         <button id="clear-whiteboard-btn">Clear Board</button>
-                        <button id="share-whiteboard-btn">Share Classroom Link</button>
+                        <button id="share-whiteboard-btn">Get Share Link</button>
+                        <div id="share-link-display" class="hidden">
+                            <input type="text" id="share-link-input" readonly>
+                            <button id="copy-share-link-btn">Copy Link</button>
+                        </div>
+                    </div>
+                    <canvas id="whiteboard-canvas"></canvas>
+
+                    <div id="video-broadcast-section">
+                        <h4>Video Broadcast</h4>
                         <button id="start-broadcast">Start Broadcast</button>
-                        <button id="join-broadcast">Join Broadcast</button>
-                        <button id="end-broadcast">End Broadcast</button>
-                    </div>
-                    <div id="share-link-display" class="hidden">
-                        <input type="text" id="share-link-input" readonly>
-                        <button id="copy-share-link-btn">Copy</button>
-                    </div>
-                    <canvas id="whiteboard-canvas" width="800" height="600"></canvas>
-                    <div id="video-broadcast-container">
-                        <h4>Participants' Videos</h4>
-                        <div id="remote-video-container"></div>
-                        <video id="local-video" autoplay muted></video>
+                        <button id="end-broadcast" disabled>End Broadcast</button>
+                        <video id="local-video" autoplay muted playsinline></video>
+                        <div id="remote-video-container">
+                            </div>
                     </div>
                 </div>
 
                 <div id="chat-section" class="classroom-sub-section hidden">
-                    <h3>Chat</h3>
-                    <div id="chat-messages"></div>
+                    <h3>Class Chat</h3>
+                    <div id="chat-messages">
+                        </div>
                     <input type="text" id="chat-input" placeholder="Type your message...">
                     <button id="send-chat-button">Send</button>
                 </div>
@@ -146,6 +143,5 @@
     </div>
 
     <script src="app.js"></script>
-    <script src="classroom.js"></script>
 </body>
 </html>
