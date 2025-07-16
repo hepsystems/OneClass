@@ -210,6 +210,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Function to get the display name with role tag
+    function getDisplayName(username, role) {
+        return role === 'admin' ? `${username} (Admin)` : username;
+    }
+
 
     async function loadUserClassrooms() {
         if (!currentUser || !currentUser.id) {
@@ -322,7 +327,9 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('message', (data) => {
             console.log('[Chat] Received Message:', data);
             const messageElement = document.createElement('div');
-            messageElement.textContent = `${data.username}: ${data.message}`;
+            // Display username with (Admin) tag if applicable
+            const senderDisplayName = getDisplayName(data.username, data.role);
+            messageElement.textContent = `${senderDisplayName}: ${data.message}`;
             chatMessages.appendChild(messageElement);
             chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
         });
@@ -330,7 +337,9 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('user_joined', (data) => {
             console.log(`[Socket.IO] ${data.username} (${data.sid}) has joined the classroom.`);
             const statusMessage = document.createElement('div');
-            statusMessage.textContent = `${data.username} has joined the classroom.`;
+            // Display username with (Admin) tag if applicable
+            const joinedDisplayName = getDisplayName(data.username, data.role);
+            statusMessage.textContent = `${joinedDisplayName} has joined the classroom.`;
             statusMessage.style.fontStyle = 'italic';
             chatMessages.appendChild(statusMessage);
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -346,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('user_left', (data) => {
             console.log(`[Socket.IO] ${data.username} (${data.sid}) has left the classroom.`);
             const statusMessage = document.createElement('div');
-            statusMessage.textContent = `${data.username} has left the classroom.`;
+            statusMessage.textContent = `${data.username} has left the classroom.`; // Role not available here, so no tag
             statusMessage.style.fontStyle = 'italic';
             chatMessages.appendChild(statusMessage);
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -481,7 +490,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkLoginStatus() {
         if (currentUser) {
             showSection(dashboardSection);
-            currentUsernameDisplay.textContent = currentUser.username;
+            // Display username with (Admin) tag if applicable
+            currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
             classroomIdDisplay.textContent = currentClassroom ? currentClassroom.id : 'N/A';
             loadUserClassrooms();
             updateNavActiveState(navDashboard);
@@ -872,7 +882,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert(result.message);
                     currentUser.username = username; // Update local user object
                     localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Update local storage
-                    currentUsernameDisplay.textContent = currentUser.username; // Update dashboard display
+                    // Update dashboard display with new username and role tag
+                    currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
                 } else {
                     alert('Error updating profile: ' + (result.error || 'Unknown error'));
                 }
@@ -927,7 +938,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('message', {
                     classroomId: currentClassroom.id,
                     message: message,
-                    username: currentUser.username
+                    username: currentUser.username,
+                    role: currentUser.role // Include sender's role
                 });
                 chatInput.value = '';
             }
@@ -1444,7 +1456,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div>
                             <h4>${assessment.title}</h4>
                             <p>${assessment.description || 'No description'}</p>
-                            <p>Created by: ${assessment.creator_username} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
+                            <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
                         </div>
                         <div>
                             ${currentUser.role === 'admin' ? 
@@ -1623,8 +1635,10 @@ document.addEventListener('DOMContentLoaded', () => {
             submissions.forEach(submission => {
                 const submissionItem = document.createElement('div');
                 submissionItem.classList.add('submission-item');
+                // Display student username with (Admin) tag if applicable (though unlikely for student submissions)
+                const studentDisplayName = getDisplayName(submission.student_username, submission.student_role || 'user'); // Assuming student_role might be passed from backend
                 submissionItem.innerHTML = `
-                    <h5>Submitted by: ${submission.student_username} on ${new Date(submission.submitted_at).toLocaleString()}</h5>
+                    <h5>Submitted by: ${studentDisplayName} on ${new Date(submission.submitted_at).toLocaleString()}</h5>
                     <p>Score: ${submission.score}/${submission.total_questions}</p>
                 `;
                 
