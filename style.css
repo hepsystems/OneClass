@@ -38,6 +38,31 @@ section {
     display: block;
 }
 
+/* Role-specific highlights */
+.admin-feature-highlight {
+    border: 1px solid #007bff; /* Blue border for admin features */
+    background-color: #e6f0ff; /* Light blue background */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.user-view-subtle {
+    border: 1px solid #28a745; /* Green border for user-specific views */
+    background-color: #e6ffe6; /* Light green background */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.role-message {
+    font-style: italic;
+    color: #888;
+    margin-top: 10px;
+    text-align: center;
+}
+
+
 /* Navigation */
 .main-nav {
     display: flex;
