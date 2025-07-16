@@ -121,10 +121,55 @@
 
                 <div id="assessments-section" class="classroom-sub-section hidden">
                     <h3>Assessments</h3>
-                    <input type="text" id="assessment-title" placeholder="Assessment Title">
-                    <textarea id="assessment-description" placeholder="Description"></textarea>
-                    <button id="create-assessment-btn">Create Assessment</button>
-                    <div id="assessment-list"></div>
+                    <div id="assessment-creation-form" class="hidden">
+                        <h4>Create New Assessment</h4>
+                        <input type="text" id="assessment-title" placeholder="Assessment Title" required>
+                        <textarea id="assessment-description" placeholder="Description"></textarea>
+                        
+                        <div id="questions-container">
+                            <h5>Questions</h5>
+                            <div class="question-item">
+                                <label>Question 1:</label>
+                                <input type="text" class="question-text" placeholder="Enter question text" required>
+                                <select class="question-type">
+                                    <option value="text">Text Answer</option>
+                                    <option value="mcq">Multiple Choice</option>
+                                </select>
+                                <div class="mcq-options hidden">
+                                    <input type="text" class="mcq-option" placeholder="Option A">
+                                    <input type="text" class="mcq-option" placeholder="Option B">
+                                    <input type="text" class="mcq-option" placeholder="Option C">
+                                    <input type="text" class="mcq-option" placeholder="Option D">
+                                    <input type="text" class="mcq-correct-answer" placeholder="Correct Option (e.g., A, B)">
+                                </div>
+                            </div>
+                        </div>
+                        <button id="add-question-btn">Add Question</button>
+                        <button id="submit-assessment-btn">Create Assessment</button>
+                        <p id="assessment-creation-message"></p>
+                    </div>
+
+                    <div id="assessment-list-container">
+                        <h4>Available Assessments</h4>
+                        <div id="assessment-list"></div>
+                    </div>
+
+                    <div id="take-assessment-container" class="hidden">
+                        <h4 id="take-assessment-title"></h4>
+                        <p id="take-assessment-description"></p>
+                        <form id="take-assessment-form">
+                            <!-- Questions will be dynamically loaded here -->
+                        </form>
+                        <button id="submit-answers-btn">Submit Answers</button>
+                        <p id="assessment-submission-message"></p>
+                        <button id="back-to-assessment-list-btn">Back to Assessments</button>
+                    </div>
+
+                    <div id="view-submissions-container" class="hidden">
+                        <h4 id="submissions-assessment-title"></h4>
+                        <div id="submissions-list"></div>
+                        <button id="back-to-assessment-list-from-submissions-btn">Back to Assessments</button>
+                    </div>
                 </div>
             </div>
         </section>
