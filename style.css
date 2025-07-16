@@ -156,7 +156,7 @@ section {
 
 .dashboard-content {
     display: flex;
-    flex-wrap: wrap; /* Allow items to wrap */
+    flex-wrap: wrap; /* Allow items to grow and shrink */
     gap: 20px;
 }
 
@@ -404,30 +404,240 @@ section {
 }
 
 /* Assessments Section */
+#assessments-section h3 {
+    margin-top: 0;
+}
+
+#assessment-creation-form {
+    padding: 15px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+    background-color: #fcfcfc;
+    margin-bottom: 20px;
+}
+
+#assessment-creation-form h4,
+#assessment-creation-form h5 {
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+#assessment-creation-form input[type="text"],
+#assessment-creation-form textarea,
+#assessment-creation-form select {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.question-item {
+    border: 1px solid #e9ecef;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    background-color: #ffffff;
+}
+
+.question-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #555;
+}
+
+.question-item .mcq-options {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px dashed #ccc;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+}
+
+.question-item .mcq-option,
+.question-item .mcq-correct-answer {
+    margin-bottom: 5px;
+}
+
+#add-question-btn,
+#submit-assessment-btn,
+#submit-answers-btn,
+#back-to-assessment-list-btn,
+#back-to-assessment-list-from-submissions-btn {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
+#add-question-btn:hover,
+#submit-assessment-btn:hover,
+#submit-answers-btn:hover,
+#back-to-assessment-list-btn:hover,
+#back-to-assessment-list-from-submissions-btn:hover {
+    background-color: #0056b3;
+}
+
+#assessment-list-container {
+    margin-top: 20px;
+}
+
 #assessment-list {
     margin-top: 15px;
     border-top: 1px solid #eee;
     padding-top: 10px;
 }
 
-#assessment-list div {
+.assessment-item {
     background-color: #e6f7ff;
     border: 1px solid #b3e0ff;
     padding: 10px;
     margin-bottom: 10px;
     border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-#assessment-list h4 {
+.assessment-item h4 {
     margin-top: 0;
     margin-bottom: 5px;
     color: #0056b3;
 }
 
-#assessment-list p {
+.assessment-item p {
     margin-bottom: 5px;
     font-size: 0.9em;
 }
+
+.assessment-item button {
+    background-color: #28a745;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+.assessment-item button.view-submissions-btn {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.assessment-item button.view-submissions-btn:hover {
+    background-color: #e0a800;
+}
+
+.assessment-item button:hover {
+    background-color: #218838;
+}
+
+/* Take Assessment Container */
+#take-assessment-container {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin-top: 20px;
+}
+
+#take-assessment-container h4 {
+    color: #0056b3;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+#take-assessment-container p {
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+#take-assessment-form .question-display {
+    background-color: #fff;
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+}
+
+#take-assessment-form .question-display label {
+    display: block;
+    margin-bottom: 10px;
+    font-weight: bold;
+    color: #333;
+}
+
+#take-assessment-form .question-display input[type="text"],
+#take-assessment-form .question-display textarea {
+    width: calc(100% - 22px);
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin-top: 5px;
+}
+
+#take-assessment-form .question-display .mcq-option-radio {
+    margin-right: 8px;
+}
+
+#take-assessment-form .question-display .mcq-option-label {
+    display: inline-block;
+    margin-bottom: 8px;
+}
+
+/* View Submissions Container */
+#view-submissions-container {
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin-top: 20px;
+}
+
+#view-submissions-container h4 {
+    color: #0056b3;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.submission-item {
+    background-color: #fff;
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+}
+
+.submission-item h5 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.submission-item p {
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+.submission-item .question-answer-pair {
+    margin-bottom: 10px;
+    padding-left: 10px;
+    border-left: 3px solid #007bff;
+}
+
+.submission-item .question-answer-pair strong {
+    color: #555;
+}
+
 
 /* Video Broadcast Section */
 #remote-video-container {
