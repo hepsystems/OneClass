@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Specific messages for restricted features
         if (whiteboardRoleMessage) {
             whiteboardRoleMessage.classList.toggle('hidden', isAdmin);
-            whiteboardRoleMessage.textContent = isAdmin ? '' : 'Only administrators can draw on the whiteboard.';
+            whiteboardRoleMessage.textContent = isAdmin ? '' : 'Only administrators can draw on the whiteboard. Your view is read-only.';
         }
         if (broadcastRoleMessage) {
             broadcastRoleMessage.classList.toggle('hidden', isAdmin);
@@ -1497,6 +1497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         assessmentListContainer.classList.add('hidden');
         assessmentCreationForm.classList.add('hidden'); // Hide creation form
         takeAssessmentContainer.classList.remove('hidden');
+        takeAssessmentContainer.classList.add('user-view-subtle'); // Add subtle highlight for user view
         viewSubmissionsContainer.classList.add('hidden'); // Hide submissions view
 
         takeAssessmentTitle.textContent = title;
