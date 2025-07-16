@@ -1,4 +1,4 @@
-// app.js
+// app.js (All-in-One: Includes functionality previously in classroom.js)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -36,13 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const navWhiteboard = document.getElementById('nav-whiteboard');
     const navLibrary = document.getElementById('nav-library');
     const navAssessments = document.getElementById('nav-assessments');
-    // const navVideoBroadcast = document.getElementById('nav-video-broadcast'); // Removed, as video is merged into whiteboard
 
     const chatSection = document.getElementById('chat-section');
     const whiteboardArea = document.getElementById('whiteboard-area');
     const librarySection = document.getElementById('library-section');
     const assessmentsSection = document.getElementById('assessments-section');
-    // const videoBroadcastSection = document.getElementById('video-broadcast-section'); // Removed
 
     const settingsSection = document.getElementById('settings-section');
     const updateProfileForm = document.getElementById('update-profile-form');
@@ -56,9 +54,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
 
+    // Chat functionality elements (moved from classroom.js)
+    const chatInput = document.getElementById('chat-input');
+    const sendMessageBtn = document.getElementById('send-chat-button');
+    const chatMessages = document.getElementById('chat-messages');
 
+    // Whiteboard Elements (moved from classroom.js)
+    const whiteboardCanvas = document.getElementById('whiteboard-canvas');
+    const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize if canvas exists
+    const penColorInput = document.getElementById('pen-color');
+    const penWidthInput = document.getElementById('pen-width');
+    const widthValueSpan = document.getElementById('width-value');
+    const clearBoardBtn = document.getElementById('clear-whiteboard-btn');
+
+    // Video Broadcast Elements (moved from classroom.js)
+    const startBroadcastBtn = document.getElementById('start-broadcast');
+    const endBroadcastBtn = document.getElementById('end-broadcast');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideoContainer = document.getElementById('remote-video-container');
+
+
+    // --- Global Variables (moved from classroom.js) ---
+    let socket;
     let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
     let currentClassroom = JSON.parse(localStorage.getItem('currentClassroom')) || null;
+
+    // WebRTC Variables
+    let localStream;
+    const peerConnections = {}; // Store RTCPeerConnection objects keyed by peerId (which is the remote socket.id)
+    const iceServers = {
+        'iceServers': [
+            { 'urls': 'stun:stun.l.google.com:19302' }, // Public STUN server
+            // Add TURN servers if needed for more complex network scenarios
+            // { 'urls': 'turn:your-turn-server.com:3478', 'username': 'user', 'credential': 'password' }
+        ]
+    };
+
+    // Whiteboard Drawing State Variables
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+    let penColor = '#000000'; // Default black
+    let penWidth = 2; // Default width
 
 
     // --- Utility Functions ---
@@ -81,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showClassroomSubSection(subSectionToShow) {
-        [whiteboardArea, chatSection, librarySection, assessmentsSection].forEach(subSection => { // Removed videoBroadcastSection
+        [whiteboardArea, chatSection, librarySection, assessmentsSection].forEach(subSection => {
             if (subSection) {
                 subSection.classList.add('hidden');
                 subSection.classList.remove('active');
@@ -94,7 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateNavActiveState(activeButton) {
-        // Removed navVideoBroadcast from the list
         [navDashboard, navClassroom, navSettings, navChat, navWhiteboard, navLibrary, navAssessments].forEach(btn => {
             if (btn) btn.classList.remove('active-nav');
         });
@@ -150,12 +186,198 @@ document.addEventListener('DOMContentLoaded', () => {
         showClassroomSubSection(whiteboardArea); // Default to whiteboard
         updateNavActiveState(navWhiteboard); // Update active nav button
 
-        // Notify classroom.js to join the Socket.IO room, passing the full currentUser object
-        window.dispatchEvent(new CustomEvent('classroomEntered', { detail: { classroomId: id, currentUser: currentUser } }));
+        // --- Direct calls to merged classroom functionality ---
+        initializeSocketIO();
+        setupWhiteboardControls();
+        // Reset broadcast buttons state
+        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
 
         // Hide share link display when entering a new classroom
         shareLinkDisplay.classList.add('hidden');
         shareLinkInput.value = '';
+    }
+
+    // --- Socket.IO Initialization (merged from classroom.js) ---
+    function initializeSocketIO() {
+        if (socket) {
+            socket.disconnect(); // Ensure previous connection is closed
+        }
+        socket = io(); // Connect to the Socket.IO server
+
+        socket.on('connect', () => {
+            console.log('[Socket.IO] Connected. SID:', socket.id);
+            socket.emit('join', { 'classroomId': currentClassroomId });
+        });
+
+        socket.on('disconnect', () => {
+            console.log('[Socket.IO] Disconnected');
+            // Clean up WebRTC peer connections on disconnect
+            for (const peerId in peerConnections) {
+                if (peerConnections[peerId]) {
+                    peerConnections[peerId].close();
+                    delete peerConnections[peerId];
+                }
+            }
+            // Also explicitly remove remote videos
+            if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
+        });
+
+        socket.on('status', (data) => {
+            console.log('[Socket.IO] Server Status:', data.message);
+        });
+
+        socket.on('message', (data) => {
+            console.log('[Chat] Received Message:', data);
+            const messageElement = document.createElement('div');
+            messageElement.textContent = `${data.username}: ${data.message}`;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+        });
+
+        socket.on('user_joined', (data) => {
+            console.log(`[Socket.IO] ${data.username} (${data.sid}) has joined the classroom.`);
+            const statusMessage = document.createElement('div');
+            statusMessage.textContent = `${data.username} has joined the classroom.`;
+            statusMessage.style.fontStyle = 'italic';
+            chatMessages.appendChild(statusMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // If I am the admin broadcaster and have a local stream,
+            // create an offer for the new participant's SID
+            if (localStream && localStream.active && currentUser && currentUser.role === 'admin' && data.sid !== socket.id) {
+                console.log(`[WebRTC] Admin broadcasting. Creating offer for new peer: ${data.sid}`);
+                createPeerConnection(data.sid, true); // true indicates caller (initiating offer)
+            }
+        });
+
+        socket.on('user_left', (data) => {
+            console.log(`[Socket.IO] ${data.username} (${data.sid}) has left the classroom.`);
+            const statusMessage = document.createElement('div');
+            statusMessage.textContent = `${data.username} has left the classroom.`;
+            statusMessage.style.fontStyle = 'italic';
+            chatMessages.appendChild(statusMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            const peerId = data.sid;
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        });
+
+        // --- Whiteboard Socket.IO Handlers ---
+        socket.on('whiteboard_data', (data) => {
+            if (data.action === 'draw') {
+                const { prevX, prevY, currX, currY, color, width } = data;
+                drawLine(prevX, prevY, currX, currY, color, width);
+            } else if (data.action === 'clear') {
+                if (whiteboardCtx) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                }
+            } else if (data.action === 'history' && data.data) {
+                // Redraw history for new participants
+                console.log('[Whiteboard] Receiving history. Items:', data.data.length);
+                data.data.forEach(drawCommand => {
+                    if (drawCommand.action === 'draw') {
+                        const { prevX, prevY, currX, currY, color, width } = drawCommand;
+                        drawLine(prevX, prevY, currX, currY, color, width);
+                    }
+                });
+            }
+        });
+
+        // --- WebRTC Socket.IO Handlers ---
+        socket.on('webrtc_offer', async (data) => {
+            if (data.sender_id === socket.id) return; // Ignore offer from self
+            console.log('[WebRTC] Received WebRTC Offer from:', data.sender_id);
+
+            const peerId = data.sender_id;
+            if (!peerConnections[peerId]) {
+                // Create PC if it doesn't exist. This is the receiver, so isCaller is false.
+                createPeerConnection(peerId, false);
+            }
+
+            // Ensure local stream is acquired if not already (for receiving)
+            if (!localStream) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    localVideo.srcObject = localStream;
+                    console.log("[WebRTC] Acquired local stream for receiving.");
+                    // If we acquired stream after peer connection created, add tracks now
+                    if (peerConnections[peerId] && !peerConnections[peerId].getLocalStreams().length) {
+                         localStream.getTracks().forEach(track => peerConnections[peerId].addTrack(track, localStream));
+                    }
+                } catch (err) {
+                    console.error("[WebRTC] Error acquiring local stream for receiving:", err);
+                    alert("Could not access camera/microphone for video call. Receiving might be affected.");
+                }
+            } else {
+                 if (peerConnections[peerId] && !peerConnections[peerId].getLocalStreams().length) {
+                    localStream.getTracks().forEach(track => peerConnections[peerId].addTrack(track, localStream));
+                 }
+            }
+
+            try {
+                await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnections[peerId].createAnswer();
+                await peerConnections[peerId].setLocalDescription(answer);
+                socket.emit('webrtc_answer', {
+                    classroomId: currentClassroomId,
+                    recipient_id: peerId, // Send answer back to the offerer
+                    answer: peerPeerConnectionss[peerId].localDescription
+                });
+                console.log('[WebRTC] Sent WebRTC Answer to:', peerId);
+            } catch (error) {
+                console.error('[WebRTC] Error handling offer:', error);
+            }
+        });
+
+        socket.on('webrtc_answer', async (data) => {
+            if (data.sender_id === socket.id) return; // Ignore answer from self
+            console.log('[WebRTC] Received WebRTC Answer from:', data.sender_id);
+            const peerId = data.sender_id;
+            if (peerConnections[peerId]) {
+                try {
+                    await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.answer));
+                } catch (error) {
+                    console.error('[WebRTC] Error handling answer:', error);
+                }
+            }
+        });
+
+        socket.on('webrtc_ice_candidate', async (data) => {
+            if (data.sender_id === socket.id) return; // Ignore candidate from self
+            console.log('[WebRTC] Received ICE Candidate from:', data.sender_id);
+            const peerId = data.sender_id;
+            if (peerConnections[peerId] && data.candidate) { // Ensure candidate is not null
+                try {
+                    await peerConnections[peerId].addIceCandidate(new RTCIceCandidate(data.candidate));
+                } catch (error) {
+                    if (!error.message.includes('wrong state') && !error.message.includes('remote answer sdp')) {
+                        console.error('[WebRTC] Error adding ICE candidate:', error);
+                    }
+                }
+            }
+        });
+
+        socket.on('webrtc_peer_disconnected', (data) => {
+            console.log('[WebRTC] Peer disconnected signal received:', data.peer_id);
+            const peerId = data.peer_id;
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                    console.log(`[WebRTC] Removed video for disconnected peer: ${peerId}`);
+                }
+            }
+        });
     }
 
     function checkLoginStatus() {
@@ -169,8 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const pathParts = window.location.pathname.split('/');
             if (pathParts[1] === 'classroom' && pathParts.length > 2) {
                 const idFromUrl = pathParts[2];
-                // You might need to fetch classroom name here if not already known
-                // For simplicity, directly enter with ID
                 enterClassroom(idFromUrl, `Classroom ${idFromUrl.substring(0, 8)}...`); // Placeholder name
             }
         } else {
@@ -271,8 +491,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = null;
                     currentClassroom = null;
                     showSection(authSection);
-                    // Notify classroom.js to leave the room
-                    window.dispatchEvent(new CustomEvent('classroomLeft')); // Dispatch classroomLeft on logout
+                    // --- Direct calls for cleanup ---
+                    if (socket) {
+                        socket.emit('leave', { 'classroomId': currentClassroomId }); // Use currentClassroomId for leaving
+                        socket.disconnect();
+                        socket = null;
+                    }
+                    endBroadcast(); // Clean up broadcast related resources
+                    // Clear whiteboard canvas
+                    if (whiteboardCtx) {
+                        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    }
+                    // Hide whiteboard controls if they were shown
+                    document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
+                            .forEach(control => control.style.display = 'none');
+                    // Clear chat messages
+                    if (chatMessages) chatMessages.innerHTML = '';
+                    // Clear remote videos
+                    if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
                 } else {
                     alert('Failed to logout.');
                 }
@@ -353,8 +589,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
-            // Notify classroom.js to leave the room if currently in one
-            window.dispatchEvent(new CustomEvent('classroomLeft'));
+            // --- Direct calls for cleanup ---
+            if (socket) {
+                socket.emit('leave', { 'classroomId': currentClassroomId });
+                socket.disconnect();
+                socket = null;
+            }
+            endBroadcast(); // Clean up broadcast related resources
+            // Clear whiteboard canvas
+            if (whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
+                    .forEach(control => control.style.display = 'none');
+            // Clear chat messages
+            if (chatMessages) chatMessages.innerHTML = '';
+            // Clear remote videos
+            if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
         });
     }
 
@@ -378,11 +629,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsUsernameInput.value = currentUser.username;
                 settingsEmailInput.value = currentUser.email;
             }
-            // Notify classroom.js to leave the room if currently in one
-            window.dispatchEvent(new CustomEvent('classroomLeft'));
+            // --- Direct calls for cleanup ---
+            if (socket) {
+                socket.emit('leave', { 'classroomId': currentClassroomId });
+                socket.disconnect();
+                socket = null;
+            }
+            endBroadcast(); // Clean up broadcast related resources
+            // Clear whiteboard canvas
+            if (whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
+                    .forEach(control => control.style.display = 'none');
+            // Clear chat messages
+            if (chatMessages) chatMessages.innerHTML = '';
+            // Clear remote videos
+            if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
         });
     }
-
 
     // Back to Dashboard from Classroom
     if (backToDashboardBtn) {
@@ -390,12 +655,23 @@ document.addEventListener('DOMContentLoaded', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
-            // Notify classroom.js to leave the room
-            window.dispatchEvent(new CustomEvent('classroomLeft', {
-                detail: {
-                    classroomId: currentClassroom ? currentClassroom.id : null // Pass the ID of the classroom being left
-                }
-            }));
+            // --- Direct calls for cleanup ---
+            if (socket) {
+                socket.emit('leave', { 'classroomId': currentClassroomId });
+                socket.disconnect();
+                socket = null;
+            }
+            endBroadcast(); // Clean up broadcast related resources
+            // Clear whiteboard canvas
+            if (whiteboardCtx) {
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+            document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span')
+                    .forEach(control => control.style.display = 'none');
+            // Clear chat messages
+            if (chatMessages) chatMessages.innerHTML = '';
+            // Clear remote videos
+            if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
             currentClassroom = null; // Clear current classroom state
             localStorage.removeItem('currentClassroom');
         });
@@ -410,7 +686,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
     // Classroom Sub-section Navigation
     if (navChat) {
         navChat.addEventListener('click', () => { showClassroomSubSection(chatSection); updateNavActiveState(navChat); });
@@ -424,7 +699,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (navAssessments) {
         navAssessments.addEventListener('click', () => { showClassroomSubSection(assessmentsSection); updateNavActiveState(navAssessments); });
     }
-
 
     // Update Profile
     if (updateProfileForm) {
@@ -441,7 +715,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch('/api/update-profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: username }) // userId is now fetched from session on backend
+                    body: JSON.stringify({ username: username })
                 });
                 const result = await response.json();
                 if (response.ok) {
@@ -462,7 +736,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Share Whiteboard/Classroom Link ---
     if (shareWhiteboardBtn) {
         shareWhiteboardBtn.addEventListener('click', async () => {
-            // Get classroom ID from the display span or currentClassroom object
             const classroomId = currentClassroom ? currentClassroom.id : classroomIdDisplay.textContent;
 
             if (classroomId && classroomId !== 'N/A') {
@@ -493,6 +766,275 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Link copied to clipboard!');
         });
     }
+
+
+    // --- Chat Functionality (merged from classroom.js) ---
+    if (sendMessageBtn) {
+        sendMessageBtn.addEventListener('click', () => {
+            const message = chatInput.value.trim();
+            if (message && socket && currentClassroomId) {
+                socket.emit('message', {
+                    classroomId: currentClassroomId,
+                    message: message,
+                    username: currentUser.username
+                });
+                chatInput.value = '';
+            }
+        });
+    }
+
+    if (chatInput) {
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessageBtn.click();
+            }
+        });
+    }
+
+
+    // --- Whiteboard Functionality (merged from classroom.js) ---
+    function setupWhiteboardControls() {
+        if (!whiteboardCanvas || !whiteboardCtx) {
+             console.warn("[Whiteboard] Canvas or context not found.");
+             return;
+        }
+
+        // Set canvas dimensions
+        const whiteboardArea = document.getElementById('whiteboard-area');
+        const parentWidth = whiteboardArea ? whiteboardArea.offsetWidth : 800;
+        whiteboardCanvas.width = Math.min(parentWidth * 0.95, 800);
+        whiteboardCanvas.height = 600;
+
+        // Select all controls within the whiteboard-tools div
+        const allWhiteboardControls = document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span');
+
+        // Disable/enable whiteboard controls based on user role
+        if (currentUser && currentUser.role !== 'admin') {
+            console.log("[Whiteboard] Disabling whiteboard controls for non-admin user.");
+            allWhiteboardControls.forEach(control => {
+                control.style.display = 'none'; // Hide controls
+                control.disabled = true; // Disable if visible
+            });
+            whiteboardCanvas.style.pointerEvents = 'none'; // Make canvas non-interactive
+        } else {
+            console.log("[Whiteboard] Enabling whiteboard controls for admin user.");
+            allWhiteboardControls.forEach(control => {
+                if (control.id !== 'share-whiteboard-btn' && control.id !== 'join-broadcast') {
+                    control.style.display = 'inline-block';
+                    control.disabled = false;
+                }
+            });
+            whiteboardCanvas.style.pointerEvents = 'auto'; // Make canvas interactive
+        }
+
+        if (penColorInput) {
+            penColorInput.addEventListener('change', (e) => {
+                penColor = e.target.value;
+                whiteboardCtx.strokeStyle = penColor;
+            });
+        }
+
+        if (penWidthInput) {
+            penWidthInput.addEventListener('input', (e) => {
+                penWidth = parseInt(e.target.value);
+                if (widthValueSpan) widthValueSpan.textContent = `${penWidth}px`;
+                whiteboardCtx.lineWidth = penWidth;
+            });
+            if (widthValueSpan) widthValueSpan.textContent = `${penWidthInput.value}px`;
+        }
+
+        if (clearBoardBtn) {
+            clearBoardBtn.addEventListener('click', () => {
+                if (socket && currentClassroomId && currentUser && currentUser.role === 'admin') {
+                    socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroomId });
+                } else if (currentUser && currentUser.role !== 'admin') {
+                    alert("Only administrators can clear the whiteboard.");
+                }
+            });
+        }
+
+        whiteboardCanvas.addEventListener('mousedown', (e) => {
+            if (currentUser && currentUser.role === 'admin') {
+                isDrawing = true;
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
+        });
+
+        whiteboardCanvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing) return;
+            if (currentUser && currentUser.role === 'admin') {
+                const currX = e.offsetX;
+                const currY = e.offsetY;
+
+                drawLine(lastX, lastY, currX, currY, penColor, penWidth);
+
+                socket.emit('whiteboard_data', {
+                    action: 'draw',
+                    classroomId: currentClassroomId,
+                    prevX: lastX,
+                    prevY: lastY,
+                    currX: currX,
+                    currY: currY,
+                    color: penColor,
+                    width: penWidth
+                });
+
+                [lastX, lastY] = [currX, currY];
+            }
+        });
+
+        whiteboardCanvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        whiteboardCanvas.addEventListener('mouseout', () => {
+            isDrawing = false;
+        });
+
+        // Set initial context properties
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.strokeStyle = penColor;
+        whiteboardCtx.lineWidth = penWidth;
+    }
+
+    function drawLine(prevX, prevY, currX, currY, color, width) {
+        if (!whiteboardCtx) return;
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(prevX, prevY);
+        whiteboardCtx.lineTo(currX, currY);
+        whiteboardCtx.strokeStyle = color;
+        whiteboardCtx.lineWidth = width;
+        whiteboardCtx.stroke();
+    }
+
+
+    // --- Video Broadcasting Functionality (WebRTC - merged from classroom.js) ---
+
+    if (startBroadcastBtn) {
+        startBroadcastBtn.addEventListener('click', startBroadcast);
+    }
+
+    if (endBroadcastBtn) {
+        endBroadcastBtn.addEventListener('click', endBroadcast);
+    }
+
+    async function startBroadcast() {
+        if (!currentClassroomId || !socket || !currentUser || currentUser.role !== 'admin') {
+            alert("Only administrators can start a broadcast in a classroom.");
+            return;
+        }
+
+        if (localStream && localStream.active) {
+            alert("Broadcast already active.");
+            return;
+        }
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+            console.log("[WebRTC] Local stream acquired.");
+
+            alert('Broadcast started!');
+            if (startBroadcastBtn) startBroadcastBtn.disabled = true;
+            if (endBroadcastBtn) endBroadcastBtn.disabled = false;
+
+        } catch (err) {
+            console.error('[WebRTC] Error accessing media devices:', err);
+            alert('Could not start broadcast. Please ensure camera and microphone access are granted. Error: ' + err.message);
+            localStream = null;
+            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+            if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+        }
+    }
+
+    function endBroadcast() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+            localVideo.srcObject = null;
+            console.log("[WebRTC] Local stream stopped.");
+        }
+
+        for (const peerId in peerConnections) {
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        }
+        if (socket && currentClassroomId) {
+            socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroomId, peer_id: socket.id });
+        }
+
+        alert('Broadcast ended.');
+        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+    }
+
+    function createPeerConnection(peerId, isCaller) {
+        console.log(`[WebRTC] Creating peer connection for ${peerId}, isCaller: ${isCaller}`);
+        const pc = new RTCPeerConnection(iceServers);
+        peerConnections[peerId] = pc;
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+        }
+
+        pc.ontrack = (event) => {
+            console.log('[WebRTC] Remote track received from:', peerId);
+            const remoteVideo = document.createElement('video');
+            remoteVideo.id = `remote-video-${peerId}`;
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            remoteVideo.srcObject = event.streams[0];
+            remoteVideoContainer.appendChild(remoteVideo);
+        };
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log('[WebRTC] Sending ICE Candidate to:', peerId);
+                socket.emit('webrtc_ice_candidate', {
+                    classroomId: currentClassroomId,
+                    recipient_id: peerId,
+                    candidate: event.candidate
+                });
+            }
+        };
+
+        pc.onconnectionstatechange = (event) => {
+            console.log(`[WebRTC] Connection state with ${peerId}: ${pc.connectionState}`);
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                console.log(`[WebRTC] Peer ${peerId} connection closed or failed.`);
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+                if (peerConnections[peerId]) {
+                    peerConnections[peerId].close();
+                    delete peerConnections[peerId];
+                }
+            }
+        };
+
+        if (isCaller) {
+            pc.createOffer()
+                .then(offer => pc.setLocalDescription(offer))
+                .then(() => {
+                    console.log('[WebRTC] Sending WebRTC Offer to:', peerId);
+                    socket.emit('webrtc_offer', {
+                        classroomId: currentClassroomId,
+                        recipient_id: peerId,
+                        offer: pc.localDescription
+                    });
+                })
+                .catch(error => console.error('[WebRTC] Error creating offer:', error));
+        }
+    }
+
 
     // --- Initial Load ---
     checkLoginStatus(); // Initialize app state based on login status
