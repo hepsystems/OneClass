@@ -167,11 +167,16 @@ def update_profile():
     return jsonify({"message": "Profile updated successfully"}), 200
 
 @app.route('/api/upload-library-files', methods=['POST'])
-# This endpoint would ideally require authentication (e.g., JWT token validation)
 def upload_library_files():
     user_id = session.get('user_id')
+    user_role = session.get('role')
+
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
+    
+    # --- SECURITY FIX: Only allow admins to upload files ---
+    if user_role != 'admin':
+        return jsonify({"error": "Forbidden: Only administrators can upload files."}), 403
 
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
@@ -365,8 +370,10 @@ def get_assessment_submissions(assessmentId):
 def create_classroom():
     user_id = session.get('user_id')
     username = session.get('username')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_role = session.get('role')
+
+    if not user_id or user_role != 'admin': # Only admins can create classrooms
+        return jsonify({"error": "Unauthorized: Only administrators can create classrooms."}), 401
 
     data = request.json
     classroom_name = data.get('name')
