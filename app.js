@@ -1,4 +1,4 @@
-// app.js (All-in-One: Includes functionality previously in classroom.js, with currentClassroom.id fixes)
+// app.js (Fixed whiteboardCtx issue and enabled admin drawing)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsSection = document.getElementById('settings-section');
     const updateProfileForm = document.getElementById('update-profile-form');
     const settingsUsernameInput = document.getElementById('settings-username');
-    const settingsEmailInput = document = document.getElementById('settings-email'); // Disabled email field
+    const settingsEmailInput = document.getElementById('settings-email'); // Disabled email field
     const backToDashboardFromSettingsBtn = document.getElementById('back-to-dashboard-from-settings');
 
     // Share link elements
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Whiteboard Elements (moved from classroom.js)
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize if canvas exists
+    // const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize if canvas exists
     const penColorInput = document.getElementById('pen-color');
     const penWidthInput = document.getElementById('pen-width');
     const widthValueSpan = document.getElementById('width-value');
@@ -90,12 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
-    // Whiteboard Drawing State Variables
+    // --- Whiteboard Variables ---
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
-    let penColor = '#FFFFFF'; // Default white
+    let penColor = '#000000'; // Default black
     let penWidth = 2; // Default width
+    let whiteboardCtx; // Moved outside, will initialize later
 
 
     // --- Utility Functions ---
@@ -812,9 +813,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Whiteboard Functionality (merged from classroom.js) ---
     function setupWhiteboardControls() {
-        if (!whiteboardCanvas || !whiteboardCtx) {
-             console.warn("[Whiteboard] Canvas or context not found.");
+        const whiteboardCanvas = document.getElementById('whiteboard-canvas');
+        if (!whiteboardCanvas) {
+             console.warn("[Whiteboard] Canvas element not found.");
              return;
+        }
+        whiteboardCtx = whiteboardCanvas.getContext('2d');
+        if (!whiteboardCtx) {
+            console.error("[Whiteboard] 2D context failed to initialize.");
+            return;
         }
 
         // Set canvas dimensions
@@ -837,6 +844,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.log("[Whiteboard] Enabling whiteboard controls for admin user.");
             allWhiteboardControls.forEach(control => {
+                // Ensure share-whiteboard-btn and join-broadcast are not hidden/disabled by this block
+                // (though share button might be handled elsewhere for visibility)
                 if (control.id !== 'share-whiteboard-btn' && control.id !== 'join-broadcast') {
                     control.style.display = 'inline-block';
                     control.disabled = false;
@@ -880,8 +889,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         whiteboardCanvas.addEventListener('mousemove', (e) => {
-            if (!isDrawing) return;
-            if (currentUser && currentUser.role === 'admin') {
+            if (!isDrawing || currentUser.role !== 'admin') return;
+            // if (currentUser && currentUser.role === 'admin') { // This check is now redundant due to the 'if' above
                 const currX = e.offsetX;
                 const currY = e.offsetY;
 
@@ -900,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 [lastX, lastY] = [currX, currY];
-            }
+            // }
         });
 
         whiteboardCanvas.addEventListener('mouseup', () => {
@@ -919,7 +928,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawLine(prevX, prevY, currX, currY, color, width) {
-        if (!whiteboardCtx) return;
+        if (!whiteboardCtx) {
+            console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null.');
+            return;
+        }
         whiteboardCtx.beginPath();
         whiteboardCtx.moveTo(prevX, prevY);
         whiteboardCtx.lineTo(currX, currY);
