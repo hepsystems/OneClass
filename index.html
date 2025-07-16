@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>On eClass</title>
+    <title>Virtual Classroom</title>
     <link rel="stylesheet" href="/style.css"> <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
@@ -49,10 +49,12 @@
             <p>Current Classroom ID: <span id="classroom-id-display">N/A</span></p>
 
             <div id="create-join-classroom">
-                <h3>Create New Classroom</h3>
-                <input type="text" id="new-classroom-name" placeholder="Classroom Name" required>
-                <button id="create-classroom-btn">Create Classroom</button>
-                <p id="classroom-message"></p>
+                <div id="create-classroom-section" data-admin-only>
+                    <h3>Create New Classroom</h3>
+                    <input type="text" id="new-classroom-name" placeholder="Classroom Name" required>
+                    <button id="create-classroom-btn">Create Classroom</button>
+                    <p id="classroom-message"></p>
+                </div>
 
                 <h3>Join Existing Classroom</h3>
                 <input type="text" id="join-classroom-id" placeholder="Classroom ID" required>
@@ -80,7 +82,7 @@
             <div class="classroom-content">
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <h3>Whiteboard</h3>
-                    <div id="whiteboard-tools">
+                    <div id="whiteboard-tools" data-admin-only>
                         <label for="pen-color">Pen Color:</label>
                         <input type="color" id="pen-color" value="#FFFFFF">
                         <label for="pen-width">Pen Width: <span id="width-value">2px</span></label>
@@ -92,12 +94,16 @@
                             <button id="copy-share-link-btn">Copy Link</button>
                         </div>
                     </div>
+                    <p id="whiteboard-role-message" class="role-message hidden"></p>
                     <canvas id="whiteboard-canvas"></canvas>
 
                     <div id="video-broadcast-section">
                         <h4>Video Broadcast</h4>
-                        <button id="start-broadcast">Start Broadcast</button>
-                        <button id="end-broadcast" disabled>End Broadcast</button>
+                        <div data-admin-only>
+                            <button id="start-broadcast">Start Broadcast</button>
+                            <button id="end-broadcast" disabled>End Broadcast</button>
+                        </div>
+                        <p id="broadcast-role-message" class="role-message hidden"></p>
                         <video id="local-video" autoplay muted playsinline></video>
                         <div id="remote-video-container">
                             </div>
@@ -114,14 +120,17 @@
 
                 <div id="library-section" class="classroom-sub-section hidden">
                     <h3>Class Library</h3>
-                    <input type="file" id="library-file-input" multiple>
-                    <button id="upload-library-files-btn">Upload Files</button>
+                    <div data-admin-only>
+                        <input type="file" id="library-file-input" multiple>
+                        <button id="upload-library-files-btn">Upload Files</button>
+                    </div>
+                    <p id="library-role-message" class="role-message hidden"></p>
                     <div id="library-files-list"></div>
                 </div>
 
                 <div id="assessments-section" class="classroom-sub-section hidden">
                     <h3>Assessments</h3>
-                    <div id="assessment-creation-form" class="hidden">
+                    <div id="assessment-creation-form" class="hidden" data-admin-only>
                         <h4>Create New Assessment</h4>
                         <input type="text" id="assessment-title" placeholder="Assessment Title" required>
                         <textarea id="assessment-description" placeholder="Description"></textarea>
@@ -154,7 +163,7 @@
                         <div id="assessment-list"></div>
                     </div>
 
-                    <div id="take-assessment-container" class="hidden">
+                    <div id="take-assessment-container" class="hidden" data-user-only>
                         <h4 id="take-assessment-title"></h4>
                         <p id="take-assessment-description"></p>
                         <form id="take-assessment-form">
@@ -165,7 +174,7 @@
                         <button id="back-to-assessment-list-btn">Back to Assessments</button>
                     </div>
 
-                    <div id="view-submissions-container" class="hidden">
+                    <div id="view-submissions-container" class="hidden" data-admin-only>
                         <h4 id="submissions-assessment-title"></h4>
                         <div id="submissions-list"></div>
                         <button id="back-to-assessment-list-from-submissions-btn">Back to Assessments</button>
