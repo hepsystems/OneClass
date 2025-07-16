@@ -250,6 +250,7 @@ def create_assessment():
         "description": description,
         "creator_id": user_id,
         "creator_username": username,
+        "creator_role": user_role, # Store creator's role
         "created_at": datetime.utcnow()
     })
 
@@ -290,6 +291,7 @@ def get_assessment_questions(assessmentId):
 def submit_assessment():
     user_id = session.get('user_id')
     username = session.get('username')
+    user_role = session.get('role') # Get user role for submission record
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
@@ -340,6 +342,7 @@ def submit_assessment():
         "classroomId": class_room_id,
         "student_id": user_id,
         "student_username": username,
+        "student_role": user_role, # Store student's role
         "submitted_at": datetime.utcnow(),
         "answers": graded_answers,
         "score": score,
@@ -433,8 +436,9 @@ def join_classroom():
             'username': session.get('username'),
             'user_id': user_id,
             'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
-            'classroomId': classroom_id
-        }, room=classroom_id)
+            'classroomId': classroom_id,
+            'role': session.get('role') # Include role of joining user
+        }, room=classroom_id, include_sid=False)
         return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
     else:
         return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
@@ -543,6 +547,7 @@ def handle_chat_message(data):
     message = data.get('message')
     username = session.get('username') # Get username from session
     user_id = session.get('user_id') # Get user_id from session
+    user_role = session.get('role') # Get user role from session
 
     if not classroomId or not message or not username or not user_id:
         print("Missing chat message data.")
@@ -553,7 +558,8 @@ def handle_chat_message(data):
         'user_id': user_id,
         'username': username,
         'message': message,
-        'timestamp': timestamp
+        'timestamp': timestamp,
+        'role': user_role # Include sender's role for display
     }, room=classroomId)
 
 
