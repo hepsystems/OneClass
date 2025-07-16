@@ -1,4 +1,4 @@
-// app.js (All-in-One: Includes functionality previously in classroom.js)
+// app.js (All-in-One: Includes functionality previously in classroom.js, with currentClassroom.id fixes)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const settingsSection = document.getElementById('settings-section');
     const updateProfileForm = document.getElementById('update-profile-form');
     const settingsUsernameInput = document.getElementById('settings-username');
-    const settingsEmailInput = document.getElementById('settings-email'); // Disabled email field
+    const settingsEmailInput = document = document.getElementById('settings-email'); // Disabled email field
     const backToDashboardFromSettingsBtn = document.getElementById('back-to-dashboard-from-settings');
 
     // Share link elements
@@ -207,7 +207,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('connect', () => {
             console.log('[Socket.IO] Connected. SID:', socket.id);
-            socket.emit('join', { 'classroomId': currentClassroomId });
+            // FIX: Use currentClassroom.id
+            if (currentClassroom && currentClassroom.id) {
+                socket.emit('join', { 'classroomId': currentClassroom.id });
+            } else {
+                console.error('[Socket.IO] Cannot join classroom: currentClassroom.id is undefined.');
+            }
         });
 
         socket.on('disconnect', () => {
@@ -326,10 +331,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnections[peerId].createAnswer();
                 await peerConnections[peerId].setLocalDescription(answer);
+                // FIX: Use currentClassroom.id
                 socket.emit('webrtc_answer', {
-                    classroomId: currentClassroomId,
+                    classroomId: currentClassroom.id,
                     recipient_id: peerId, // Send answer back to the offerer
-                    answer: peerPeerConnectionss[peerId].localDescription
+                    answer: peerConnections[peerId].localDescription
                 });
                 console.log('[WebRTC] Sent WebRTC Answer to:', peerId);
             } catch (error) {
@@ -374,7 +380,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const videoElement = document.getElementById(`remote-video-${peerId}`);
                 if (videoElement) {
                     videoElement.remove();
-                    console.log(`[WebRTC] Removed video for disconnected peer: ${peerId}`);
                 }
             }
         });
@@ -492,8 +497,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentClassroom = null;
                     showSection(authSection);
                     // --- Direct calls for cleanup ---
-                    if (socket) {
-                        socket.emit('leave', { 'classroomId': currentClassroomId }); // Use currentClassroomId for leaving
+                    if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
+                        socket.emit('leave', { 'classroomId': currentClassroom.id });
+                        socket.disconnect(); // Disconnect the socket regardless
+                        socket = null;
+                    } else if (socket) { // If currentClassroom is null but socket exists, just disconnect
                         socket.disconnect();
                         socket = null;
                     }
@@ -590,8 +598,11 @@ document.addEventListener('DOMContentLoaded', () => {
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
             // --- Direct calls for cleanup ---
-            if (socket) {
-                socket.emit('leave', { 'classroomId': currentClassroomId });
+            if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
+                socket.emit('leave', { 'classroomId': currentClassroom.id });
+                socket.disconnect();
+                socket = null;
+            } else if (socket) {
                 socket.disconnect();
                 socket = null;
             }
@@ -630,8 +641,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 settingsEmailInput.value = currentUser.email;
             }
             // --- Direct calls for cleanup ---
-            if (socket) {
-                socket.emit('leave', { 'classroomId': currentClassroomId });
+            if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
+                socket.emit('leave', { 'classroomId': currentClassroom.id });
+                socket.disconnect();
+                socket = null;
+            } else if (socket) {
                 socket.disconnect();
                 socket = null;
             }
@@ -656,8 +670,11 @@ document.addEventListener('DOMContentLoaded', () => {
             updateNavActiveState(navDashboard);
             loadUserClassrooms();
             // --- Direct calls for cleanup ---
-            if (socket) {
-                socket.emit('leave', { 'classroomId': currentClassroomId });
+            if (socket && currentClassroom && currentClassroom.id) { // FIX: Use currentClassroom.id
+                socket.emit('leave', { 'classroomId': currentClassroom.id });
+                socket.disconnect();
+                socket = null;
+            } else if (socket) {
                 socket.disconnect();
                 socket = null;
             }
@@ -772,9 +789,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (sendMessageBtn) {
         sendMessageBtn.addEventListener('click', () => {
             const message = chatInput.value.trim();
-            if (message && socket && currentClassroomId) {
+            // FIX: Use currentClassroom.id
+            if (message && socket && currentClassroom && currentClassroom.id) {
                 socket.emit('message', {
-                    classroomId: currentClassroomId,
+                    classroomId: currentClassroom.id,
                     message: message,
                     username: currentUser.username
                 });
@@ -845,8 +863,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (clearBoardBtn) {
             clearBoardBtn.addEventListener('click', () => {
-                if (socket && currentClassroomId && currentUser && currentUser.role === 'admin') {
-                    socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroomId });
+                // FIX: Use currentClassroom.id
+                if (socket && currentClassroom && currentClassroom.id && currentUser && currentUser.role === 'admin') {
+                    socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id });
                 } else if (currentUser && currentUser.role !== 'admin') {
                     alert("Only administrators can clear the whiteboard.");
                 }
@@ -868,9 +887,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 drawLine(lastX, lastY, currX, currY, penColor, penWidth);
 
+                // FIX: Use currentClassroom.id
                 socket.emit('whiteboard_data', {
                     action: 'draw',
-                    classroomId: currentClassroomId,
+                    classroomId: currentClassroom.id,
                     prevX: lastX,
                     prevY: lastY,
                     currX: currX,
@@ -920,7 +940,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function startBroadcast() {
-        if (!currentClassroomId || !socket || !currentUser || currentUser.role !== 'admin') {
+        // FIX: Use currentClassroom.id
+        if (!currentClassroom || !currentClassroom.id || !socket || !currentUser || currentUser.role !== 'admin') {
             alert("Only administrators can start a broadcast in a classroom.");
             return;
         }
@@ -966,8 +987,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        if (socket && currentClassroomId) {
-            socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroomId, peer_id: socket.id });
+        // FIX: Use currentClassroom.id for leaving
+        if (socket && currentClassroom && currentClassroom.id) {
+            socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: socket.id });
         }
 
         alert('Broadcast ended.');
@@ -997,8 +1019,9 @@ document.addEventListener('DOMContentLoaded', () => {
         pc.onicecandidate = (event) => {
             if (event.candidate) {
                 console.log('[WebRTC] Sending ICE Candidate to:', peerId);
+                // FIX: Use currentClassroom.id
                 socket.emit('webrtc_ice_candidate', {
-                    classroomId: currentClassroomId,
+                    classroomId: currentClassroom.id,
                     recipient_id: peerId,
                     candidate: event.candidate
                 });
@@ -1025,8 +1048,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(offer => pc.setLocalDescription(offer))
                 .then(() => {
                     console.log('[WebRTC] Sending WebRTC Offer to:', peerId);
+                    // FIX: Use currentClassroom.id
                     socket.emit('webrtc_offer', {
-                        classroomId: currentClassroomId,
+                        classroomId: currentClassroom.id,
                         recipient_id: peerId,
                         offer: pc.localDescription
                     });
