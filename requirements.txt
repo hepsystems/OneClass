@@ -6,3 +6,4 @@ PyMongo
 gevent
 gevent-websocket
 gunicorn
+Flask-SocketIO
