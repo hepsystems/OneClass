@@ -34,15 +34,16 @@ users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 library_files_collection = mongo.db.library_files
 assessments_collection = mongo.db.assessments
+whiteboard_collection = mongo.db.whiteboard_drawings # New collection for whiteboard data
 
 # Ensure necessary directories exist for file uploads
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- Global Whiteboard History Storage ---
+# --- Global Whiteboard History Storage (NO LONGER USED FOR PERSISTENCE, KEPT FOR REFERENCE IF NEEDED) ---
 # This will store whiteboard data per classroom, keyed by classroomId
-whiteboard_history = {}
+# whiteboard_history = {} # This will be replaced by database storage
 
 
 # --- API Endpoints ---
@@ -394,9 +395,10 @@ def on_join(data):
         'role': user_role
     }, room=classroomId, include_sid=False) # Exclude sender from this notification
 
-    # Send whiteboard history to the joining user immediately
-    if classroomId in whiteboard_history and whiteboard_history[classroomId]:
-        emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history[classroomId]}, room=sid)
+    # Send whiteboard history to the joining user immediately from the database
+    whiteboard_history_from_db = list(whiteboard_collection.find({"classroomId": classroomId}, {"_id": 0}).sort("timestamp", 1))
+    if whiteboard_history_from_db:
+        emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history_from_db}, room=sid)
         print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
 
 
@@ -440,13 +442,11 @@ def handle_whiteboard_data(data):
     action = data.get('action')
     sender_id = request.sid
     user_role = session.get('role') # Get user role from session
+    user_id = session.get('user_id')
+    username = session.get('username')
 
     if not classroomId:
         return
-
-    # Initialize history for the classroom if it doesn't exist
-    if classroomId not in whiteboard_history:
-        whiteboard_history[classroomId] = []
 
     if action == 'draw':
         # Check if the user is an admin before allowing drawing
@@ -454,11 +454,27 @@ def handle_whiteboard_data(data):
             print(f"User {sender_id} (role: {user_role}) attempted to draw on whiteboard in classroom {classroomId} without admin privileges.")
             return # Prevent non-admins from drawing
 
-        # Store drawing action
-        whiteboard_history[classroomId].append(data)
+        # Store drawing action in MongoDB
+        drawing_data = {
+            "classroomId": classroomId,
+            "action": "draw",
+            "timestamp": datetime.utcnow(),
+            "data": {
+                "prevX": data.get('prevX'),
+                "prevY": data.get('prevY'),
+                "currX": data.get('currX'),
+                "currY": data.get('currY'),
+                "color": data.get('color'),
+                "width": data.get('width')
+            },
+            "user_id": user_id,
+            "username": username
+        }
+        whiteboard_collection.insert_one(drawing_data)
+        
         # Broadcast drawing data to all in the room except the sender
         emit('whiteboard_data', data, room=classroomId, include_sid=False)
-        print(f"Whiteboard draw data broadcasted in classroom {classroomId} by {sender_id}")
+        print(f"Whiteboard draw data broadcasted and saved in classroom {classroomId} by {username} ({user_id})")
 
     elif action == 'clear':
         # Only allow admin to clear the board
@@ -466,18 +482,20 @@ def handle_whiteboard_data(data):
             print(f"User {sender_id} (role: {user_role}) attempted to clear whiteboard in classroom {classroomId} without admin privileges.")
             return
 
-        # Clear history for this classroom
-        whiteboard_history[classroomId] = []
+        # Clear history for this classroom from MongoDB
+        whiteboard_collection.delete_many({"classroomId": classroomId})
+        
         # Broadcast clear action to all in the room
         emit('whiteboard_data', {'action': 'clear'}, room=classroomId)
-        print(f"Whiteboard cleared in classroom {classroomId} by {sender_id}")
+        print(f"Whiteboard cleared in classroom {classroomId} by {username} ({user_id})")
 
+    # The 'history_request' action is now handled directly in the 'join' event,
+    # so this block is no longer strictly necessary but can be kept for explicit requests.
     elif action == 'history_request':
-        # This action is now handled directly in the 'join' event
-        # Keeping this for explicit requests if needed, but 'join' is preferred
         recipient_id = data.get('recipient_id')
-        if recipient_id and classroomId in whiteboard_history:
-            emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history[classroomId]}, room=recipient_id)
+        if recipient_id:
+            whiteboard_history_from_db = list(whiteboard_collection.find({"classroomId": classroomId}, {"_id": 0}).sort("timestamp", 1))
+            emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history_from_db}, room=recipient_id)
             print(f"Whiteboard history sent to new participant {recipient_id} in classroom {classroomId} (explicit request).")
 
 
