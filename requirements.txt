@@ -1,8 +1,11 @@
 Flask
+flask-socketio
+python-socketio
+eventlet
+Flask-Cors
+PyMongo
 Flask-PyMongo
 Flask-Sock
-pymongo
-Werkzeug
 gevent
 gevent-websocket
-gunicorn
+werkzeug
