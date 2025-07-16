@@ -1,12 +1,8 @@
 Flask
-flask-socketio # If you switch back to Flask-SocketIO
-python-socketio # If you switch back to Flask-SocketIO
-eventlet # If you use async_mode='eventlet' with Flask-SocketIO
-Flask-Cors
-PyMongo
 Flask-PyMongo
-Flask-Sock # If you are using Flask-Sock for raw websockets
+Werkzeug
+Flask-Sock
+PyMongo
 gevent
 gevent-websocket
-werkzeug
-gunicorn 
+gunicorn
