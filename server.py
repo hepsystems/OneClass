@@ -40,6 +40,11 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# --- Global Whiteboard History Storage ---
+# This will store whiteboard data per classroom, keyed by classroomId
+whiteboard_history = {}
+
+
 # --- API Endpoints ---
 
 @app.route('/')
@@ -53,6 +58,11 @@ def serve_css():
 @app.route('/app.js')
 def serve_js():
     return send_from_directory('.', 'app.js')
+
+@app.route('/classroom.js')
+def serve_classroom_js():
+    return send_from_directory('.', 'classroom.js')
+
 
 # Route for classroom details (for direct access via share link)
 @app.route('/classroom/<classroomId>')
@@ -298,7 +308,13 @@ def join_classroom():
         )
         # Notify existing participants that a new user joined via Socket.IO
         # Changed to emit with user_id, which can be used to send whiteboard history to specific user
-        socketio.emit('participant_join', {'username': session.get('username'), 'user_id': user_id, 'classroomId': classroom_id}, room=classroom_id)
+        # Also include the session ID (request.sid) for WebRTC peer identification
+        socketio.emit('participant_join', {
+            'username': session.get('username'),
+            'user_id': user_id,
+            'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
+            'classroomId': classroom_id
+        }, room=classroom_id)
         return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
     else:
         return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
@@ -330,55 +346,75 @@ def connect():
     user_id = session.get('user_id')
     username = session.get('username')
     if user_id:
-        print(f"Client connected: {username} ({user_id})")
+        print(f"Client connected: {username} ({user_id}), SID: {request.sid}")
         # Store sid for user to map them
         session['sid'] = request.sid
         # You might want to store a mapping of user_id to sid if needed
     else:
-        print("Unauthenticated client connected")
+        print(f"Unauthenticated client connected, SID: {request.sid}")
 
 @socketio.on('disconnect')
 def disconnect():
     user_id = session.get('user_id')
     username = session.get('username')
-    if user_id:
-        print(f"Client disconnected: {username} ({user_id})")
-        # In a real app, you'd remove them from active rooms and notify others
-    else:
-        print("Unauthenticated client disconnected")
+    classroomId = session.get('classroomId') # If you store classroomId in session on join
+    sid = request.sid
 
-@socketio.on('join_room')
+    print(f"Client disconnected: {username} ({user_id}), SID: {sid}")
+
+    # Emit to all users in the classroom that a peer has disconnected
+    # This is primarily for WebRTC cleanup on other clients
+    if classroomId:
+        emit('webrtc_peer_disconnected', {'peer_id': sid}, room=classroomId, include_sid=False)
+
+
+@socketio.on('join') # Renamed from join_room for consistency with client and previous response
 def on_join(data):
     classroomId = data.get('classroomId')
     username = session.get('username') # Get username from session
     user_id = session.get('user_id') # Get user_id from session
+    user_role = session.get('role') # Get user_role from session
+    sid = request.sid # Get the current socket's ID
 
     if not classroomId or not username or not user_id:
-        print("Missing data for join_room or user not authenticated.")
+        print("Missing data for join or user not authenticated.")
         return
 
     join_room(classroomId)
-    print(f"{username} ({user_id}) joined room: {classroomId}")
+    # Store classroomId in session if needed for disconnect handling
+    session['classroomId'] = classroomId
+    print(f"{username} ({user_id}, {user_role}) joined room: {classroomId} with SID: {sid}")
 
-    # Optionally, broadcast to others in the room
-    # The client-side 'participant_join' now also emits the user_id
-    emit('participant_join', {'username': username, 'user_id': user_id}, room=classroomId, include_sid=False) # Exclude sender
+    # Broadcast to others in the room that a new user joined.
+    # Include the new user's SID for WebRTC.
+    emit('user_joined', {
+        'username': username,
+        'user_id': user_id,
+        'sid': sid, # The Socket.IO ID of the newly joined user
+        'role': user_role
+    }, room=classroomId, include_sid=False) # Exclude sender from this notification
+
+    # Send whiteboard history to the joining user immediately
+    if classroomId in whiteboard_history and whiteboard_history[classroomId]:
+        emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history[classroomId]}, room=sid)
+        print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
 
 
-@socketio.on('leave_room')
+@socketio.on('leave') # Renamed from leave_room for consistency with client and previous response
 def on_leave(data):
     classroomId = data.get('classroomId')
     username = session.get('username')
+    sid = request.sid
 
     if not classroomId or not username:
         return
 
     leave_room(classroomId)
     print(f"{username} left room: {classroomId}")
-    emit('participant_leave', {'username': username}, room=classroomId, include_sid=False) # Exclude sender
+    emit('user_left', {'username': username, 'sid': sid}, room=classroomId, include_sid=False) # Exclude sender
 
 
-@socketio.on('chat_message')
+@socketio.on('message') # Renamed from chat_message for consistency with client
 def handle_chat_message(data):
     classroomId = data.get('classroomId')
     message = data.get('message')
@@ -390,7 +426,7 @@ def handle_chat_message(data):
         return
 
     timestamp = datetime.now().strftime('%H:%M')
-    emit('chat_message', {
+    emit('message', { # Renamed to 'message'
         'user_id': user_id,
         'username': username,
         'message': message,
@@ -401,75 +437,116 @@ def handle_chat_message(data):
 @socketio.on('whiteboard_data')
 def handle_whiteboard_data(data):
     classroomId = data.get('classroomId')
+    action = data.get('action')
+    sender_id = request.sid
+    user_role = session.get('role') # Get user role from session
+
     if not classroomId:
-        print("Missing classroomId for whiteboard data.")
         return
 
-    # If it's a history request for a specific recipient
-    recipient_id = data.get('recipient_id')
-    if data.get('action') == 'history' and recipient_id:
-        # Emit only to the specified recipient's Socket.IO ID (which is their request.sid)
-        emit('whiteboard_data', data, room=recipient_id)
-    else:
-        # Broadcast whiteboard data to all other clients in the same room
-        # The client that sent the data already has it, so no need to send back
+    # Initialize history for the classroom if it doesn't exist
+    if classroomId not in whiteboard_history:
+        whiteboard_history[classroomId] = []
+
+    if action == 'draw':
+        # Check if the user is an admin before allowing drawing
+        if user_role != 'admin':
+            print(f"User {sender_id} (role: {user_role}) attempted to draw on whiteboard in classroom {classroomId} without admin privileges.")
+            return # Prevent non-admins from drawing
+
+        # Store drawing action
+        whiteboard_history[classroomId].append(data)
+        # Broadcast drawing data to all in the room except the sender
         emit('whiteboard_data', data, room=classroomId, include_sid=False)
+        print(f"Whiteboard draw data broadcasted in classroom {classroomId} by {sender_id}")
 
-@socketio.on('start_broadcast')
-def handle_start_broadcast(data):
-    classroomId = data.get('classroomId')
-    peer_id = data.get('peer_id') # This is the socket.id of the broadcaster
-    if not classroomId or not peer_id:
-        return
-    # Notify others in the room that a new broadcast has started, providing the broadcaster's peer_id (socket.id)
-    emit('webrtc_offer', {'peer_id': peer_id}, room=classroomId, include_sid=False)
+    elif action == 'clear':
+        # Only allow admin to clear the board
+        if user_role != 'admin':
+            print(f"User {sender_id} (role: {user_role}) attempted to clear whiteboard in classroom {classroomId} without admin privileges.")
+            return
+
+        # Clear history for this classroom
+        whiteboard_history[classroomId] = []
+        # Broadcast clear action to all in the room
+        emit('whiteboard_data', {'action': 'clear'}, room=classroomId)
+        print(f"Whiteboard cleared in classroom {classroomId} by {sender_id}")
+
+    elif action == 'history_request':
+        # This action is now handled directly in the 'join' event
+        # Keeping this for explicit requests if needed, but 'join' is preferred
+        recipient_id = data.get('recipient_id')
+        if recipient_id and classroomId in whiteboard_history:
+            emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history[classroomId]}, room=recipient_id)
+            print(f"Whiteboard history sent to new participant {recipient_id} in classroom {classroomId} (explicit request).")
+
+
+# --- WebRTC Socket.IO Handlers ---
+# These handlers are primarily for signaling (passing SDP offers/answers and ICE candidates)
+# The client-side (classroom.js) will manage the peer connections and actual media streams.
 
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
     classroomId = data.get('classroomId')
-    recipient_id = data.get('recipient_id')
+    recipient_id = data.get('recipient_id') # This is the socket.id of the target peer
     offer = data.get('offer')
-    sender_id = request.sid
+    sender_id = request.sid # The socket.id of the sender (broadcaster)
 
     if not classroomId or not recipient_id or not offer:
+        print(f"Missing data for webrtc_offer: {data}")
         return
 
+    # Emit the offer to the specific recipient
     emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Offer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
 @socketio.on('webrtc_answer')
 def handle_webrtc_answer(data):
     classroomId = data.get('classroomId')
-    recipient_id = data.get('recipient_id')
+    recipient_id = data.get('recipient_id') # This is the socket.id of the target peer (broadcaster)
     answer = data.get('answer')
-    sender_id = request.sid
+    sender_id = request.sid # The socket.id of the sender (receiver)
 
     if not classroomId or not recipient_id or not answer:
+        print(f"Missing data for webrtc_answer: {data}")
         return
 
+    # Emit the answer to the specific recipient
     emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
 @socketio.on('webrtc_ice_candidate')
 def handle_webrtc_ice_candidate(data):
     classroomId = data.get('classroomId')
-    recipient_id = data.get('recipient_id')
+    recipient_id = data.get('recipient_id') # This is the socket.id of the target peer
     candidate = data.get('candidate')
-    sender_id = request.sid
+    sender_id = request.sid # The socket.id of the sender
 
     if not classroomId or not recipient_id or not candidate:
+        print(f"Missing data for webrtc_ice_candidate: {data}")
         return
 
+    # Emit the ICE candidate to the specific recipient
     emit('webrtc_ice_candidate', {'candidate': candidate, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: ICE Candidate from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
 @socketio.on('webrtc_peer_disconnected')
-def handle_peer_disconnected(data):
+def handle_peer_disconnected_signal(data):
+    # This is a client-sent signal that a peer is intentionally disconnecting
     classroomId = data.get('classroomId')
-    peer_id = data.get('peer_id')
+    peer_id = data.get('peer_id') # The socket.id of the peer that is disconnecting
+    sender_sid = request.sid
+
     if not classroomId or not peer_id:
+        print(f"Missing data for webrtc_peer_disconnected: {data}")
         return
+    
+    # Broadcast to all other clients in the room that this peer has disconnected
     emit('webrtc_peer_disconnected', {'peer_id': peer_id}, room=classroomId, include_sid=False)
+    print(f"WEBRTC: Client {sender_sid} signaling peer {peer_id} disconnected in classroom {classroomId}")
 
 
 # --- Main Run Block ---
