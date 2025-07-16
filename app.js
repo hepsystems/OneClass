@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDrawing = false;
     let lastX = 0;
     let lastY = 0;
-    let penColor = '#000000'; // Default black
+    let penColor = '#FFFFFF'; // Default white
     let penWidth = 2; // Default width
     let whiteboardCtx; // Moved outside, will initialize later
 
@@ -397,7 +397,28 @@ document.addEventListener('DOMContentLoaded', () => {
             const pathParts = window.location.pathname.split('/');
             if (pathParts[1] === 'classroom' && pathParts.length > 2) {
                 const idFromUrl = pathParts[2];
-                enterClassroom(idFromUrl, `Classroom ${idFromUrl.substring(0, 8)}...`); // Placeholder name
+                // Fetch classroom details to get the correct name
+                fetch(`/api/classrooms`)
+                    .then(res => res.json())
+                    .then(classrooms => {
+                        const matched = classrooms.find(cls => cls.id === idFromUrl);
+                        if (matched) {
+                            enterClassroom(matched.id, matched.name);
+                        } else {
+                            // If classroom not found, clear currentClassroom and show dashboard
+                            localStorage.removeItem('currentClassroom');
+                            currentClassroom = null;
+                            alert("Classroom not found or not joined yet.");
+                            showSection(dashboardSection);
+                            loadUserClassrooms(); // Reload classrooms for the user
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching classroom details:", err);
+                        alert("Could not load classroom.");
+                        showSection(dashboardSection); // Fallback to dashboard on error
+                        loadUserClassrooms();
+                    });
             }
         } else {
             showSection(authSection);
