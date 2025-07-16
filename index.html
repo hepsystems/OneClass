@@ -78,12 +78,11 @@
                 <button id="nav-whiteboard">Whiteboard</button>
                 <button id="nav-library">Library</button>
                 <button id="nav-assessments">Assessments</button>
-                <button id="nav-video-broadcast">Video</button>
             </nav>
 
             <div class="classroom-content">
                 <div id="whiteboard-area" class="classroom-sub-section active">
-                    <h3>Interactive Whiteboard</h3>
+                    <h3>Interactive Whiteboard & Live Broadcast</h3>
                     <div id="whiteboard-tools">
                         <button id="pen-tool">Pen</button>
                         <button id="eraser-tool">Eraser</button>
@@ -92,12 +91,21 @@
                         <input type="range" id="pen-width" min="1" max="10" value="2">
                         <span id="width-value">2px</span>
                         <button id="clear-whiteboard-btn">Clear Board</button>
-                        <button id="share-whiteboard-btn">Share Classroom Link</button> </div>
+                        <button id="share-whiteboard-btn">Share Classroom Link</button>
+                        <button id="start-broadcast">Start Broadcast</button>
+                        <button id="join-broadcast">Join Broadcast</button>
+                        <button id="end-broadcast">End Broadcast</button>
+                    </div>
                     <div id="share-link-display" class="hidden">
                         <input type="text" id="share-link-input" readonly>
                         <button id="copy-share-link-btn">Copy</button>
                     </div>
                     <canvas id="whiteboard-canvas" width="800" height="600"></canvas>
+                    <div id="video-broadcast-container">
+                        <h4>Participants' Videos</h4>
+                        <div id="remote-video-container"></div>
+                        <video id="local-video" autoplay muted></video>
+                    </div>
                 </div>
 
                 <div id="chat-section" class="classroom-sub-section hidden">
@@ -120,15 +128,6 @@
                     <textarea id="assessment-description" placeholder="Description"></textarea>
                     <button id="create-assessment-btn">Create Assessment</button>
                     <div id="assessment-list"></div>
-                </div>
-
-                <div id="video-broadcast-section" class="classroom-sub-section hidden">
-                    <h3>Live Broadcast</h3>
-                    <video id="local-video" autoplay muted></video>
-                    <div id="remote-video-container"></div>
-                    <button id="start-broadcast">Start Broadcast</button>
-                    <button id="join-broadcast">Join Broadcast</button>
-                    <button id="end-broadcast">End Broadcast</button>
                 </div>
             </div>
         </section>
