@@ -209,7 +209,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('[Socket.IO] Connected. SID:', socket.id);
             // FIX: Use currentClassroom.id
             if (currentClassroom && currentClassroom.id) {
-                socket.emit('join', { 'classroomId': currentClassroom.id });
+                socket.emit('join', {
+                    classroomId: currentClassroom.id,
+                    role: currentUser.role  // ✅ Send user's role to the server
+                });
             } else {
                 console.error('[Socket.IO] Cannot join classroom: currentClassroom.id is undefined.');
             }
