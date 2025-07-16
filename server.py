@@ -3,25 +3,31 @@
 # --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
 import gevent.monkey
 gevent.monkey.patch_all()
-# If the error persists, you could try: gevent.monkey.patch_all(ssl=False)
-# However, try without ssl=False first, as it might affect other SSL operations.
 
 # --- Standard Imports ---
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import uuid
-from datetime import datetime
-from flask_sock import Sock # For WebSockets
-import json # json module is used in WebSocket handling
+from datetime import datetime, timedelta
+# Import Flask-SocketIO and SocketIO
+from flask_socketio import SocketIO, emit, join_room, leave_room
+from flask_cors import CORS # Import CORS
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
-# --- MongoDB Configuration & Connection ---
+# --- Flask App Configuration ---
+app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev_secret_key_for_sessions') # Needed for sessions
 app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/oneclass_db')
-mongo = PyMongo(app)
-sock = Sock(app)
+app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
+
+# --- CORS and SocketIO Setup ---
+# CORS allows cross-origin requests, essential for frontend-backend communication in development
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True) # Allow all origins for dev
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
+
+mongo = PyMongo(app) # Initialize PyMongo after app config
 
 # MongoDB Collections
 users_collection = mongo.db.users
@@ -47,6 +53,13 @@ def serve_css():
 @app.route('/app.js')
 def serve_js():
     return send_from_directory('.', 'app.js')
+
+# Route for classroom details (for direct access via share link)
+@app.route('/classroom/<classroomId>')
+def serve_classroom_page(classroomId):
+    # You might want to fetch classroom details here and pass them to the template
+    # For now, we'll just serve index.html and let app.js handle the routing
+    return send_from_directory('.', 'index.html')
 
 @app.route('/uploads/<filename>')
 def serve_uploaded_file(filename):
@@ -91,8 +104,10 @@ def login():
     if not user or not check_password_hash(user['password'], password):
         return jsonify({"error": "Invalid email or password"}), 401
 
-    # In a real app, you'd generate a JWT token here.
-    # For simplicity, we're returning user data directly.
+    session['user_id'] = user['id'] # Store user ID in session
+    session['username'] = user['username'] # Store username in session
+    session.permanent = True # Make session permanent
+
     return jsonify({
         "message": "Login successful",
         "user": {
@@ -103,15 +118,25 @@ def login():
         }
     }), 200
 
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.pop('user_id', None)
+    session.pop('username', None)
+    return jsonify({"message": "Logged out successfully"}), 200
+
 @app.route('/api/update-profile', methods=['POST'])
 # This endpoint would ideally require authentication (e.g., JWT token validation)
 def update_profile():
+    # Use session to get user_id if authenticated
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.json
-    user_id = data.get('userId') # Assuming client sends user ID
     new_username = data.get('username')
 
-    if not user_id or not new_username:
-        return jsonify({"error": "Missing user ID or new username"}), 400
+    if not new_username:
+        return jsonify({"error": "New username is missing"}), 400
 
     result = users_collection.update_one(
         {"id": user_id},
@@ -122,11 +147,17 @@ def update_profile():
         return jsonify({"error": "User not found"}), 404
     if result.modified_count == 0:
         return jsonify({"message": "No changes made"}), 200 # No error if same username
+    
+    session['username'] = new_username # Update username in session
     return jsonify({"message": "Profile updated successfully"}), 200
 
 @app.route('/api/upload-library-files', methods=['POST'])
 # This endpoint would ideally require authentication (e.g., JWT token validation)
 def upload_library_files():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
 
@@ -150,13 +181,18 @@ def upload_library_files():
                 "original_filename": file.filename,
                 "stored_filename": filename,
                 "url": f"/uploads/{filename}",
-                "uploaded_at": datetime.utcnow()
+                "uploaded_at": datetime.utcnow(),
+                "uploaded_by": user_id
             })
             uploaded_file_info.append({"filename": file.filename, "url": f"/uploads/{filename}"})
     return jsonify({"message": "Files uploaded successfully", "files": uploaded_file_info}), 201
 
 @app.route('/api/library-files/<classroomId>', methods=['GET'])
 def get_library_files(classroomId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     files = list(library_files_collection.find({"classroomId": classroomId}, {"_id": 0, "original_filename": 1, "url": 1}))
     # Rename 'original_filename' to 'filename' for client consistency
     for file in files:
@@ -165,13 +201,18 @@ def get_library_files(classroomId):
 
 @app.route('/api/create-assessment', methods=['POST'])
 def create_assessment():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     data = request.json
     class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    creator = data.get('creator')
+    # creator = data.get('creator') # Use session username instead
 
-    if not all([class_room_id, title, creator]):
+    if not all([class_room_id, title]):
         return jsonify({"error": "Missing required fields"}), 400
 
     assessment_id = str(uuid.uuid4())
@@ -180,73 +221,253 @@ def create_assessment():
         "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "creator": creator,
+        "creator_id": user_id,
+        "creator_username": username,
         "created_at": datetime.utcnow()
     })
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<classroomId>', methods=['GET'])
 def get_assessments(classroomId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
     return jsonify(assessments), 200
 
-# --- WebSocket Functionality ---
-# Store active WebSocket connections by classroom ID
-connected_websockets = {} # {classroomId: {user_id: websocket_object}}
+@app.route('/api/create-classroom', methods=['POST'])
+def create_classroom():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
 
-@sock.route('/ws/chat')
-def chat_websocket(ws):
-    class_room_id = request.args.get('classroomId')
-    username = request.args.get('username', 'Anonymous')
+    data = request.json
+    classroom_name = data.get('name')
 
-    if not class_room_id:
-        ws.close(code=1003, reason="Classroom ID is required")
+    if not classroom_name:
+        return jsonify({"error": "Classroom name is required"}), 400
+
+    classroom_id = str(uuid.uuid4())
+    classrooms_collection.insert_one({
+        "id": classroom_id,
+        "name": classroom_name,
+        "creator_id": user_id,
+        "creator_username": username,
+        "created_at": datetime.utcnow(),
+        "participants": [user_id] # Creator is initially a participant
+    })
+    return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
+
+@app.route('/api/classrooms', methods=['GET'])
+def get_classrooms():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Get classrooms where the current user is either the creator or a participant
+    user_classrooms = list(classrooms_collection.find(
+        {"$or": [{"creator_id": user_id}, {"participants": user_id}]},
+        {"_id": 0} # Exclude MongoDB's default _id field
+    ))
+    return jsonify(user_classrooms), 200
+
+@app.route('/api/join-classroom', methods=['POST'])
+def join_classroom():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    classroom_id = data.get('classroomId')
+
+    if not classroom_id:
+        return jsonify({"error": "Classroom ID is required"}), 400
+
+    classroom = classrooms_collection.find_one({"id": classroom_id})
+    if not classroom:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    if user_id not in classroom.get('participants', []):
+        classrooms_collection.update_one(
+            {"id": classroom_id},
+            {"$addToSet": {"participants": user_id}} # Add user to participants if not already there
+        )
+        # Notify existing participants that a new user joined via Socket.IO
+        socketio.emit('participant_join', {'username': session.get('username'), 'classroomId': classroom_id}, room=classroom_id)
+        return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
+    else:
+        return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
+
+@app.route('/api/generate-share-link/<classroomId>', methods=['GET'])
+def generate_share_link(classroomId):
+    # You might want to verify if the classroomId exists and if the user has access
+    classroom = classrooms_collection.find_one({"id": classroomId})
+    if not classroom:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    # Construct the base URL for your application
+    # It's highly recommended to set APP_BASE_URL as an environment variable in Render.
+    # E.g., APP_BASE_URL=https://your-app-name.onrender.com
+    base_url = os.environ.get('APP_BASE_URL', request.host_url)
+    if base_url.endswith('/'):
+        base_url = base_url[:-1] # Remove trailing slash if present
+
+    # Construct the shareable URL for the classroom
+    # This URL should lead to your single-page app which then handles routing
+    share_link = f"{base_url}/classroom/{classroomId}"
+
+    return jsonify({"share_link": share_link}), 200
+
+# --- Socket.IO Event Handlers ---
+
+@socketio.on('connect')
+def connect():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if user_id:
+        print(f"Client connected: {username} ({user_id})")
+        # Store sid for user to map them
+        session['sid'] = request.sid
+        # You might want to store a mapping of user_id to sid if needed
+    else:
+        print("Unauthenticated client connected")
+
+@socketio.on('disconnect')
+def disconnect():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if user_id:
+        print(f"Client disconnected: {username} ({user_id})")
+        # In a real app, you'd remove them from active rooms and notify others
+    else:
+        print("Unauthenticated client disconnected")
+
+@socketio.on('join_room')
+def on_join(data):
+    classroomId = data.get('classroomId')
+    username = session.get('username') # Get username from session
+    user_id = session.get('user_id') # Get user_id from session
+
+    if not classroomId or not username or not user_id:
+        print("Missing data for join_room or user not authenticated.")
         return
 
-    # Add this WebSocket to the group for the specific classroom
-    if class_room_id not in connected_websockets:
-        connected_websockets[class_room_id] = {}
+    join_room(classroomId)
+    print(f"{username} ({user_id}) joined room: {classroomId}")
 
-    # Store by a unique identifier, e.g., username + a unique ID for multiple tabs
-    ws_id = f"{username}-{uuid.uuid4()}"
-    connected_websockets[class_room_id][ws_id] = ws
-    print(f"WebSocket connected: {username} to classroom {class_room_id}")
-
-    try:
-        while True:
-            message = ws.receive()
-            if message:
-                data = json.loads(message)
-                data['username'] = username # Add sender's username
-                data['classroomId'] = class_room_id # Ensure classroom ID is in message
-
-                # Broadcast message to all participants in the same classroom
-                for _ws_id, client_ws in connected_websockets.get(class_room_id, {}).items():
-                    if client_ws != ws: # Don't send back to sender
-                        client_ws.send(json.dumps(data))
-                    else: # Acknowledge for sender for certain message types (e.g., whiteboard)
-                         if data.get('type') == 'whiteboard-data' or data.get('type') == 'whiteboard-clear':
-                             # For whiteboard data, the sender's client already updates,
-                             # so no need to send back to sender unless for confirmation.
-                             pass
+    # Optionally, broadcast to others in the room
+    emit('participant_join', {'username': username, 'user_id': user_id}, room=classroomId, include_sid=False) # Exclude sender
 
 
-    except Exception as e:
-        print(f"WebSocket error for {username} in classroom {class_room_id}: {e}")
-    finally:
-        # Remove this WebSocket when it closes
-        if class_room_id in connected_websockets and ws_id in connected_websockets[class_room_id]:
-            del connected_websockets[class_room_id][ws_id]
-            if not connected_websockets[class_room_id]:
-                del connected_websockets[class_room_id]
-        print(f"WebSocket disconnected: {username} from classroom {class_room_id}")
+@socketio.on('leave_room')
+def on_leave(data):
+    classroomId = data.get('classroomId')
+    username = session.get('username')
 
+    if not classroomId or not username:
+        return
+
+    leave_room(classroomId)
+    print(f"{username} left room: {classroomId}")
+    emit('participant_leave', {'username': username}, room=classroomId, include_sid=False) # Exclude sender
+
+
+@socketio.on('chat_message')
+def handle_chat_message(data):
+    classroomId = data.get('classroomId')
+    message = data.get('message')
+    username = session.get('username') # Get username from session
+    user_id = session.get('user_id') # Get user_id from session
+
+    if not classroomId or not message or not username or not user_id:
+        print("Missing chat message data.")
+        return
+
+    timestamp = datetime.now().strftime('%H:%M')
+    emit('chat_message', {
+        'user_id': user_id,
+        'username': username,
+        'message': message,
+        'timestamp': timestamp
+    }, room=classroomId)
+
+
+@socketio.on('whiteboard_data')
+def handle_whiteboard_data(data):
+    classroomId = data.get('classroomId')
+    if not classroomId:
+        print("Missing classroomId for whiteboard data.")
+        return
+
+    # Broadcast whiteboard data to all other clients in the same room
+    # The client that sent the data already has it, so no need to send back
+    emit('whiteboard_data', data, room=classroomId, include_sid=False)
+
+@socketio.on('start_broadcast')
+def handle_start_broadcast(data):
+    classroomId = data.get('classroomId')
+    peer_id = data.get('peer_id')
+    if not classroomId or not peer_id:
+        return
+
+    emit('webrtc_offer', {'peer_id': peer_id}, room=classroomId, include_sid=False)
+
+@socketio.on('webrtc_offer')
+def handle_webrtc_offer(data):
+    classroomId = data.get('classroomId')
+    recipient_id = data.get('recipient_id')
+    offer = data.get('offer')
+    sender_id = request.sid
+
+    if not classroomId or not recipient_id or not offer:
+        return
+
+    emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
+
+
+@socketio.on('webrtc_answer')
+def handle_webrtc_answer(data):
+    classroomId = data.get('classroomId')
+    recipient_id = data.get('recipient_id')
+    answer = data.get('answer')
+    sender_id = request.sid
+
+    if not classroomId or not recipient_id or not answer:
+        return
+
+    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
+
+
+@socketio.on('webrtc_ice_candidate')
+def handle_webrtc_ice_candidate(data):
+    classroomId = data.get('classroomId')
+    recipient_id = data.get('recipient_id')
+    candidate = data.get('candidate')
+    sender_id = request.sid
+
+    if not classroomId or not recipient_id or not candidate:
+        return
+
+    emit('webrtc_ice_candidate', {'candidate': candidate, 'sender_id': sender_id}, room=recipient_id)
+
+
+@socketio.on('webrtc_peer_disconnected')
+def handle_peer_disconnected(data):
+    classroomId = data.get('classroomId')
+    peer_id = data.get('peer_id')
+    if not classroomId or not peer_id:
+        return
+    emit('webrtc_peer_disconnected', {'peer_id': peer_id}, room=classroomId, include_sid=False)
+
+
+# --- Main Run Block ---
 if __name__ == '__main__':
-    from gevent.pywsgi import WSGIServer
-    from geventwebsocket.handler import WebSocketHandler
+    # When using Flask-SocketIO with gevent, you run the SocketIO instance
+    # directly using socketio.run, which wraps the WSGI server.
+    print("Server running on http://localhost:5000 (with Socket.IO)")
+    socketio.run(app, debug=True, port=5000, host='0.0.0.0')
 
-    http_server = WSGIServer(('', 5000), app, handler_class=WebSocketHandler)
-    print("Server running on http://localhost:5000")
-    http_server.serve_forever()
-
-    # Remember to install: pip install Flask Flask-PyMongo Flask-Sock pymongo Werkzeug gevent gevent-websocket
+    # Remember to install: pip install Flask Flask-PyMongo Flask-SocketIO Werkzeug gevent python-dotenv
+    # (python-dotenv for .env file in dev)
