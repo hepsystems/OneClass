@@ -374,7 +374,8 @@ def on_join(data):
     classroomId = data.get('classroomId')
     username = session.get('username') # Get username from session
     user_id = session.get('user_id') # Get user_id from session
-    user_role = session.get('role') # Get user_role from session
+    user_role = data.get('role') or session.get('role')  # ✅ Accept role from client
+    session['role'] = user_role  # ✅ Store role in session
     sid = request.sid # Get the current socket's ID
 
     if not classroomId or not username or not user_id:
@@ -384,6 +385,7 @@ def on_join(data):
     join_room(classroomId)
     # Store classroomId in session if needed for disconnect handling
     session['classroomId'] = classroomId
+    print(f"[Socket.IO] User '{username}' ({user_id}) joined as role: {user_role}") # ✅ Debug log
     print(f"{username} ({user_id}, {user_role}) joined room: {classroomId} with SID: {sid}")
 
     # Broadcast to others in the room that a new user joined.
