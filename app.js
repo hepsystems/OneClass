@@ -1,4 +1,4 @@
-// app.js (Fixed whiteboardCtx issue and enabled admin drawing)
+// app.js (Fixed whiteboardCtx issue and enabled admin drawing, added verbose logging for whiteboard)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -61,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Whiteboard Elements (moved from classroom.js)
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    // const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize if canvas exists
     const penColorInput = document.getElementById('pen-color');
     const penWidthInput = document.getElementById('pen-width');
     const widthValueSpan = document.getElementById('width-value');
@@ -189,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- Direct calls to merged classroom functionality ---
         initializeSocketIO();
-        setupWhiteboardControls();
+        setupWhiteboardControls(); // Ensure whiteboard controls are set up
         // Reset broadcast buttons state
         if (startBroadcastBtn) startBroadcastBtn.disabled = false;
         if (endBroadcastBtn) endBroadcastBtn.disabled = true;
@@ -279,18 +278,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Whiteboard Socket.IO Handlers ---
         socket.on('whiteboard_data', (data) => {
             if (data.action === 'draw') {
-                const { prevX, prevY, currX, currY, color, width } = data;
+                const { prevX, prevY, currX, currY, color, width } = data.data || data; // Handle both direct data and nested 'data' from DB
+                console.log(`[Whiteboard] Received draw data: prevX=${prevX}, prevY=${prevY}, currX=${currX}, currY=${currY}, color=${color}, width=${width}`);
                 drawLine(prevX, prevY, currX, currY, color, width);
             } else if (data.action === 'clear') {
+                console.log('[Whiteboard] Received clear command.');
                 if (whiteboardCtx) {
                     whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
                 }
             } else if (data.action === 'history' && data.data) {
                 // Redraw history for new participants
                 console.log('[Whiteboard] Receiving history. Items:', data.data.length);
+                // Clear current canvas before redrawing history
+                if (whiteboardCtx) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                }
                 data.data.forEach(drawCommand => {
-                    if (drawCommand.action === 'draw') {
-                        const { prevX, prevY, currX, currY, color, width } = drawCommand;
+                    if (drawCommand.action === 'draw' && drawCommand.data) { // Ensure it's a draw command and has data
+                        const { prevX, prevY, currX, currY, color, width } = drawCommand.data;
                         drawLine(prevX, prevY, currX, currY, color, width);
                     }
                 });
@@ -798,7 +803,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (copyShareLinkBtn) {
-        copyShareLinkBtn.addEventListener('click', () => {
+        copyShareLink.addEventListener('click', () => {
             shareLinkInput.select(); // Select the text in the input field
             shareLinkInput.setSelectionRange(0, 99999); // For mobile devices
             document.execCommand('copy'); // Copy the text
@@ -844,12 +849,16 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("[Whiteboard] 2D context failed to initialize.");
             return;
         }
+        console.log("[Whiteboard] Whiteboard context initialized:", whiteboardCtx);
+
 
         // Set canvas dimensions
         const whiteboardArea = document.getElementById('whiteboard-area');
         const parentWidth = whiteboardArea ? whiteboardArea.offsetWidth : 800;
         whiteboardCanvas.width = Math.min(parentWidth * 0.95, 800);
         whiteboardCanvas.height = 600;
+        console.log(`[Whiteboard] Canvas dimensions set: ${whiteboardCanvas.width}x${whiteboardCanvas.height}`);
+
 
         // Select all controls within the whiteboard-tools div
         const allWhiteboardControls = document.querySelectorAll('#whiteboard-tools button, #whiteboard-tools label, #whiteboard-tools input, #whiteboard-tools span');
@@ -879,6 +888,7 @@ document.addEventListener('DOMContentLoaded', () => {
             penColorInput.addEventListener('change', (e) => {
                 penColor = e.target.value;
                 whiteboardCtx.strokeStyle = penColor;
+                console.log(`[Whiteboard] Pen color changed to: ${penColor}`);
             });
         }
 
@@ -887,6 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 penWidth = parseInt(e.target.value);
                 if (widthValueSpan) widthValueSpan.textContent = `${penWidth}px`;
                 whiteboardCtx.lineWidth = penWidth;
+                console.log(`[Whiteboard] Pen width changed to: ${penWidth}`);
             });
             if (widthValueSpan) widthValueSpan.textContent = `${penWidthInput.value}px`;
         }
@@ -895,6 +906,7 @@ document.addEventListener('DOMContentLoaded', () => {
             clearBoardBtn.addEventListener('click', () => {
                 // FIX: Use currentClassroom.id
                 if (socket && currentClassroom && currentClassroom.id && currentUser && currentUser.role === 'admin') {
+                    console.log(`[Whiteboard] Sending clear command for classroom: ${currentClassroom.id}`);
                     socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id });
                 } else if (currentUser && currentUser.role !== 'admin') {
                     alert("Only administrators can clear the whiteboard.");
@@ -906,46 +918,54 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentUser && currentUser.role === 'admin') {
                 isDrawing = true;
                 [lastX, lastY] = [e.offsetX, e.offsetY];
+                console.log(`[Whiteboard] Mouse DOWN at (${lastX}, ${lastY}) with color ${penColor} and width ${penWidth}`);
             }
         });
 
         whiteboardCanvas.addEventListener('mousemove', (e) => {
             if (!isDrawing || currentUser.role !== 'admin') return;
-            // if (currentUser && currentUser.role === 'admin') { // This check is now redundant due to the 'if' above
-                const currX = e.offsetX;
-                const currY = e.offsetY;
+            
+            const currX = e.offsetX;
+            const currY = e.offsetY;
 
-                drawLine(lastX, lastY, currX, currY, penColor, penWidth);
+            // Draw locally immediately for responsiveness
+            drawLine(lastX, lastY, currX, currY, penColor, penWidth);
+            // console.log(`[Whiteboard] Drawing locally from (${lastX}, ${lastY}) to (${currX}, ${currY})`);
 
-                // FIX: Use currentClassroom.id
-                socket.emit('whiteboard_data', {
-                    action: 'draw',
-                    classroomId: currentClassroom.id,
-                    prevX: lastX,
-                    prevY: lastY,
-                    currX: currX,
-                    currY: currY,
-                    color: penColor,
-                    width: penWidth
-                });
+            // Emit drawing data to the server
+            // FIX: Use currentClassroom.id
+            const drawData = {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                prevX: lastX,
+                prevY: lastY,
+                currX: currX,
+                currY: currY,
+                color: penColor,
+                width: penWidth
+            };
+            socket.emit('whiteboard_data', drawData);
+            // console.log('[Whiteboard] Emitted draw data:', drawData);
 
-                [lastX, lastY] = [currX, currY];
-            // }
+            [lastX, lastY] = [currX, currY];
         });
 
         whiteboardCanvas.addEventListener('mouseup', () => {
             isDrawing = false;
+            console.log('[Whiteboard] Mouse UP. Drawing stopped.');
         });
 
         whiteboardCanvas.addEventListener('mouseout', () => {
             isDrawing = false;
+            console.log('[Whiteboard] Mouse OUT. Drawing stopped.');
         });
 
         // Set initial context properties
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.strokeStyle = penColor;
-        whiteboardCtx.lineWidth = penWidth;
+        whiteboardCtx.strokeStyle = penColor; // Apply initial pen color
+        whiteboardCtx.lineWidth = penWidth;   // Apply initial pen width
+        console.log(`[Whiteboard] Initial context properties set: strokeStyle=${whiteboardCtx.strokeStyle}, lineWidth=${whiteboardCtx.lineWidth}`);
     }
 
     function drawLine(prevX, prevY, currX, currY, color, width) {
