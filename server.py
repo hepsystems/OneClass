@@ -34,6 +34,8 @@ users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 library_files_collection = mongo.db.library_files
 assessments_collection = mongo.db.assessments
+assessment_questions_collection = mongo.db.assessment_questions # New
+assessment_submissions_collection = mongo.db.assessment_submissions # New
 whiteboard_collection = mongo.db.whiteboard_drawings # New collection for whiteboard data
 
 # Ensure necessary directories exist for file uploads
@@ -216,19 +218,26 @@ def get_library_files(classroomId):
 def create_assessment():
     user_id = session.get('user_id')
     username = session.get('username')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+    user_role = session.get('role')
+
+    if not user_id or user_role != 'admin':
+        return jsonify({"error": "Unauthorized: Only administrators can create assessments."}), 401
 
     data = request.json
     class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    # creator = data.get('creator') # Use session username instead
+    questions = data.get('questions') # List of question objects
 
-    if not all([class_room_id, title]):
-        return jsonify({"error": "Missing required fields"}), 400
+    if not all([class_room_id, title, questions]):
+        return jsonify({"error": "Missing required fields: classroomId, title, or questions"}), 400
+    
+    if not isinstance(questions, list) or not questions:
+        return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     assessment_id = str(uuid.uuid4())
+    
+    # Insert assessment details
     assessments_collection.insert_one({
         "id": assessment_id,
         "classroomId": class_room_id,
@@ -238,6 +247,20 @@ def create_assessment():
         "creator_username": username,
         "created_at": datetime.utcnow()
     })
+
+    # Insert each question linked to the assessment
+    for q_data in questions:
+        question_id = str(uuid.uuid4())
+        assessment_questions_collection.insert_one({
+            "id": question_id,
+            "assessmentId": assessment_id,
+            "classroomId": class_room_id,
+            "question_text": q_data.get('question_text'),
+            "question_type": q_data.get('question_type'), # 'text' or 'mcq'
+            "options": q_data.get('options'), # List of strings for MCQ
+            "correct_answer": q_data.get('correct_answer') # For MCQ, e.g., "A", "B"; for text, can be null or example answer
+        })
+
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<classroomId>', methods=['GET'])
@@ -248,6 +271,95 @@ def get_assessments(classroomId):
 
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
     return jsonify(assessments), 200
+
+@app.route('/api/assessment/<assessmentId>/questions', methods=['GET'])
+def get_assessment_questions(assessmentId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    questions = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
+    return jsonify(questions), 200
+
+@app.route('/api/submit-assessment', methods=['POST'])
+def submit_assessment():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    assessment_id = data.get('assessmentId')
+    class_room_id = data.get('classroomId')
+    answers = data.get('answers') # List of {questionId: "...", answer: "..."}
+
+    if not all([assessment_id, class_room_id, answers]):
+        return jsonify({"error": "Missing required fields: assessmentId, classroomId, or answers"}), 400
+    
+    if not isinstance(answers, list):
+        return jsonify({"error": "Answers must be a list"}), 400
+
+    submission_id = str(uuid.uuid4())
+    
+    # Calculate score (simple for now: exact match for MCQ, no scoring for text)
+    score = 0
+    total_questions = 0
+    graded_answers = []
+
+    for submitted_answer in answers:
+        question_id = submitted_answer.get('questionId')
+        user_answer = submitted_answer.get('answer')
+        
+        if question_id:
+            question = assessment_questions_collection.find_one({"id": question_id})
+            if question:
+                total_questions += 1
+                is_correct = False
+                if question.get('question_type') == 'mcq':
+                    if question.get('correct_answer') and user_answer and \
+                       user_answer.strip().lower() == question['correct_answer'].strip().lower():
+                        score += 1
+                        is_correct = True
+                
+                graded_answers.append({
+                    "question_id": question_id,
+                    "question_text": question.get('question_text'),
+                    "user_answer": user_answer,
+                    "correct_answer": question.get('correct_answer'),
+                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None # Only for MCQ
+                })
+
+    assessment_submissions_collection.insert_one({
+        "id": submission_id,
+        "assessmentId": assessment_id,
+        "classroomId": class_room_id,
+        "student_id": user_id,
+        "student_username": username,
+        "submitted_at": datetime.utcnow(),
+        "answers": graded_answers,
+        "score": score,
+        "total_questions": total_questions
+    })
+
+    return jsonify({"message": "Assessment submitted successfully", "submission_id": submission_id, "score": score, "total_questions": total_questions}), 201
+
+@app.route('/api/assessment/<assessmentId>/submissions', methods=['GET'])
+def get_assessment_submissions(assessmentId):
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Admins can see all submissions for their assessment
+    # Students can only see their own submission (if any)
+    query = {"assessmentId": assessmentId}
+    if user_role != 'admin':
+        query["student_id"] = user_id
+
+    submissions = list(assessment_submissions_collection.find(query, {"_id": 0}).sort("submitted_at", -1))
+    return jsonify(submissions), 200
+
 
 @app.route('/api/create-classroom', methods=['POST'])
 def create_classroom():
