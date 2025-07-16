@@ -36,13 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const navWhiteboard = document.getElementById('nav-whiteboard');
     const navLibrary = document.getElementById('nav-library');
     const navAssessments = document.getElementById('nav-assessments');
-    const navVideoBroadcast = document.getElementById('nav-video-broadcast');
+    // const navVideoBroadcast = document.getElementById('nav-video-broadcast'); // Removed, as video is merged into whiteboard
 
     const chatSection = document.getElementById('chat-section');
     const whiteboardArea = document.getElementById('whiteboard-area');
     const librarySection = document.getElementById('library-section');
     const assessmentsSection = document.getElementById('assessments-section');
-    const videoBroadcastSection = document.getElementById('video-broadcast-section');
+    // const videoBroadcastSection = document.getElementById('video-broadcast-section'); // Removed
 
     const settingsSection = document.getElementById('settings-section');
     const updateProfileForm = document.getElementById('update-profile-form');
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showClassroomSubSection(subSectionToShow) {
-        [whiteboardArea, chatSection, librarySection, assessmentsSection, videoBroadcastSection].forEach(subSection => {
+        [whiteboardArea, chatSection, librarySection, assessmentsSection].forEach(subSection => { // Removed videoBroadcastSection
             if (subSection) {
                 subSection.classList.add('hidden');
                 subSection.classList.remove('active');
@@ -94,7 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateNavActiveState(activeButton) {
-        [navDashboard, navClassroom, navSettings, navChat, navWhiteboard, navLibrary, navAssessments, navVideoBroadcast].forEach(btn => {
+        // Removed navVideoBroadcast from the list
+        [navDashboard, navClassroom, navSettings, navChat, navWhiteboard, navLibrary, navAssessments].forEach(btn => {
             if (btn) btn.classList.remove('active-nav');
         });
         if (activeButton) {
@@ -146,11 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
         classCodeSpan.textContent = id; // Update classroom section display
 
         showSection(classroomSection);
-        showClassroomSubSection(chatSection); // Default to chat
-        updateNavActiveState(navChat);
+        showClassroomSubSection(whiteboardArea); // Default to whiteboard
+        updateNavActiveState(navWhiteboard); // Update active nav button
 
         // Notify classroom.js to join the Socket.IO room
-        window.dispatchEvent(new CustomEvent('classroomEntered', { detail: { id: id, username: currentUser.username } }));
+        window.dispatchEvent(new CustomEvent('classroomEntered', { detail: { id: id, username: currentUser.username, userId: currentUser.id } }));
 
         // Hide share link display when entering a new classroom
         shareLinkDisplay.classList.add('hidden');
@@ -234,13 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const username = document.getElementById('register-username').value;
             const email = document.getElementById('register-email').value;
             const password = document.getElementById('register-password').value;
-            const role = document.getElementById('register-role').value;
+            const role = document.getElementById('register-role').value; // Get the selected role
 
             try {
                 const response = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email, password, role })
+                    body: JSON.stringify({ username, email, password, role }) // Include role in the request
                 });
                 const result = await response.json();
                 if (response.ok) {
@@ -417,9 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (navAssessments) {
         navAssessments.addEventListener('click', () => { showClassroomSubSection(assessmentsSection); updateNavActiveState(navAssessments); });
     }
-    if (navVideoBroadcast) {
-        navVideoBroadcast.addEventListener('click', () => { showClassroomSubSection(videoBroadcastSection); updateNavActiveState(navVideoBroadcast); });
-    }
+
 
     // Update Profile
     if (updateProfileForm) {
