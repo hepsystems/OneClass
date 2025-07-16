@@ -298,12 +298,12 @@ section {
 }
 
 #whiteboard-canvas {
-    background-color: white;
+    background-color: black; /* Changed to black */
     border: 1px solid #ccc;
     cursor: crosshair;
     box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-    max-width: 100%; /* Ensure canvas is responsive */
-    height: auto; /* Maintain aspect ratio */
+    max-width: 95%; /* Increased max-width */
+    height: 600px; /* Set a fixed height to make it visibly larger */
 }
 
 /* Share Link Display */
