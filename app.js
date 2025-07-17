@@ -1,4 +1,4 @@
-// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard, Discoverable Classrooms, Whiteboard/WebRTC Sync Fixes)
+// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard, Discoverable Classrooms, Whiteboard/WebRTC Sync Fixes, Selective Broadcast)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const whiteboardRoleMessage = document.getElementById('whiteboard-role-message'); // For role-specific messages
 
     // Video Broadcast Elements
+    const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
     const startBroadcastBtn = document.getElementById('start-broadcast');
     const endBroadcastBtn = document.getElementById('end-broadcast');
     const localVideo = document.getElementById('local-video');
@@ -329,6 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Hide broadcast buttons for non-admins
             if (startBroadcastBtn) startBroadcastBtn.classList.add('hidden');
             if (endBroadcastBtn) endBroadcastBtn.classList.add('hidden');
+            // Hide broadcast type radios for non-admins
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
         }
 
 
@@ -448,15 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Temporarily set context properties for drawing received data
-            const originalStrokeStyle = whiteboardCtx.strokeStyle;
-            const originalLineWidth = whiteboardCtx.lineWidth;
-            const originalFillStyle = whiteboardCtx.fillStyle;
-            const originalGlobalCompositeOperation = whiteboardCtx.globalCompositeOperation;
-
-            if (data.action === 'draw') {
-                const { tool, startX, startY, endX, endY, color, width, text } = data.data; // Data is now consistently nested
-
+            // Helper function to apply drawing properties
+            const applyDrawingProperties = (tool, color, width) => {
                 whiteboardCtx.strokeStyle = color;
                 whiteboardCtx.lineWidth = width;
                 whiteboardCtx.fillStyle = color; // For text
@@ -466,11 +462,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     whiteboardCtx.globalCompositeOperation = 'source-over';
                 }
+            };
+
+            if (data.action === 'draw') {
+                const { tool, startX, startY, endX, endY, color, width, text } = data.data; // Data is now consistently nested
+
+                whiteboardCtx.save(); // Save current context state
+                applyDrawingProperties(tool, color, width);
 
                 switch (tool) {
                     case 'pen':
                     case 'eraser':
-                        // For pen/eraser, data comes as segments.
                         whiteboardCtx.beginPath();
                         whiteboardCtx.moveTo(startX, startY);
                         whiteboardCtx.lineTo(endX, endY);
@@ -498,6 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         whiteboardCtx.fillText(text, startX, startY);
                         break;
                 }
+                whiteboardCtx.restore(); // Restore previous context state
             } else if (data.action === 'clear') {
                 console.log('[Whiteboard] Received clear command.');
                 whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
@@ -516,16 +519,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (drawCommand.action === 'draw' && drawCommand.data) {
                         const { tool, startX, startY, endX, endY, color, width, text } = drawCommand.data;
 
-                        // Apply history drawing properties
-                        whiteboardCtx.strokeStyle = color;
-                        whiteboardCtx.lineWidth = width;
-                        whiteboardCtx.fillStyle = color;
-
-                        if (tool === 'eraser') {
-                            whiteboardCtx.globalCompositeOperation = 'destination-out';
-                        } else {
-                            whiteboardCtx.globalCompositeOperation = 'source-over';
-                        }
+                        whiteboardCtx.save(); // Save context for each history item
+                        applyDrawingProperties(tool, color, width);
 
                         switch (tool) {
                             case 'pen':
@@ -557,15 +552,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 whiteboardCtx.fillText(text, startX, startY);
                                 break;
                         }
+                        whiteboardCtx.restore(); // Restore context after each history item
                     }
                 });
             }
-
-            // Restore original context properties after drawing all received data
-            whiteboardCtx.strokeStyle = originalStrokeStyle;
-            whiteboardCtx.lineWidth = originalLineWidth;
-            whiteboardCtx.fillStyle = originalFillStyle;
-            whiteboardCtx.globalCompositeOperation = originalGlobalCompositeOperation;
         });
 
         // --- WebRTC Socket.IO Handlers ---
@@ -576,29 +566,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const peerId = data.sender_id;
             if (!peerConnections[peerId]) {
                 // Create PC if it doesn't exist. This is the receiver, so isCaller is false.
+                // Note: The receiving peer does NOT call getUserMedia or add tracks for a one-way broadcast.
                 createPeerConnection(peerId, false);
-            }
-
-            // Ensure local stream is acquired if not already (for receiving)
-            // This block is crucial for the receiving peer to add its own tracks
-            if (!localStream) {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    localVideo.srcObject = localStream;
-                    console.log("[WebRTC] Acquired local stream for receiving.");
-                    // If we acquired stream after peer connection created, add tracks now
-                    if (peerConnections[peerId] && !peerConnections[peerId].getLocalStreams().length) {
-                         localStream.getTracks().forEach(track => peerConnections[peerId].addTrack(track, localStream));
-                    }
-                } catch (err) {
-                    console.error("[WebRTC] Error acquiring local stream for receiving:", err);
-                    alert("Could not access camera/microphone for video call. Receiving might be affected.");
-                }
-            } else {
-                 // Even if localStream exists, ensure tracks are added to this specific peer connection
-                 if (peerConnections[peerId] && !peerConnections[peerId].getLocalStreams().length) {
-                    localStream.getTracks().forEach(track => peerConnections[peerId].addTrack(track, localStream));
-                 }
             }
 
             try {
@@ -1088,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (copyShareLinkBtn) { // This button is still in index.html, but now its functionality is standalone.
-        copyShareLinkBtn.addEventListener('click', () => {
+        copyShareLink.addEventListener('click', () => {
             shareLinkInput.select(); // Select the text in the input field
             shareLinkInput.setSelectionRange(0, 99999); // For mobile devices
             document.execCommand('copy'); // Copy the text
@@ -1299,8 +1268,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const textInput = prompt("Enter text:");
                 if (textInput !== null && textInput.trim() !== '') {
                     // Draw text locally
+                    whiteboardCtx.save(); // Save context before drawing text
                     whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`; // Text size based on brush size
+                    whiteboardCtx.fillStyle = currentColor; // Ensure text color is set
                     whiteboardCtx.fillText(textInput, startX, startY);
+                    whiteboardCtx.restore(); // Restore context after drawing text
+
                     saveState(); // Save state after text is drawn
 
                     // Emit text data to server
@@ -1334,6 +1307,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const coords = getCoords(e);
             const currentX = coords.x;
             const currentY = coords.y;
+
+            whiteboardCtx.save(); // Save context for temporary drawing
+            whiteboardCtx.strokeStyle = currentColor;
+            whiteboardCtx.lineWidth = currentBrushSize;
 
             if (currentTool === 'pen' || currentTool === 'eraser') {
                 if (currentTool === 'eraser') {
@@ -1375,6 +1352,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                 }
             }
+            whiteboardCtx.restore(); // Restore context after temporary drawing
         }
 
         /**
@@ -1393,6 +1371,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const currentX = finalCoords.x;
                 const currentY = finalCoords.y;
 
+                whiteboardCtx.save(); // Save context for final drawing
+                whiteboardCtx.strokeStyle = currentColor;
+                whiteboardCtx.lineWidth = currentBrushSize;
+
                 switch (currentTool) {
                     case 'line':
                         drawLineLocal(startX, startY, currentX, currentY);
@@ -1404,6 +1386,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         drawCircleLocal(startX, startY, currentX, currentY);
                         break;
                 }
+                whiteboardCtx.restore(); // Restore context after final drawing
+
                 // Emit final shape data
                 socket.emit('whiteboard_data', {
                     action: 'draw',
@@ -1463,7 +1447,7 @@ document.addEventListener('DOMContentLoaded', () => {
         /**
          * Draws a circle locally on the canvas.
          * @param {number} x1 - Start X (center).
-         * @param {number} y1 - Start Y (center).
+         * @param {number} y1 - Start Y (defines radius).
          * @param {number} x2 - End X (defines radius).
          * @param {number} y2 - End Y (defines radius).
          */
@@ -1608,33 +1592,95 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Video Broadcasting Functionality (WebRTC) ---
 
+    // Event listener for broadcast type selection
+    if (broadcastTypeRadios) {
+        broadcastTypeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                // When selection changes, if broadcast is active, restart it with new settings
+                if (localStream && localStream.active) {
+                    endBroadcast(); // Stop current broadcast
+                    // A small delay might be needed for full cleanup before restarting, or rely on promises
+                    setTimeout(() => {
+                        const selectedType = document.querySelector('input[name="broadcastType"]:checked').value;
+                        let videoEnabled = false;
+                        let audioEnabled = false;
+                        if (selectedType === 'both') {
+                            videoEnabled = true;
+                            audioEnabled = true;
+                        } else if (selectedType === 'video') {
+                            videoEnabled = true;
+                        } else if (selectedType === 'audio') {
+                            audioEnabled = true;
+                        }
+                        startBroadcast(videoEnabled, audioEnabled);
+                    }, 500); // Give a moment for cleanup
+                }
+            });
+        });
+    }
+
+
     if (startBroadcastBtn) {
-        startBroadcastBtn.addEventListener('click', startBroadcast);
+        startBroadcastBtn.addEventListener('click', () => {
+            const selectedType = document.querySelector('input[name="broadcastType"]:checked').value;
+            let videoEnabled = false;
+            let audioEnabled = false;
+            if (selectedType === 'both') {
+                videoEnabled = true;
+                audioEnabled = true;
+            } else if (selectedType === 'video') {
+                videoEnabled = true;
+            } else if (selectedType === 'audio') {
+                audioEnabled = true;
+            }
+            startBroadcast(videoEnabled, audioEnabled);
+        });
     }
 
     if (endBroadcastBtn) {
         endBroadcastBtn.addEventListener('click', endBroadcast);
     }
 
-    async function startBroadcast() {
+    async function startBroadcast(videoEnabled = true, audioEnabled = true) {
         if (!currentClassroom || !currentClassroom.id || !socket || !currentUser || currentUser.role !== 'admin') {
             alert("Only administrators can start a broadcast in a classroom.");
             return;
         }
 
         if (localStream && localStream.active) {
-            alert("Broadcast already active.");
+            alert("Broadcast already active. Stopping it first.");
+            endBroadcast();
+            // Give a moment for cleanup before restarting
+            setTimeout(() => startBroadcast(videoEnabled, audioEnabled), 500);
             return;
         }
 
         try {
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            // Request media based on selected options
+            localStream = await navigator.mediaDevices.getUserMedia({ video: videoEnabled, audio: audioEnabled });
             localVideo.srcObject = localStream;
-            console.log("[WebRTC] Local stream acquired.");
+            console.log(`[WebRTC] Local stream acquired. Video: ${videoEnabled}, Audio: ${audioEnabled}`);
 
             alert('Broadcast started!');
             if (startBroadcastBtn) startBroadcastBtn.disabled = true;
             if (endBroadcastBtn) endBroadcastBtn.disabled = false;
+
+            // Admin is the caller for all participants
+            // This part is crucial: Iterate over all connected peers and create offers
+            // The 'user_joined' event will also trigger this for new joiners
+            // For existing peers, we need to manually trigger offers if they are already in the room
+            // This requires knowing who is in the room. The server's 'user_joined' handles new ones.
+            // For already connected peers, the admin's client would need a list of SIDs.
+            // For simplicity, we rely on 'user_joined' to trigger offers to new participants.
+            // If an admin starts broadcast in an *already populated* room, existing users will
+            // receive the 'user_joined' event for themselves (if the server sends it on join)
+            // or the admin needs to explicitly send offers to *all* current room members.
+            // The current 'user_joined' logic on admin side handles new joiners.
+            // To connect to already existing users, the admin would need to know their SIDs.
+            // A simpler approach for this one-way broadcast is that the admin's stream is ready,
+            // and any new user joining will automatically receive an offer from the admin.
+            // If the admin starts broadcasting in an already active room, existing users will
+            // establish connections when they receive the offer.
 
         } catch (err) {
             console.error('[WebRTC] Error accessing media devices:', err);
@@ -1655,6 +1701,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const peerId in peerConnections) {
             if (peerConnections[peerId]) {
+                // Signal to the remote peer that we are disconnecting our stream
+                socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: peerId });
                 peerConnections[peerId].close();
                 delete peerConnections[peerId];
                 const videoElement = document.getElementById(`remote-video-${peerId}`);
@@ -1663,8 +1711,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+        // Also signal own disconnection
         if (socket && currentClassroom && currentClassroom.id) {
-            socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: socket.id });
+            // This line is now handled in the loop above for each peer
+            // socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: socket.id });
         }
 
         alert('Broadcast ended.');
@@ -1677,35 +1727,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const pc = new RTCPeerConnection(iceServers);
         peerConnections[peerId] = pc;
 
-        // Ensure local stream is acquired and added to the peer connection
-        if (!localStream) {
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
-                console.log("[WebRTC] Acquired local stream for peer connection.");
-            } catch (err) {
-                console.error("[WebRTC] Error acquiring local stream for peer connection:", err);
-                // Even if getUserMedia fails, continue to set up PC for receiving, but alert user
-                alert("Could not access camera/microphone. Video broadcast might not work correctly.");
-            }
-        }
-        // Add tracks from localStream to the peer connection if localStream exists
-        if (localStream) {
+        // --- CRUCIAL FIX: Only add local stream if this peer is the CALLER (broadcaster) ---
+        if (isCaller && localStream) {
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            console.log(`[WebRTC] Added local tracks to peer connection for ${peerId}.`);
-        } else {
-            console.warn(`[WebRTC] No local stream to add for peer connection with ${peerId}.`);
+            console.log(`[WebRTC] Added local tracks to peer connection for ${peerId} (Caller).`);
+        } else if (!isCaller) {
+            console.log(`[WebRTC] This peer (${socket.id}) is a receiver. Not adding local tracks to ${peerId}.`);
         }
 
 
         pc.ontrack = (event) => {
             console.log('[WebRTC] Remote track received from:', peerId);
-            const remoteVideo = document.createElement('video');
-            remoteVideo.id = `remote-video-${peerId}`;
-            remoteVideo.autoplay = true;
-            remoteVideo.playsInline = true;
+            let remoteVideo = document.getElementById(`remote-video-${peerId}`);
+            if (!remoteVideo) {
+                remoteVideo = document.createElement('video');
+                remoteVideo.id = `remote-video-${peerId}`;
+                remoteVideo.autoplay = true;
+                remoteVideo.playsInline = true;
+                remoteVideoContainer.appendChild(remoteVideo);
+            }
             remoteVideo.srcObject = event.streams[0];
-            remoteVideoContainer.appendChild(remoteVideo);
         };
 
         pc.onicecandidate = (event) => {
