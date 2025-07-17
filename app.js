@@ -70,6 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
     const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
 
+    // Custom Text Input Modal Elements
+    const textInputModal = document.getElementById('text-input-modal');
+    const textInputArea = document.getElementById('text-input-area');
+    const textInputDoneBtn = document.getElementById('text-input-done');
+    const textInputCancelBtn = document.getElementById('text-input-cancel');
+
     // Video Broadcast Elements
     const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
     const startBroadcastBtn = document.getElementById('start-broadcast');
@@ -125,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Whiteboard Variables
     let whiteboardCtx;
     let isDrawing = false;
-    let startX, startY; // For shapes and text
+    let startX, startY; // For shapes and initial text placement
     let currentColor = colorPicker ? colorPicker.value : '#FFFFFF';
     let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
     let currentTool = 'pen';
@@ -245,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (libraryRoleMessage) {
             libraryRoleMessage.classList.toggle('hidden', isAdmin);
-            libraryRoleMessage.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
+            libraryRole.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
         }
 
         if (whiteboardCanvas) {
@@ -892,7 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('webrtc_offer', {
                     classroomId: currentClassroom.id,
                     recipient_id: peerId,
-                    offer: pc.localDescription
+                    offer: pc.localLocalDescription
                 });
             } catch (error) {
                 console.error('[WebRTC] Error creating offer:', error);
@@ -955,6 +961,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // Page Navigation
         if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
         if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
+
+        // Text Input Modal Buttons
+        if (textInputDoneBtn) textInputDoneBtn.addEventListener('click', handleTextInputDone);
+        if (textInputCancelBtn) textInputCancelBtn.addEventListener('click', handleTextInputCancel);
         
         // Initial render and page display update
         renderCurrentWhiteboardPage();
@@ -1004,36 +1014,13 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteboardCtx.beginPath(); // Start a new path for pen/eraser
             whiteboardCtx.moveTo(startX, startY);
         } else if (currentTool === 'text') {
-            const textInput = prompt("Enter text:");
-            if (textInput !== null && textInput.trim() !== '') {
-                whiteboardCtx.save();
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillStyle = currentColor;
-                whiteboardCtx.fillText(textInput, startX, startY);
-                whiteboardCtx.restore();
-
-                // Add to local page data immediately
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
-                
-                // Emit to server
-                socket.emit('whiteboard_data', {
-                    action: 'draw',
-                    classroomId: currentClassroom.id,
-                    data: {
-                        startX: startX,
-                        startY: startY,
-                        endX: startX,
-                        endY: startY,
-                        text: textInput,
-                        color: currentColor,
-                        width: currentBrushSize,
-                        tool: 'text',
-                        pageIndex: currentPageIndex
-                    }
-                });
-            }
-            isDrawing = false; // Text drawing is a single click action, no continuous drawing
-            saveState(); // Save the state after drawing text
+            // Show text input modal at the clicked position
+            textInputModal.style.left = `${coords.x}px`;
+            textInputModal.style.top = `${coords.y}px`;
+            textInputModal.classList.remove('hidden');
+            textInputArea.value = ''; // Clear previous text
+            textInputArea.focus();
+            isDrawing = false; // Text input is not a continuous drawing action
         } else { // For shapes
             snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
@@ -1047,8 +1034,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
 
         const coords = getCoords(e);
-        const currentX = coords.x;
-        const currentY = coords.y;
+        // Clamp coordinates to stay within canvas boundaries
+        const currentX = Math.max(0, Math.min(whiteboardCanvas.width, coords.x));
+        const currentY = Math.max(0, Math.min(whiteboardCanvas.height, coords.y));
 
         whiteboardCtx.save();
         whiteboardCtx.strokeStyle = currentColor;
@@ -1107,8 +1095,9 @@ document.addEventListener('DOMContentLoaded', () => {
             whiteboardCtx.closePath(); // Finalize the path for pen/eraser
         } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
             const finalCoords = getCoords(e);
-            const currentX = finalCoords.x;
-            const currentY = finalCoords.y;
+            // Clamp final coordinates to stay within canvas boundaries
+            const currentX = Math.max(0, Math.min(whiteboardCanvas.width, finalCoords.x));
+            const currentY = Math.max(0, Math.min(whiteboardCanvas.height, finalCoords.y));
 
             // Crucial: Restore snapshot and draw the final shape cleanly
             if (snapshot) {
@@ -1193,11 +1182,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.closePath();
                 break;
             case 'text':
-                // Ensure font is set for rendering text
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillText(text, x1, y1);
+                // For text, call the wrapped text drawing function
+                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`; // Set font for measurement
+                whiteboardCtx.fillStyle = currentColor;
+                drawWrappedText(whiteboardCtx, text, x1, y1, whiteboardCanvas.width * 0.9, currentBrushSize * 2.5); // Max width 90% of canvas, line height based on brush size
                 break;
         }
+    }
+
+    /**
+     * Draws wrapped text on the canvas.
+     * @param {CanvasRenderingContext2D} context - The canvas rendering context.
+     * @param {string} text - The text to draw.
+     * @param {number} x - The starting X coordinate for the text.
+     * @param {number} y - The starting Y coordinate for the first line of text.
+     * @param {number} maxWidth - The maximum width for a line of text before wrapping.
+     * @param {number} lineHeight - The height of each line of text.
+     */
+    function drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let currentY = y;
+
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = context.measureText(testLine);
+            const testWidth = metrics.width;
+
+            if (testWidth > maxWidth && n > 0) {
+                context.fillText(line, x, currentY);
+                line = words[n] + ' ';
+                currentY += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, currentY);
     }
 
     /**
@@ -1419,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.save();
                 whiteboardCtx.strokeStyle = command.data.color;
                 whiteboardCtx.lineWidth = command.data.width;
-                whiteboardCtx.fillStyle = command.data.color;
+                whiteboardCtx.fillStyle = command.data.color; // For text
                 if (command.data.tool === 'eraser') {
                     whiteboardCtx.globalCompositeOperation = 'destination-out';
                 } else {
@@ -1485,6 +1505,58 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             showNotification("Already on the first page.", true);
         }
+    }
+
+    /**
+     * Handles the "Done" button click for the text input modal.
+     * Draws the text on the canvas and emits the drawing data.
+     */
+    function handleTextInputDone() {
+        const textInput = textInputArea.value.trim();
+        if (textInput) {
+            // Get the position of the modal relative to the canvas
+            const modalRect = textInputModal.getBoundingClientRect();
+            const canvasRect = whiteboardCanvas.getBoundingClientRect();
+            const textX = modalRect.left - canvasRect.left;
+            const textY = modalRect.top - canvasRect.top;
+
+            // Draw the text (using the drawWhiteboardItem which calls drawWrappedText)
+            whiteboardCtx.save();
+            whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+            whiteboardCtx.fillStyle = currentColor;
+            drawWhiteboardItem('text', textX, textY, textX, textY, textInput); // x2, y2 not used for text, but keeping signature
+            whiteboardCtx.restore();
+
+            // Add to local page data
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: textX, startY: textY, endX: textX, endY: textY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
+            
+            // Emit to server
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: {
+                    startX: textX,
+                    startY: textY,
+                    endX: textX,
+                    endY: textY,
+                    text: textInput,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: 'text',
+                    pageIndex: currentPageIndex
+                }
+            });
+            saveState(); // Save the state after drawing text
+        }
+        textInputModal.classList.add('hidden'); // Hide the modal
+    }
+
+    /**
+     * Handles the "Cancel" button click for the text input modal.
+     * Hides the modal without drawing.
+     */
+    function handleTextInputCancel() {
+        textInputModal.classList.add('hidden');
     }
 
 
