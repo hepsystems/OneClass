@@ -4,10 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Virtual Classroom</title>
-    <link rel="stylesheet" href="/style.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="/style.css"> <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
 </head>
 <body>
     <div id="app">
@@ -65,7 +62,7 @@
                 <p id="join-classroom-message"></p>
             </div>
 
-            <h3>Available Classrooms</h3>
+            <h3>Your Classrooms</h3>
             <ul id="classroom-list">
                 <li>Loading classrooms...</li>
             </ul>
@@ -81,70 +78,48 @@
             </nav>
             <h2 id="class-name-value"></h2>
             <p>Class Code: <span id="class-code"></span></p>
-
-            <div class="classroom-content">
-                <!-- NEW PROFESSIONAL WHITEBOARD INTEGRATION START -->
+            <div id="notifications-container"></div> <div class="classroom-content">
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <h3>Whiteboard</h3>
-                    <p id="whiteboard-role-message" class="role-message"></p>
-                    <canvas id="whiteboard-canvas" width="1200" height="800"></canvas> <!-- ENLARGED SIZE -->
-
-                    <div class="toolbar" data-admin-only>
-                        <!-- Drawing Tools -->
-                        <div class="tool-group">
-                            <button class="tool-button active" id="toolPen" data-tool="pen" title="Pen"><i class="fas fa-pencil-alt"></i> Pen</button>
-                            <button class="tool-button" id="toolEraser" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i> Eraser</button>
-                            <button class="tool-button" id="toolLine" data-tool="line" title="Line"><i class="fas fa-minus"></i> Line</button>
-                            <button class="tool-button" id="toolRectangle" data-tool="rectangle" title="Rectangle"><i class="far fa-square"></i> Rectangle</button>
-                            <button class="tool-button" id="toolCircle" data-tool="circle" title="Circle"><i class="far fa-circle"></i> Circle</button>
-                            <button class="tool-button" id="toolText" data-tool="text" title="Text"><i class="fas fa-font"></i> Text</button>
-                        </div>
-
-                        <!-- Color and Size -->
-                        <div class="tool-group">
-                            <label for="colorPicker" class="text-gray-700 font-medium">Color:</label>
-                            <input type="color" id="colorPicker" value="#FFFFFF" title="Select Color">
-
-                            <label for="brushSize" class="text-gray-700 font-medium">Size:</label>
-                            <input type="range" id="brushSize" min="1" max="50" value="5" class="brush-size-slider" title="Brush Size">
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="tool-group">
-                            <button class="action-button undo-button" id="undoButton" title="Undo"><i class="fas fa-undo"></i> Undo</button>
-                            <button class="action-button redo-button" id="redoButton" title="Redo"><i class="fas fa-redo"></i> Redo</button>
-                            <button class="action-button clear-button" id="clearButton" title="Clear All"><i class="fas fa-trash-alt"></i> Clear</button>
-                            <button class="action-button save-button" id="saveButton" title="Save Image"><i class="fas fa-save"></i> Save</button>
+                    <div id="whiteboard-tools" data-admin-only>
+                        <label for="pen-color">Pen Color:</label>
+                        <input type="color" id="pen-color" value="#FFFFFF">
+                        <label for="pen-width">Pen Width: <span id="width-value">2px</span></label>
+                        <input type="range" id="pen-width" min="1" max="10" value="2">
+                        <button id="clear-whiteboard-btn">Clear Board</button>
+                        <button id="share-whiteboard-btn">Get Share Link</button>
+                        <div id="share-link-display" class="hidden">
+                            <input type="text" id="share-link-input" readonly>
+                            <button id="copy-share-link-btn">Copy Link</button>
                         </div>
                     </div>
-                    <div id="share-link-display" class="hidden">
-                        <input type="text" id="share-link-input" readonly>
-                        <button id="copy-share-link-btn">Copy Link</button>
+                    <p id="whiteboard-role-message" class="role-message"></p>
+                    <canvas id="whiteboard-canvas"></canvas>
+                    <div id="whiteboard-navigation" data-admin-only> <button id="prev-whiteboard-page-btn">Previous Page</button>
+                        <span id="whiteboard-page-display">Page 1/1</span>
+                        <button id="next-whiteboard-page-btn">Next Page</button>
                     </div>
 
                     <div id="video-broadcast-section">
                         <h4>Video Broadcast</h4>
                         <div data-admin-only>
-                            <div class="broadcast-options">
-                                <label><input type="radio" name="broadcastType" value="both" checked> Video & Audio</label>
-                                <label><input type="radio" name="broadcastType" value="video"> Video Only</label>
-                                <label><input type="radio" name="broadcastType" value="audio"> Audio Only</label>
-                            </div>
+                            <select id="media-type-select"> <option value="video">Video (Camera & Mic)</option>
+                                <option value="audio">Audio Only (Mic)</option>
+                            </select>
                             <button id="start-broadcast">Start Broadcast</button>
                             <button id="end-broadcast" disabled>End Broadcast</button>
                         </div>
                         <p id="broadcast-role-message" class="role-message"></p>
                         <video id="local-video" autoplay muted playsinline></video>
                         <div id="remote-video-container">
-                        </div>
+                            </div>
                     </div>
                 </div>
-                <!-- NEW PROFESSIONAL WHITEBOARD INTEGRATION END -->
 
                 <div id="chat-section" class="classroom-sub-section hidden">
                     <h3>Class Chat</h3>
                     <div id="chat-messages">
-                    </div>
+                        </div>
                     <input type="text" id="chat-input" placeholder="Type your message...">
                     <button id="send-chat-button">Send</button>
                 </div>
@@ -165,7 +140,7 @@
                         <h4>Create New Assessment</h4>
                         <input type="text" id="assessment-title" placeholder="Assessment Title" required>
                         <textarea id="assessment-description" placeholder="Description"></textarea>
-
+                        
                         <div id="questions-container">
                             <h5>Questions</h5>
                             <div class="question-item">
@@ -198,8 +173,7 @@
                         <h4 id="take-assessment-title"></h4>
                         <p id="take-assessment-description"></p>
                         <form id="take-assessment-form">
-                            <!-- Questions will be dynamically loaded here -->
-                        </form>
+                            </form>
                         <button id="submit-answers-btn">Submit Answers</button>
                         <p id="assessment-submission-message"></p>
                         <button id="back-to-assessment-list-btn">Back to Assessments</button>
