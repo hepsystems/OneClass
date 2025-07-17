@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let whiteboardCtx;
     let isDrawing = false;
     let startX, startY;
-    let lastX, lastY;
+    let lastX, lastY; // For continuous pen/eraser drawing
     let currentColor = colorPicker ? colorPicker.value : '#FFFFFF';
     let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
     let currentTool = 'pen';
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', () => {
         whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
         whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
         whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
-        whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
+        whiteboardCanvas.addEventListener('mouseout', handleMouseUp); // Crucial for ending drawing if mouse leaves canvas
 
         whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
         whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
@@ -1000,12 +1000,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const coords = getCoords(e);
         startX = coords.x;
         startY = coords.y;
-        lastX = coords.x;
-
-        // Save snapshot for temporary drawing of shapes
-        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
-            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        }
+        lastX = coords.x; // Initialize lastX for continuous drawing
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
             whiteboardCtx.beginPath(); // Start a new path for pen/eraser
@@ -1019,14 +1014,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.fillText(textInput, startX, startY);
                 whiteboardCtx.restore();
 
-                saveState(); // Save the state after drawing text
+                // Add to local page data immediately
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
+                
+                // Emit to server
                 socket.emit('whiteboard_data', {
                     action: 'draw',
                     classroomId: currentClassroom.id,
                     data: {
                         startX: startX,
                         startY: startY,
-                        endX: startX, // For text, endX/Y are same as start
+                        endX: startX,
                         endY: startY,
                         text: textInput,
                         color: currentColor,
@@ -1035,10 +1033,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         pageIndex: currentPageIndex
                     }
                 });
-                // Add to local page data
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
             }
-            isDrawing = false; // Text drawing is a single click action
+            isDrawing = false; // Text drawing is a single click action, no continuous drawing
+            saveState(); // Save the state after drawing text
+        } else { // For shapes
+            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
     }
 
@@ -1063,11 +1062,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 whiteboardCtx.globalCompositeOperation = 'source-over';
             }
-            whiteboardCtx.lineTo(currentX, currentY);
-            whiteboardCtx.stroke();
-            whiteboardCtx.beginPath(); // Start new path for next segment
-            whiteboardCtx.moveTo(currentX, currentY); // Move to current point
+            whiteboardCtx.lineTo(currentX, currentY); // Extend the current path
+            whiteboardCtx.stroke(); // Draw the segment
 
+            // Store this segment for history and broadcast
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: lastX, startY: lastY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
             socket.emit('whiteboard_data', {
                 action: 'draw',
                 classroomId: currentClassroom.id,
@@ -1082,19 +1081,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     pageIndex: currentPageIndex
                 }
             });
-            // Add to local page data
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: lastX, startY: lastY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
-            lastX = currentX;
+            lastX = currentX; // Update lastX for the next segment
             lastY = currentY;
-        } else {
-            // For shapes, restore snapshot and redraw preview
+        } else { // For shapes (line, rectangle, circle)
             if (snapshot) {
-                whiteboardCtx.putImageData(snapshot, 0, 0);
+                whiteboardCtx.putImageData(snapshot, 0, 0); // Restore original state for preview
             } else {
-                // Fallback if snapshot is somehow missing (shouldn't happen)
+                // Fallback if snapshot is somehow missing (shouldn't happen if mousedown is correct)
                 renderCurrentWhiteboardPage();
             }
-            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY);
+            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw preview of the shape
         }
         whiteboardCtx.restore();
     }
@@ -1107,24 +1103,26 @@ document.addEventListener('DOMContentLoaded', () => {
         isDrawing = false;
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
-            whiteboardCtx.closePath(); // Close the current path for pen/eraser
+            whiteboardCtx.closePath(); // Finalize the path for pen/eraser
         } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            // For shapes, draw the final shape and emit data
             const finalCoords = getCoords(e);
             const currentX = finalCoords.x;
             const currentY = finalCoords.y;
 
-            // Redraw the entire page to ensure the final shape is persisted correctly
-            // This is important because `putImageData` only works on the current canvas state.
-            // By redrawing the whole page, we ensure the new shape is part of the page's history.
-            renderCurrentWhiteboardPage(); // Clear and redraw existing commands
-            
+            // Crucial: Clear and redraw the entire page history before adding the final shape
+            // This ensures no ghosting from the temporary snapshot and proper integration.
+            renderCurrentWhiteboardPage(); // This clears the canvas and redraws all existing commands
+
             whiteboardCtx.save();
             whiteboardCtx.strokeStyle = currentColor;
             whiteboardCtx.lineWidth = currentBrushSize;
-            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw the final shape
+            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw the final, permanent shape
             whiteboardCtx.restore();
 
+            // Add the final shape command to local history
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
+            
+            // Emit the final shape data to the server
             socket.emit('whiteboard_data', {
                 action: 'draw',
                 classroomId: currentClassroom.id,
@@ -1139,10 +1137,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     pageIndex: currentPageIndex
                 }
             });
-            // Add to local page data (already done in handleMouseMove for pen/eraser, but for shapes, it's done here)
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
         }
 
+        // Reset globalCompositeOperation if it was set for eraser
         if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
             whiteboardCtx.globalCompositeOperation = 'source-over';
         }
@@ -1151,6 +1148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Draws a specific whiteboard item (line, rectangle, circle, text).
+     * This function is used for both real-time drawing and re-rendering history.
      * @param {string} tool - The drawing tool.
      * @param {number} x1 - Start X coordinate.
      * @param {number} y1 - Start Y coordinate.
@@ -1162,13 +1160,14 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (tool) {
             case 'pen':
             case 'eraser':
-                // For pen/eraser, the path is already managed by handleMouseMove
-                // This function is primarily for re-rendering history.
+                // For pen/eraser, when re-rendering history, each stored segment is drawn as a line.
                 whiteboardCtx.beginPath();
                 whiteboardCtx.moveTo(x1, y1);
                 whiteboardCtx.lineTo(x2, y2);
                 whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
+                // No closePath here if we want to simulate continuous stroke during history replay
+                // However, for individual segments, closePath is fine.
+                // For live drawing, handleMouseMove manages the continuous path.
                 break;
             case 'line':
                 whiteboardCtx.beginPath();
@@ -1192,6 +1191,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.closePath();
                 break;
             case 'text':
+                // Ensure font is set for rendering text
                 whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
                 whiteboardCtx.fillText(text, x1, y1);
                 break;
