@@ -1,4 +1,4 @@
-// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board)
+// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -340,10 +340,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageElement = document.createElement('div');
             // Display username with (Admin) tag if applicable
             const senderDisplayName = getDisplayName(data.username, data.role);
-            messageElement.textContent = `${senderDisplayName}: ${data.message}`;
+            messageElement.textContent = `${senderDisplayName} (${data.timestamp}): ${data.message}`;
             chatMessages.appendChild(messageElement);
             chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
         });
+
+        // --- Chat History Listener (NEW) ---
+        socket.on('chat_history', (history) => {
+            console.log('[Chat] Received chat history. Items:', history.length);
+            chatMessages.innerHTML = ''; // Clear current messages before loading history
+            history.forEach(msg => {
+                const messageElement = document.createElement('div');
+                const senderDisplayName = getDisplayName(msg.username, msg.role);
+                // Format timestamp from ISO string to local time
+                const date = new Date(msg.timestamp);
+                const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${msg.message}`;
+                chatMessages.appendChild(messageElement);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+        });
+
 
         socket.on('user_joined', (data) => {
             console.log(`[Socket.IO] ${data.username} (${data.sid}) has joined the classroom.`);
@@ -1112,13 +1129,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const imageData = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
 
             // Set canvas dimensions to be responsive within its container
-            const aspectRatio = 900 / 600; // Original aspect ratio (from new whiteboard's default)
-            let newWidth = container.clientWidth - 40; // Account for padding/margins
+            const aspectRatio = 1200 / 800; // UPDATED Aspect ratio for 1200x800
+            let newWidth = container.clientWidth - 40; // Account for padding/margins of container
             let newHeight = newWidth / aspectRatio;
 
             // If height exceeds available space, adjust based on height
-            if (newHeight > window.innerHeight * 0.7) { // Limit max height to 70% of viewport
-                newHeight = window.innerHeight * 0.7;
+            // Allow it to take up more vertical space, e.g., 90% of viewport height
+            if (newHeight > window.innerHeight * 0.9) {
+                newHeight = window.innerHeight * 0.9;
                 newWidth = newHeight * aspectRatio;
             }
 
