@@ -1,68 +1,37 @@
 /* General Body and App Layout */
 body {
-    font-family: 'Inter', sans-serif; /* Keep Inter, it's a good modern font */
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #300205; /* Lighter, soft grey background for a clean feel */
-    background-image: none; /* Remove noise texture */
+    background-color: #f4f4f4;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: flex-start; /* Align to top for longer content */
     min-height: 100vh;
     box-sizing: border-box;
-    color: #343a40; /* Darker grey for primary text */
-    font-size: 15px; /* Slightly larger base font size */
 }
 
 #app {
-    background-color: #f00fF3; /* Pristine white for the main container */
-    padding: 25px; /* More generous padding */
-    border-radius: 12px; /* Softly rounded corners for a modern look */
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); /* Lighter, more diffused shadow */
-    width: 95%;
-    max-width: 1400px;
-    margin-top: 30px; /* More margin from the top */
-    margin-bottom: 30px; /* More margin from the bottom */
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 1200px; /* Max width for large screens */
+    margin-top: 20px;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 20px; /* Increased spacing between main sections */
-    border: none; /* Remove explicit border */
 }
 
 section {
-    padding: 20px; /* More generous padding */
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #ffffff; /* Sections are white */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Very subtle, light shadow */
-    margin-bottom: 15px; /* Increased margin */
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-bottom: 20px;
 }
-
-/* Ensure the last section doesn't have extra bottom margin */
-section:last-of-type {
-    margin-bottom: 0;
-}
-
-h2, h3, h4 {
-    color: #212529; /* Darker, almost black for strong contrast */
-    margin-top: 0;
-    margin-bottom: 15px; /* Increased margin */
-    font-weight: 600; /* Slightly less bold than 'crunchy', but still strong */
-    font-size: 1.6em; /* H2 size */
-    text-shadow: none; /* Remove text shadow */
-}
-h3 {
-    font-size: 1.3em; /* H3 size */
-}
-h4 {
-    font-size: 1.15em; /* H4 size */
-}
-
 
 /* Visibility Classes */
 .hidden {
-    display: none !important;
+    display: none !important; /* Use !important to ensure override */
 }
 
 .active {
@@ -71,783 +40,437 @@ h4 {
 
 /* Role-specific highlights */
 .admin-feature-highlight {
-    border: 1px solid #cce5ff; /* Light, soft blue border */
-    background-color: #e6f3ff; /* Very light blue background */
-    padding: 20px;
-    border-radius: 8px; /* Softly rounded corners */
-    margin-bottom: 20px; /* Increased margin */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    border: 1px solid #007bff; /* Blue border for admin features */
+    background-color: #e6f0ff; /* Light blue background */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
 }
 
 .user-view-subtle {
-    border: 1px solid #d4edda; /* Light, soft green border */
-    background-color: #e8f9ed; /* Very light green background */
-    padding: 20px;
-    border-radius: 8px; /* Softly rounded corners */
-    margin-bottom: 20px; /* Increased margin */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    border: 1px solid #28a745; /* Green border for user-specific views */
+    background-color: #e6ffe6; /* Light green background */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
 }
 
 .role-message {
     font-style: italic;
-    color: #6c757d; /* Muted grey */
-    margin-top: 10px; /* Increased margin */
+    color: #888;
+    margin-top: 10px;
     text-align: center;
-    padding: 8px; /* Increased padding */
-    background-color: #f8f9fa; /* Very light grey background */
-    border-radius: 6px; /* Softly rounded corners */
-    font-size: 0.9em; /* Slightly larger font */
-    border: 1px solid #e9ecef; /* Light, soft border */
-    box-shadow: none; /* Remove inset shadow */
 }
 
 /* Notifications Container */
 #notifications-container {
-    margin: 15px 0; /* Increased margin */
-    padding: 12px 20px; /* Increased padding */
-    border-radius: 6px; /* Softly rounded corners */
-    font-weight: 500;
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #e9f7ef; /* Light green for success/info */
+    color: #28a745;
+    border: 1px solid #28a745;
     text-align: center;
-    opacity: 0;
-    transform: translateY(-20px); /* Larger transform */
-    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Lighter, more diffused shadow */
     display: none; /* Hidden by default */
-    font-size: 0.95em; /* Slightly larger font */
-    border: 1px solid; /* Add a soft border */
 }
 
 #notifications-container.show {
-    opacity: 1;
-    transform: translateY(0);
-    display: block; /* Show when active */
-}
-
-.success-notification {
-    background-color: #d4edda; /* Light green */
-    color: #155724; /* Dark green */
-    border-color: #c3e6cb;
-}
-
-.error-notification {
-    background-color: #f8d7da; /* Light red */
-    color: #721c24; /* Dark red */
-    border-color: #f5c6cb;
+    display: block;
 }
 
 
 /* Navigation */
 .main-nav {
     display: flex;
-    justify-content: flex-start;
-    gap: 8px; /* Slightly larger gap */
-    margin-bottom: 20px; /* Increased margin */
-    padding-bottom: 15px; /* Increased padding */
-    border-bottom: 1px solid #e9ecef; /* Lighter, softer border */
-    flex-wrap: wrap;
+    justify-content: flex-start; /* Align to start */
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
 }
 
 .main-nav button {
-    background-color: #e9ecef; /* Light grey for inactive nav */
-    border: none; /* Remove explicit border */
-    padding: 10px 20px; /* Larger padding for impact */
-    border-radius: 8px; /* Softly rounded corners */
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 8px 15px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 0.9em; /* Slightly larger font size */
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-    color: #495057; /* Darker text */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-    background-image: none; /* Remove gradient */
+    font-size: 1em;
+    transition: background-color 0.2s;
 }
 
 .main-nav button:hover {
-    background-color: #dee2e6; /* Slightly darker grey on hover */
-    transform: translateY(-2px); /* Slight lift on hover */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* More pronounced shadow on hover */
-}
-.main-nav button:active {
-    transform: translateY(0); /* Return to original position */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Back to subtle shadow */
+    background-color: #e0e0e0;
 }
 
 .main-nav button.active-nav {
-    background-color: #007bff; /* Vibrant blue for active nav */
+    background-color: #007bff;
     color: white;
-    border: none; /* Remove explicit border */
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Stronger, colored shadow */
-}
-.main-nav button.active-nav:hover {
-    background-color: #0069d9; /* Darker blue on hover */
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 105, 217, 0.3);
-}
-.main-nav button.active-nav:active {
-    transform: translateY(0);
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    border-color: #007bff;
 }
 
-/* Forms and Inputs (General Styling) */
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px; /* Increased spacing between form elements */
+.main-nav .classroom-name-display,
+.main-nav .classroom-id-text {
+    align-self: center; /* Vertically align with buttons */
+    margin-left: 15px;
+    font-weight: bold;
+    color: #555;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-textarea,
-select {
-    width: calc(100% - 20px); /* Account for padding and border */
-    padding: 10px; /* More generous padding */
-    border: 1px solid #ced4da; /* Soft grey border */
-    border-radius: 6px; /* Softly rounded corners */
-    box-sizing: border-box;
-    font-size: 0.95em; /* Slightly larger font */
-    color: #495057;
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    background-color: #f8f9fa; /* Very light grey background for inputs */
-    box-shadow: none; /* Remove inset shadow */
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-textarea:focus,
-select:focus {
-    border-color: #007bff; /* Vibrant blue on focus */
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle blue glow */
-    outline: none;
-    background-color: #ffffff; /* White background on focus */
-}
-
-button[type="submit"],
-.action-button,
-.tool-button,
-.go-to-classroom-btn,
-.join-classroom-btn,
-#send-chat-button,
-#upload-library-files-btn,
-#submit-assessment-btn,
-#add-question-btn,
-#submit-answers-btn,
-#back-to-assessment-list-btn,
-#back-to-assessment-list-from-submissions-btn,
-.view-submissions-btn,
-.take-assessment-btn,
-.delete-assessment-btn,
-#create-classroom-btn,
-#join-classroom-btn,
-#copy-share-link-btn,
-#start-broadcast,
-#end-broadcast {
-    background-color: #007bff; /* Vibrant blue */
-    color: white;
-    padding: 10px 20px; /* Larger padding for impact */
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    cursor: pointer;
-    font-size: 0.9em; /* Slightly larger font size */
-    font-weight: 600;
-    transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Softer, colored shadow */
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px; /* Increased gap for icons */
-    background-image: none; /* Remove gradient */
-}
-
-button[type="submit"]:hover,
-.action-button:hover,
-.tool-button:hover,
-.go-to-classroom-btn:hover,
-.join-classroom-btn:hover,
-#send-chat-button:hover,
-#upload-library-files-btn:hover,
-#submit-assessment-btn:hover,
-#add-question-btn:hover,
-#submit-answers-btn:hover,
-#back-to-assessment-list-btn:hover,
-#back-to-assessment-list-from-submissions-btn:hover,
-.view-submissions-btn:hover,
-.take-assessment-btn:hover,
-.delete-assessment-btn:hover,
-#create-classroom-btn:hover,
-#join-classroom-btn:hover,
-#copy-share-link-btn:hover,
-#start-broadcast:hover,
-#end-broadcast:hover {
-    background-color: #0069d9; /* Darker blue on hover */
-    transform: translateY(-2px); /* Lift on hover */
-    box-shadow: 0 6px 12px rgba(0, 105, 217, 0.3); /* More pronounced shadow */
-}
-
-button[type="submit"]:active,
-.action-button:active,
-.tool-button:active,
-.go-to-classroom-btn:active,
-.join-classroom-btn:active,
-#send-chat-button:active,
-#upload-library-files-btn:active,
-#submit-assessment-btn:active,
-#add-question-btn:active,
-#submit-answers-btn:active,
-#back-to-assessment-list-btn:active,
-#back-to-assessment-list-from-submissions-btn:active,
-.view-submissions-btn:active,
-.take-assessment-btn:active,
-.delete-assessment-btn:active,
-#create-classroom-btn:active,
-#join-classroom-btn:active,
-#copy-share-link-btn:active,
-#start-broadcast:active,
-#end-broadcast:active {
-    transform: translateY(0); /* Return to original position */
-    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2); /* Back to subtle shadow */
-}
-
-button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-    box-shadow: none; /* Remove shadow when disabled */
-    transform: none;
-    border: none;
-    background-image: none;
-}
-
-/* Specific Button Overrides */
-#logout-btn {
-    background-color: #dc3545; /* Modern red for danger actions */
-    border: none;
-    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
-}
-#logout-btn:hover {
-    background-color: #c82333;
-    box-shadow: 0 6px 12px rgba(200, 35, 51, 0.3);
-}
-#logout-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.2);
-}
-
-
-#end-broadcast {
-    background-color: #dc3545;
-    border: none;
-    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
-}
-#end-broadcast:hover {
-    background-color: #c82333;
-    box-shadow: 0 6px 12px rgba(200, 35, 51, 0.3);
-}
-#end-broadcast:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.2);
-}
-
-.delete-file-btn, .delete-assessment-btn {
-    background-color: #dc3545;
-    border: none;
-    padding: 6px 12px; /* Slightly larger for list items */
-    font-size: 0.8em;
-    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.1); /* Lighter default shadow */
-}
-.delete-file-btn:hover, .delete-assessment-btn:hover {
-    background-color: #c82333;
-    transform: translateY(-1px); /* Slight lift on smaller delete buttons */
-    box-shadow: 0 3px 8px rgba(200, 35, 51, 0.2);
-}
-.delete-file-btn:active, .delete-assessment-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.1);
-}
-
-
-/* Auth Section */
-#auth-section {
-    max-width: 450px; /* Slightly wider */
-    margin: 60px auto; /* More margin */
+/* Authentication Section */
+#auth-section h2 {
     text-align: center;
+    color: #333;
 }
 
 #login-container, #register-container {
-    background-color: #ffffff;
-    padding: 30px; /* More generous padding */
-    border-radius: 10px; /* Softly rounded corners */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* Consistent subtle shadow */
-    border: none; /* Remove explicit border */
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+#auth-section h3 {
+    text-align: center;
+    color: #555;
+    margin-top: 0;
+}
+
+#login-form input[type="email"],
+#login-form input[type="password"],
+#register-form input[type="text"],
+#register-form input[type="email"],
+#register-form input[type="password"],
+#register-form select {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Include padding in width */
+}
+
+#auth-section button[type="submit"] {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+#auth-section button[type="submit"]:hover {
+    background-color: #0056b3;
 }
 
 #auth-section p {
-    margin-top: 15px; /* Increased margin */
-    font-size: 0.9em; /* Slightly larger font */
-    color: #666666;
+    text-align: center;
+    margin-top: 15px;
 }
 
 #auth-section a {
-    color: #007bff; /* Vibrant blue */
+    color: #007bff;
     text-decoration: none;
-    font-weight: 500;
 }
 
 #auth-section a:hover {
     text-decoration: underline;
 }
 
+#auth-message.error {
+    color: red;
+}
+
+#auth-message.success {
+    color: green;
+}
+
 /* Dashboard Section */
 #dashboard-section h2 {
-    text-align: center;
+    color: #333;
 }
 
-#create-join-classroom {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px; /* Increased gap */
-    margin-bottom: 25px; /* Increased margin */
-}
-@media (min-width: 768px) {
-    #create-join-classroom {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-#create-classroom-section,
-#join-classroom-section {
-    background-color: #ffffff;
-    padding: 20px; /* More generous padding */
-    border-radius: 8px; /* Softly rounded corners */
-    border: none; /* Remove explicit border */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
-}
-
-#classroom-list {
-    list-style: none;
-    padding: 0;
-    margin-top: 15px; /* Increased margin */
-}
-
-#classroom-list li {
+.dashboard-content {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px; /* More padding */
-    border-bottom: 1px solid #e9ecef; /* Lighter, softer border */
-    background-color: #fdfdfd; /* Very light background for list items */
-    border-radius: 6px; /* Softly rounded corners */
-    margin-bottom: 8px; /* Increased margin */
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
-    font-size: 0.9em; /* Slightly larger font */
-    border: none; /* Remove explicit border */
-}
-#classroom-list li:last-child {
-    border-bottom: none;
+    flex-wrap: wrap; /* Allow items to grow and shrink */
+    gap: 20px;
 }
 
-#classroom-list li span {
-    font-weight: 500;
-    color: #495057;
+.dashboard-section-item {
+    flex: 1; /* Allows items to grow and shrink */
+    min-width: 300px; /* Minimum width before wrapping */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    background-color: #f9f9f9;
 }
 
 /* Classroom Section */
+#classroom-section h2 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+#classroom-section .main-nav {
+    margin-bottom: 20px;
+}
+
 .classroom-content {
     display: flex;
     flex-direction: column;
-    gap: 15px; /* Increased gap between classroom sub-sections */
+    gap: 20px;
 }
 
 .classroom-sub-section {
-    background-color: #ffffff;
-    padding: 20px; /* More generous padding for sub-sections */
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
-    border: none; /* Remove explicit border */
+    padding: 20px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+    background-color: #f9f9f9;
 }
 
 /* Chat Section */
 #chat-messages {
-    border: 1px solid #e9ecef; /* Light, soft border */
-    padding: 15px; /* Increased padding */
-    height: 300px; /* Slightly taller chat window */
+    border: 1px solid #ddd;
+    padding: 10px;
+    height: 300px;
     overflow-y: auto;
-    margin-bottom: 15px; /* Increased margin */
-    background-color: #fefefe; /* Near white background for messages */
-    border-radius: 8px; /* Softly rounded corners */
-    display: flex;
-    flex-direction: column;
-    gap: 8px; /* Increased gap */
-    box-shadow: inset 0 1px 5px rgba(0,0,0,0.02); /* Very subtle inset shadow */
+    margin-bottom: 10px;
+    background-color: #fff;
+    border-radius: 4px;
 }
 
 #chat-messages div {
-    padding: 8px 12px; /* More padding */
-    border-radius: 10px; /* More rounded */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Very subtle shadow */
-    align-self: flex-start;
-    max-width: 80%;
-    word-wrap: break-word;
-    font-size: 0.9em; /* Slightly larger font */
-    border: none; /* Remove explicit border */
+    margin-bottom: 5px;
+    line-height: 1.4;
 }
-
-#chat-messages div:nth-child(even) {
-    background-color: #f1f7fe; /* Very light blue */
-}
-#chat-messages div:nth-child(odd) {
-    background-color: #e9f2ff; /* Slightly darker light blue */
-}
-
-#chat-messages div.self-message {
-    background-color: #28a745; /* Vibrant green for self */
-    color: white;
-    align-self: flex-end;
-    box-shadow: 0 1px 4px rgba(40, 167, 69, 0.2); /* Colored subtle shadow */
-    background-image: none; /* Remove gradient */
-}
-
-#chat-messages div.status-message {
-    font-style: italic;
-    color: #6c757d;
-    text-align: center;
-    background-color: transparent;
-    box-shadow: none;
-    align-self: center;
-    border: none;
-}
-
 
 #chat-input {
-    width: calc(100% - 80px); /* Adjusted for larger button */
-    margin-right: 8px; /* Increased margin */
-    vertical-align: middle;
-    padding: 9px; /* Consistent larger padding */
-    font-size: 0.9em; /* Slightly larger font */
-    border: 1px solid #ced4da; /* Soft grey border */
-    border-radius: 6px; /* Softly rounded corners */
-    box-shadow: none; /* Remove inset shadow */
-    background-color: #f8f9fa;
+    width: calc(100% - 70px); /* Adjust for button */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-right: 5px;
 }
 
 #send-chat-button {
-    padding: 9px 18px; /* Consistent larger button padding */
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#send-chat-button:hover {
+    background-color: #0056b3;
 }
 
 /* Whiteboard Section */
-.toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px; /* Increased gap */
-    margin-bottom: 15px; /* Increased margin */
-    padding: 10px; /* Increased padding */
-    background-color: #f8f9fa; /* Very light grey background */
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-    align-items: center;
-    justify-content: space-between;
-    border: none; /* Remove explicit border */
-}
-
-.toolbar .tool-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px; /* Increased gap */
-    align-items: center;
-}
-
-.toolbar .tool-button, .toolbar .action-button {
-    padding: 8px 15px; /* Larger padding */
-    font-size: 0.85em; /* Slightly larger font size */
-    border-radius: 6px; /* Softly rounded corners */
-    background-color: #e9ecef; /* Light grey for tools */
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-    border: none; /* Remove explicit border */
-    background-image: none; /* Remove gradient */
-}
-.toolbar .tool-button:hover, .toolbar .action-button:hover {
-    background-color: #dee2e6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-.toolbar .tool-button:active, .toolbar .action-button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.toolbar .tool-button.active {
-    background-color: #007bff; /* Active tool blue */
-    color: white;
-    border: none;
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
-}
-.toolbar .tool-button.active:hover {
-    background-color: #0069d9;
-}
-.toolbar .tool-button.active:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
-}
-
-
-.toolbar input[type="color"] {
-    width: 35px; /* Larger color picker */
-    height: 25px; /* Larger color picker */
-    border: 1px solid #ced4da; /* Soft grey border */
-    border-radius: 6px; /* Softly rounded corners */
-    box-shadow: none; /* Remove inset shadow */
-}
-.toolbar input[type="range"] {
-    width: 100px; /* Longer slider */
-    height: 6px; /* Thicker slider */
-    -webkit-appearance: none;
-    background: #e9ecef; /* Light grey background for slider track */
-    border-radius: 3px;
-    outline: none;
-    opacity: 1; /* Fully opaque */
-    transition: opacity .2s;
-    box-shadow: none; /* Remove inset shadow for track */
-}
-.toolbar input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px; /* Larger thumb */
-    height: 16px; /* Larger thumb */
-    border-radius: 50%;
-    background: #007bff; /* Vibrant blue */
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    border: none; /* Remove explicit border to thumb */
-}
-.toolbar input[type="range"]::-moz-range-thumb {
-    width: 16px; /* Larger thumb */
-    height: 16px; /* Larger thumb */
-    border-radius: 50%;
-    background: #007bff; /* Vibrant blue */
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    border: none; /* Remove explicit border to thumb */
-}
-
-
 #whiteboard-canvas {
-    border: 1px solid #ced4da; /* Light, soft border */
-    background-color: #fefefe; /* Clean white background */
-    display: block;
-    margin: 0 auto 20px auto; /* Increased margin */
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1); /* Lighter, more diffused shadow */
-    border-radius: 8px; /* Softly rounded corners */
-    width: 100%;
-    max-width: 1600px;
-    height: auto;
-    min-height: 750px; /* Increased minimum height for a larger appearance */
+    border: 1px solid #ddd;
+    background-color: #f0f0f0;
+    cursor: crosshair;
+    display: block; /* Ensures it takes up full width */
+    margin-top: 10px;
+    width: 100%; /* Adjust as needed */
+    height: 400px; /* Fixed height for now */
+    box-sizing: border-box;
 }
 
-#whiteboard-navigation {
+#whiteboard-tools {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    background-color: #e9e9e9;
+    border-radius: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+#whiteboard-tools label {
+    font-weight: bold;
+}
+
+#whiteboard-tools input[type="color"] {
+    border: none;
+    width: 40px;
+    height: 25px;
+    padding: 0;
+    cursor: pointer;
+}
+
+#whiteboard-tools input[type="range"] {
+    width: 100px;
+    vertical-align: middle;
+}
+
+#whiteboard-tools button {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+#whiteboard-tools button:hover {
+    background-color: #0056b3;
+}
+
+#whiteboard-navigation { /* New style for whiteboard navigation */
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 15px; /* Increased gap */
-    margin-top: 15px; /* Increased margin */
-    padding: 10px; /* Increased padding */
-    background-color: #f8f9fa; /* Consistent with toolbar */
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-    border: none; /* Remove explicit border */
+    gap: 15px;
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    background-color: #e9e9e9;
+    border-radius: 5px;
 }
 
 #whiteboard-navigation button {
-    background-color: #e9ecef; /* Light grey */
-    padding: 9px 18px; /* Consistent larger button padding */
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    background-color: #6c757d; /* Grey buttons */
+    color: white;
+    padding: 8px 15px;
     border: none;
-    background-image: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
+
 #whiteboard-navigation button:hover {
-    background-color: #dee2e6;
-    transform: translateY(-2px);
-}
-#whiteboard-navigation button:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-#whiteboard-navigation button:disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
-    box-shadow: none;
-    transform: none;
-    border: none;
-    background-image: none;
+    background-color: #5a6268;
 }
 
 #whiteboard-page-display {
-    font-weight: 600;
-    color: #495057;
-    font-size: 0.95em; /* Slightly larger font */
-    padding: 6px 12px; /* Increased padding */
-    background-color: #f8f9fa; /* Light background for display */
-    border-radius: 6px; /* Softly rounded corners */
-    border: 1px solid #e9ecef; /* Soft border */
-    box-shadow: none; /* Remove inset shadow */
-}
-
-#share-link-display {
-    display: flex;
-    gap: 8px; /* Increased gap */
-    margin-top: 15px; /* Increased margin */
-    align-items: center;
-    padding: 8px; /* Increased padding */
-    background-color: #fefefe;
-    border: 1px solid #e9ecef; /* Soft border */
-    border-radius: 6px; /* Softly rounded corners */
-    box-shadow: none; /* Remove inset shadow */
-}
-#share-link-input {
-    flex-grow: 1;
-    background-color: #f8f9fa;
-    cursor: text;
-    padding: 9px; /* Consistent larger input padding */
-    font-size: 0.85em; /* Slightly larger font */
-    border: 1px solid #ced4da; /* More defined border for input */
-    border-radius: 6px;
-    box-shadow: none; /* Remove inset shadow */
-}
-#copy-share-link-btn {
-    padding: 9px 18px;
-    font-size: 0.85em;
-    background-color: #28a745; /* Vibrant success green for copy */
-    border: none;
-    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
-}
-#copy-share-link-btn:hover {
-    background-color: #218838;
-    box-shadow: 0 6px 12px rgba(33, 136, 56, 0.3);
-}
-#copy-share-link-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 5px rgba(40, 167, 69, 0.2);
+    font-weight: bold;
+    color: #333;
 }
 
 
 /* Video Broadcast Section */
 #video-broadcast-section {
-    margin-top: 20px; /* Increased margin */
-    padding: 20px; /* Increased padding */
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #ffffff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f0f8ff; /* Light blue background */
 }
 
-.broadcast-options {
-    display: flex;
-    gap: 15px; /* Increased gap */
-    margin-bottom: 15px; /* Increased margin */
-    align-items: center;
-    font-weight: 500;
-    color: #495057;
-    font-size: 0.9em; /* Slightly larger font */
+#video-broadcast-section h4 {
+    margin-top: 0;
+    color: #333;
 }
 
-.broadcast-options label {
-    display: flex;
-    align-items: center;
-    gap: 8px; /* Increased gap */
-    cursor: pointer;
-}
-
-.broadcast-options input[type="radio"] {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    width: 16px; /* Larger radio button */
-    height: 16px; /* Larger radio button */
-    border: 2px solid #007bff; /* Vibrant blue */
-    border-radius: 50%;
-    outline: none;
-    cursor: pointer;
-    position: relative;
-    box-shadow: none; /* Remove shadow */
-}
-
-.broadcast-options input[type="radio"]:checked {
-    background-color: #007bff; /* Vibrant blue */
-    border-color: #007bff;
-}
-
-.broadcast-options input[type="radio"]:checked::before {
-    content: '';
-    display: block;
-    width: 8px; /* Larger inner dot */
-    height: 8px; /* Larger inner dot */
-    background-color: white;
-    border-radius: 50%;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-}
-
-
-#local-video {
-    width: 100%;
-    max-width: 450px; /* Slightly larger local video */
-    height: auto;
-    margin: 15px auto; /* Increased margin */
-    display: block;
-    background-color: #343a40; /* Dark background for video */
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15); /* Lighter shadow */
-    object-fit: cover;
-    border: none; /* Remove explicit border */
+#video-broadcast-section select { /* New style for media type select */
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    margin-right: 10px;
 }
 
 #remote-video-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px; /* Increased gap */
-    margin-top: 15px; /* Increased margin */
+    gap: 10px;
+    margin-top: 10px;
     justify-content: center;
 }
 
 #remote-video-container video {
     width: 100%;
-    max-width: 300px; /* Slightly larger remote videos */
-    height: 220px; /* Fixed height for consistency */
-    border: 1px solid #e9ecef; /* Light, soft border */
-    background-color: #343a40;
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-    object-fit: cover;
+    max-width: 300px; /* Max width for individual remote videos */
+    border: 1px solid #ddd;
+    background-color: #000;
 }
+
+#local-video {
+    width: 100%;
+    max-width: 400px;
+    margin: 10px auto;
+    display: block;
+    background-color: #000;
+}
+
+#video-broadcast-section button {
+    background-color: #28a745;
+    color: white;
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+#video-broadcast-section button:hover {
+    background-color: #218838;
+}
+
+#video-broadcast-section button#end-broadcast {
+    background-color: #dc3545; /* Red for end broadcast */
+}
+
+#video-broadcast-section button#end-broadcast:hover {
+    background-color: #c82333;
+}
+
 
 /* Settings Section */
 #settings-section label {
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 8px; /* Increased margin */
-    font-size: 0.9em;
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+#settings-section input[type="text"],
+#settings-section input[type="email"] {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+#settings-section button[type="submit"],
+#settings-section button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+#settings-section button[type="submit"]:hover,
+#settings-section button:hover {
+    background-color: #0056b3;
 }
 
 /* Library Section */
 #library-files-list {
     margin-top: 15px;
-    border: 1px solid #e9ecef; /* Light, soft border */
-    padding: 15px;
-    min-height: 120px; /* Increased min-height */
-    background-color: #fefefe;
-    border-radius: 8px; /* Softly rounded corners */
-    box-shadow: none; /* Remove inset shadow */
+    border: 1px solid #ddd;
+    padding: 10px;
+    min-height: 100px;
+    background-color: #fff;
+    border-radius: 4px;
 }
 
 #library-files-list div {
-    padding: 8px 0;
-    border-bottom: 1px solid #e9ecef; /* Light, soft border */
+    padding: 8px;
+    border-bottom: 1px solid #eee;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: 500;
-    font-size: 0.9em;
 }
 
 #library-files-list div:last-child {
@@ -855,7 +478,7 @@ button:disabled {
 }
 
 #library-files-list a {
-    color: #007bff; /* Vibrant blue */
+    color: #007bff;
     text-decoration: none;
 }
 
@@ -863,298 +486,188 @@ button:disabled {
     text-decoration: underline;
 }
 
+#library-files-list button.delete-file-btn {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+}
+
+#library-files-list button.delete-file-btn:hover {
+    background-color: #c82333;
+}
 
 /* Assessments Section */
 #assessment-creation-form {
-    padding: 20px;
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #ffffff;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
     margin-bottom: 20px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+}
+
+#assessment-creation-form h4,
+#assessment-creation-form h5 {
+    color: #333;
+    margin-top: 0;
+}
+
+#assessment-title,
+#assessment-description,
+.question-text,
+.mcq-option,
+.mcq-correct-answer {
+    width: calc(100% - 22px);
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.question-type {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
 }
 
 .question-item {
-    border: 1px solid #e9ecef; /* Light, soft border */
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #fefefe;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+    border: 1px solid #eee;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background-color: #fff;
 }
 
 .mcq-options {
-    margin-top: 15px;
+    margin-top: 10px;
     padding-left: 15px;
-    border-left: 3px solid #007bff; /* Thicker border, vibrant blue */
-    background-color: #e6f3ff; /* Light blue background */
-    padding-top: 8px;
-    padding-bottom: 8px;
-    border-radius: 6px; /* Softly rounded corners */
-    box-shadow: none; /* Remove inset shadow */
+    border-left: 3px solid #007bff;
+}
+
+#add-question-btn,
+#submit-assessment-btn,
+#submit-answers-btn,
+#back-to-assessment-list-btn,
+#back-to-assessment-list-from-submissions-btn {
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 10px;
+    margin-right: 10px;
+}
+
+#add-question-btn:hover,
+#submit-assessment-btn:hover,
+#submit-answers-btn:hover,
+#back-to-assessment-list-btn:hover,
+#back-to-assessment-list-from-submissions-btn:hover {
+    background-color: #218838;
 }
 
 #assessment-list-container {
     margin-top: 20px;
-    padding: 20px;
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #ffffff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
 }
 
-#assessment-list div.assessment-item {
-    padding: 12px 15px;
-    border-bottom: 1px solid #e9ecef; /* Light, soft border */
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background-color: #fdfdfd;
-    border-radius: 6px; /* Softly rounded corners */
-    margin-bottom: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
-    border: none; /* Remove explicit border */
+#assessment-list-container h4 {
+    color: #333;
+    margin-top: 0;
 }
-#assessment-list div.assessment-item:last-child {
+
+#assessment-list div {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#assessment-list div:last-child {
     border-bottom: none;
 }
 
-#assessment-list div.assessment-item h4 {
-    margin-bottom: 5px;
-    color: #007bff; /* Vibrant blue */
-    font-size: 1em;
-}
-#assessment-list div.assessment-item p {
-    margin: 5px 0;
-    font-size: 0.85em;
-    color: #666666;
+#assessment-list button {
+    background-color: #007bff;
+    color: white;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-#assessment-list div.assessment-item > div:last-child {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-    flex-wrap: wrap;
+#assessment-list button:hover {
+    background-color: #0056b3;
 }
 
 #take-assessment-container,
 #view-submissions-container {
     margin-top: 20px;
     padding: 20px;
-    border: none; /* Remove explicit border */
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #ffffff;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
 }
 
-.question-display {
-    border: 1px solid #e9ecef; /* Light, soft border */
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #fefefe;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
-}
-.question-display label {
-    font-weight: 600;
-    color: #495057;
-    margin-bottom: 8px;
+#take-assessment-form label {
     display: block;
-    font-size: 0.9em;
-}
-.question-display textarea {
-    width: 100%;
-    min-height: 80px; /* Taller textarea */
-    padding: 9px;
-    font-size: 0.9em;
-    border: 1px solid #ced4da; /* Soft grey border */
-    border-radius: 6px;
-    box-shadow: none;
-    background-color: #f8f9fa;
-}
-.question-display input[type="radio"] {
-    margin-right: 8px; /* Increased margin */
-}
-.question-display .mcq-option-label {
-    font-weight: normal;
-    display: inline-block;
-    margin-bottom: 5px;
-    font-size: 0.9em;
+    margin-top: 10px;
+    font-weight: bold;
 }
 
+#take-assessment-form input[type="text"],
+#take-assessment-form input[type="radio"],
+#take-assessment-form textarea {
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
 
 #assessment-submission-message {
     margin-top: 15px;
     font-weight: bold;
     text-align: center;
-    padding: 10px;
-    border-radius: 6px; /* Softly rounded corners */
-    font-size: 0.9em;
-    border: 1px solid;
-    box-shadow: none;
 }
 
 #assessment-submission-message.success {
-    background-color: #d4edda;
-    color: #155724;
-    border-color: #c3e6cb;
+    color: green;
 }
 
 #assessment-submission-message.error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border-color: #f5c6cb;
+    color: red;
 }
 
 #submissions-list .submission-item {
-    border: 1px solid #e9ecef; /* Light, soft border */
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px; /* Softly rounded corners */
-    background-color: #fdfdfd;
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    background-color: #fff;
 }
 
 #submissions-list .submission-item h5 {
     margin-top: 0;
-    margin-bottom: 8px;
-    color: #007bff; /* Vibrant blue */
-    font-size: 1em;
+    margin-bottom: 5px;
+    color: #007bff;
 }
 
-#submissions-list .submission-item p {
-    margin: 5px 0;
-    font-size: 0.9em;
+#submissions-list .submission-item .answer-pair {
+    border-left: 3px solid #eee;
+    padding-left: 10px;
+    margin-top: 8px;
 }
 
-#submissions-list .question-answer-pair {
-    border-left: 3px solid #ced4da; /* Thicker border, soft grey */
-    padding-left: 15px;
-    margin-top: 15px;
-    background-color: #f8f9fa; /* Lighter background */
-    padding: 8px;
-    border-radius: 6px; /* Softly rounded corners */
-    box-shadow: none;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    #app {
-        padding: 15px;
-        margin-top: 15px;
-        margin-bottom: 15px;
-        gap: 15px;
-    }
-
-    section {
-        padding: 15px;
-        margin-bottom: 12px;
-    }
-
-    h2 {
-        font-size: 1.4em;
-    }
-    h3 {
-        font-size: 1.2em;
-    }
-    h4 {
-        font-size: 1.1em;
-    }
-
-    .main-nav {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 6px;
-        margin-bottom: 15px;
-    }
-
-    .main-nav button {
-        width: 100%;
-        margin-bottom: 6px;
-        padding: 8px 15px;
-        font-size: 0.85em;
-    }
-
-    form {
-        gap: 12px;
-    }
-
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    textarea,
-    select {
-        padding: 8px;
-        font-size: 0.9em;
-    }
-
-    button[type="submit"],
-    .action-button,
-    .tool-button,
-    .go-to-classroom-btn,
-    .join-classroom-btn,
-    #send-chat-button,
-    #upload-library-files-btn,
-    #submit-assessment-btn,
-    #add-question-btn,
-    #submit-answers-btn,
-    #back-to-assessment-list-btn,
-    #back-to-assessment-list-from-submissions-btn,
-    .view-submissions-btn,
-    .take-assessment-btn,
-    .delete-assessment-btn,
-    #create-classroom-btn,
-    #join-classroom-btn,
-    #copy-share-link-btn,
-    #start-broadcast,
-    #end-broadcast {
-        padding: 8px 15px;
-        font-size: 0.85em;
-        gap: 6px;
-    }
-
-    .toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-        padding: 8px;
-    }
-    .toolbar .tool-group {
-        width: 100%;
-        justify-content: center;
-        gap: 6px;
-    }
-
-    .toolbar input[type="color"] {
-        width: 30px;
-        height: 20px;
-    }
-    .toolbar input[type="range"] {
-        width: 90px;
-        height: 5px;
-    }
-    .toolbar input[type="range"]::-webkit-slider-thumb,
-    .toolbar input[type="range"]::-moz-range-thumb {
-        width: 14px;
-        height: 14px;
-    }
-
-    #chat-input {
-        width: calc(100% - 60px);
-        padding: 8px;
-        font-size: 0.85em;
-    }
-    #send-chat-button {
-        width: 50px;
-        padding: 7px 10px;
-        font-size: 0.8em;
-    }
-
-    #local-video, #remote-video-container video {
-        max-width: 100%;
-        height: auto;
-    }
-    #whiteboard-canvas {
-        min-height: 500px; /* Adjust min-height for mobile */
-    }
+#submissions-list .submission-item .answer-pair p {
+    margin: 2px 0;
 }
