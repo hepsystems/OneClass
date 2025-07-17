@@ -3,7 +3,7 @@ body {
     font-family: 'Inter', sans-serif; /* Keep Inter, it's a good modern font */
     margin: 0;
     padding: 0;
-    background-color: #f0f2f5; /* Lighter, soft grey background for a clean feel */
+    background-color: #300205; /* Lighter, soft grey background for a clean feel */
     background-image: none; /* Remove noise texture */
     display: flex;
     justify-content: center;
