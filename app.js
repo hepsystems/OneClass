@@ -763,19 +763,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 message: `Admin ${currentUser.username} started a ${selectedType === 'video_audio' ? 'video and audio' : 'audio only'} broadcast.`
             });
 
-            // Iterate over all currently connected peers and initiate offers
-            // This is crucial for connecting to users already in the room when broadcast starts
-            // The server's `user_joined` event also triggers this for new joiners.
-            // We need a way to get all current SIDs in the room. This is usually managed on the server.
-            // For now, we'll rely on `user_joined` for new users, and for existing users,
-            // the `admin_action_update` might prompt them to refresh or the server could
-            // send a specific "broadcast_available" signal to existing users.
-            // A more robust solution would involve the server maintaining a list of SIDs per room
-            // and the admin requesting that list to send offers.
-            // For this setup, the `user_joined` event on the admin side is the primary trigger.
-            // To ensure existing users get the stream, the admin needs to send offers to them.
-            // Let's assume the `user_joined` event handles new connections, and for existing ones,
-            // the admin would need to know their SIDs.
+            // If there are already peers in the room (e.g., users joined before admin started broadcast),
+            // the admin needs to initiate offers to them. This requires the server to send a list of SIDs
+            // currently in the room to the admin, or for the admin to track them.
+            // For simplicity in this example, we rely on the `user_joined` event to trigger
+            // `createPeerConnection` for new users joining after the broadcast starts.
+            // A more complete solution for existing users would involve the server notifying the admin
+            // of existing peers, and the admin then initiating offers to them.
 
         } catch (err) {
             console.error('[WebRTC] Error accessing media devices:', err);
@@ -835,8 +829,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Only add local stream tracks if this is the caller (broadcaster)
         if (isCaller && localStream) {
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            console.log(`[WebRTC] Added local tracks to peer connection for ${peerId} (Caller).`);
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+                console.log(`[WebRTC] Added local track ${track.kind} to peer ${peerId}`);
+            });
         } else if (!isCaller) {
             console.log(`[WebRTC] This peer (${socket.id}) is a receiver. Not adding local tracks to ${peerId}.`);
         }
@@ -856,6 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.streams && event.streams[0]) {
                 remoteVideo.srcObject = event.streams[0];
             } else {
+                // Fallback for older browsers or specific scenarios, though event.streams is preferred
                 const newStream = new MediaStream();
                 newStream.addTrack(event.track);
                 remoteVideo.srcObject = newStream;
@@ -971,9 +968,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function resizeCanvas() {
         const container = whiteboardCanvas.parentElement;
-        // Save current content before resizing
-        const imageData = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-
+        
         const aspectRatio = 1200 / 800; // Original design aspect ratio
         let newWidth = container.clientWidth - 40; // Account for padding/margins
         let newHeight = newWidth / aspectRatio;
@@ -987,17 +982,13 @@ document.addEventListener('DOMContentLoaded', () => {
         whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
         whiteboardCanvas.height = Math.max(newHeight, 200); // Minimum height
 
-        // Restore content. This might scale pixelated, but it's the simplest way to preserve.
-        // For perfect scaling, one would need to re-render all drawing commands.
-        whiteboardCtx.putImageData(imageData, 0, 0);
-
         // Reapply styles as context state can be reset on dimension change
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.lineCap = 'round';
         whiteboardCtx.lineWidth = currentBrushSize;
         whiteboardCtx.strokeStyle = currentColor;
         whiteboardCtx.fillStyle = currentColor;
-        renderCurrentWhiteboardPage(); // Re-render to ensure content scales correctly and fills background
+        renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
     }
 
     /**
@@ -1011,10 +1002,13 @@ document.addEventListener('DOMContentLoaded', () => {
         startY = coords.y;
         lastX = coords.x;
 
-        snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        // Save snapshot for temporary drawing of shapes
+        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
+            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        }
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
-            whiteboardCtx.beginPath();
+            whiteboardCtx.beginPath(); // Start a new path for pen/eraser
             whiteboardCtx.moveTo(startX, startY);
         } else if (currentTool === 'text') {
             const textInput = prompt("Enter text:");
@@ -1025,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.fillText(textInput, startX, startY);
                 whiteboardCtx.restore();
 
-                saveState();
+                saveState(); // Save the state after drawing text
                 socket.emit('whiteboard_data', {
                     action: 'draw',
                     classroomId: currentClassroom.id,
@@ -1044,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Add to local page data
                 whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
             }
-            isDrawing = false;
+            isDrawing = false; // Text drawing is a single click action
         }
     }
 
@@ -1071,6 +1065,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             whiteboardCtx.lineTo(currentX, currentY);
             whiteboardCtx.stroke();
+            whiteboardCtx.beginPath(); // Start new path for next segment
+            whiteboardCtx.moveTo(currentX, currentY); // Move to current point
 
             socket.emit('whiteboard_data', {
                 action: 'draw',
@@ -1091,7 +1087,13 @@ document.addEventListener('DOMContentLoaded', () => {
             lastX = currentX;
             lastY = currentY;
         } else {
-            whiteboardCtx.putImageData(snapshot, 0, 0);
+            // For shapes, restore snapshot and redraw preview
+            if (snapshot) {
+                whiteboardCtx.putImageData(snapshot, 0, 0);
+            } else {
+                // Fallback if snapshot is somehow missing (shouldn't happen)
+                renderCurrentWhiteboardPage();
+            }
             drawWhiteboardItem(currentTool, startX, startY, currentX, currentY);
         }
         whiteboardCtx.restore();
@@ -1104,16 +1106,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isDrawing || currentUser.role !== 'admin') return;
         isDrawing = false;
 
-        if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            whiteboardCtx.putImageData(snapshot, 0, 0);
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            whiteboardCtx.closePath(); // Close the current path for pen/eraser
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            // For shapes, draw the final shape and emit data
             const finalCoords = getCoords(e);
             const currentX = finalCoords.x;
             const currentY = finalCoords.y;
 
+            // Redraw the entire page to ensure the final shape is persisted correctly
+            // This is important because `putImageData` only works on the current canvas state.
+            // By redrawing the whole page, we ensure the new shape is part of the page's history.
+            renderCurrentWhiteboardPage(); // Clear and redraw existing commands
+            
             whiteboardCtx.save();
             whiteboardCtx.strokeStyle = currentColor;
             whiteboardCtx.lineWidth = currentBrushSize;
-            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY);
+            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw the final shape
             whiteboardCtx.restore();
 
             socket.emit('whiteboard_data', {
@@ -1130,14 +1139,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     pageIndex: currentPageIndex
                 }
             });
-            // Add to local page data
+            // Add to local page data (already done in handleMouseMove for pen/eraser, but for shapes, it's done here)
             whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
         }
 
         if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
             whiteboardCtx.globalCompositeOperation = 'source-over';
         }
-        saveState();
+        saveState(); // Save the canvas state for undo/redo after each completed action
     }
 
     /**
@@ -1153,27 +1162,34 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (tool) {
             case 'pen':
             case 'eraser':
+                // For pen/eraser, the path is already managed by handleMouseMove
+                // This function is primarily for re-rendering history.
                 whiteboardCtx.beginPath();
                 whiteboardCtx.moveTo(x1, y1);
                 whiteboardCtx.lineTo(x2, y2);
                 whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
                 break;
             case 'line':
                 whiteboardCtx.beginPath();
                 whiteboardCtx.moveTo(x1, y1);
                 whiteboardCtx.lineTo(x2, y2);
                 whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
                 break;
             case 'rectangle':
                 whiteboardCtx.beginPath();
                 whiteboardCtx.rect(x1, y1, x2 - x1, y2 - y1);
                 whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
                 break;
             case 'circle':
+                // For circles, x1, y1 is center, x2, y2 defines radius
                 const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
                 whiteboardCtx.beginPath();
                 whiteboardCtx.arc(x1, y1, radius, 0, Math.PI * 2);
                 whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
                 break;
             case 'text':
                 whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
@@ -1217,6 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 button.classList.remove('active');
             }
         });
+        // Reset globalCompositeOperation when changing from eraser
         if (whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
             whiteboardCtx.globalCompositeOperation = 'source-over';
         }
@@ -1371,7 +1388,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (whiteboardPages.length === 0) {
                 whiteboardPages = [[]];
             }
-            currentPageIndex = 0;
+            currentPageIndex = 0; // Always reset to first page when loading history
             renderCurrentWhiteboardPage();
             updateWhiteboardPageDisplay();
             showNotification("Whiteboard history loaded.");
