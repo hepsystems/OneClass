@@ -180,6 +180,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const isAdmin = currentUser && currentUser.role === 'admin';
         const isUser = currentUser && currentUser.role === 'user';
 
+        console.log(`[UI Update] Current User Role: ${currentUser ? currentUser.role : 'N/A'}`);
+
         document.querySelectorAll('[data-admin-only]').forEach(el => {
             el.classList.toggle('hidden', !isAdmin);
             el.classList.toggle('admin-feature-highlight', isAdmin);
@@ -204,9 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
             libraryRoleMessage.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
         }
 
-        // Adjust canvas pointer events for non-admins
+        // --- Crucial Fix: Ensure pointer-events is correctly set here ---
         if (whiteboardCanvas) {
             whiteboardCanvas.style.pointerEvents = isAdmin ? 'auto' : 'none';
+            console.log(`[UI Update] Whiteboard Canvas pointer-events set to: ${whiteboardCanvas.style.pointerEvents} (isAdmin: ${isAdmin})`);
         }
     }
 
@@ -264,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateNavActiveState(navWhiteboard); // Update active nav button
 
         // Apply role-based UI immediately upon entering classroom
-        updateUIBasedOnRole();
+        updateUIBasedOnRole(); // This will handle whiteboard pointer-events
 
         // --- Direct calls to merged classroom functionality ---
         initializeSocketIO();
