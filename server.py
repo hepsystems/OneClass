@@ -24,7 +24,7 @@ app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
 
 # --- CORS and SocketIO Setup ---
 # CORS allows cross-origin requests, essential for frontend-backend communication in development
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True) # Allow all origins for dev
+CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True) # Allow all origins for dev
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
 
 mongo = PyMongo(app) # Initialize PyMongo after app config
@@ -38,16 +38,12 @@ assessment_questions_collection = mongo.db.assessment_questions # New
 assessment_submissions_collection = mongo.db.assessment_submissions # New
 # Modified whiteboard_collection to store drawings per page
 whiteboard_collection = mongo.db.whiteboard_drawings_pages
-
+chat_messages_collection = mongo.db.chat_messages # NEW: Collection for chat messages
 
 # Ensure necessary directories exist for file uploads
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# --- Global Whiteboard History Storage (NO LONGER USED FOR PERSISTENCE, KEPT FOR REFERENCE IF NEEDED) ---
-# This will store whiteboard data per classroom, keyed by classroomId
-# whiteboard_history = {} # This will be replaced by database storage
 
 
 # --- API Endpoints ---
@@ -64,16 +60,9 @@ def serve_css():
 def serve_js():
     return send_from_directory('.', 'app.js')
 
-@app.route('/classroom.js')
-def serve_classroom_js():
-    return send_from_directory('.', 'classroom.js')
-
-
 # Route for classroom details (for direct access via share link)
 @app.route('/classroom/<classroomId>')
 def serve_classroom_page(classroomId):
-    # You might want to fetch classroom details here and pass them to the template
-    # For now, we'll just serve index.html and let app.js handle the routing
     return send_from_directory('.', 'index.html')
 
 @app.route('/uploads/<filename>')
@@ -142,9 +131,7 @@ def logout():
     return jsonify({"message": "Logged out successfully"}), 200
 
 @app.route('/api/update-profile', methods=['POST'])
-# This endpoint would ideally require authentication (e.g., JWT token validation)
 def update_profile():
-    # Use session to get user_id if authenticated
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
@@ -174,15 +161,16 @@ def upload_library_files():
     user_role = session.get('role')
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
-
-    # --- SECURITY FIX: Only allow admins to upload files ---
+    
     if user_role != 'admin':
         return jsonify({"error": "Forbidden: Only administrators can upload files."}), 403
 
     if 'files' not in request.files:
         return jsonify({"error": "No files part"}), 400
+
     files = request.files.getlist('files')
     class_room_id = request.form.get('classroomId')
+
     if not class_room_id:
         return jsonify({"error": "Classroom ID is missing"}), 400
 
@@ -190,34 +178,42 @@ def upload_library_files():
     for file in files:
         if file.filename == '':
             return jsonify({"error": "No selected file"}), 400
-        
-        filename = str(uuid.uuid4()) + "_" + file.filename
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        file_id = str(uuid.uuid4())
-        library_files_collection.insert_one({
-            "id": file_id,
-            "classroomId": class_room_id,
-            "filename": file.filename,
-            "stored_filename": filename, # Store unique filename
-            "url": f"/uploads/{filename}",
-            "uploaded_by": user_id,
-            "uploaded_at": datetime.utcnow()
-        })
-        uploaded_file_info.append({"id": file_id, "filename": file.filename, "url": f"/uploads/{filename}"})
+        if file:
+            filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1] # Unique filename
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            file_id = str(uuid.uuid4()) # Generate unique ID for the file record
+            library_files_collection.insert_one({
+                "id": file_id, # Store the generated ID
+                "classroomId": class_room_id,
+                "original_filename": file.filename,
+                "stored_filename": filename,
+                "url": f"/uploads/{filename}",
+                "uploaded_at": datetime.utcnow(),
+                "uploaded_by": user_id
+            })
+            uploaded_file_info.append({"id": file_id, "filename": file.filename, "url": f"/uploads/{filename}"})
     
     # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
-        'message': f"New file(s) uploaded to library by {session.get('username')}"
+        'message': f"Admin {session.get('username')} uploaded new file(s) to the library."
     }, room=class_room_id)
 
     return jsonify({"message": "Files uploaded successfully", "files": uploaded_file_info}), 201
 
 @app.route('/api/library-files/<classroomId>', methods=['GET'])
 def get_library_files(classroomId):
-    files = list(library_files_collection.find({"classroomId": classroomId}, {"_id": 0}))
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    files = list(library_files_collection.find({"classroomId": classroomId}, {"_id": 0})) # Fetch all fields including 'id'
+    # Rename 'original_filename' to 'filename' for client consistency if needed, but now 'filename' is stored
+    for file in files:
+        if 'original_filename' in file: # Handle older entries
+            file['filename'] = file.pop('original_filename')
     return jsonify(files), 200
 
 @app.route('/api/library-files/<fileId>', methods=['DELETE'])
@@ -244,224 +240,178 @@ def delete_library_file(fileId):
         # Emit admin action update
         socketio.emit('admin_action_update', {
             'classroomId': file_data.get('classroomId'),
-            'message': f"File '{file_data.get('filename')}' deleted from library by {session.get('username')}"
+            'message': f"Admin {session.get('username')} deleted file '{file_data.get('original_filename', file_data.get('filename'))}' from the library."
         }, room=file_data.get('classroomId'))
         return jsonify({"message": "File deleted successfully"}), 200
     return jsonify({"error": "File not found"}), 404
 
 
-@app.route('/api/classrooms', methods=['POST'])
-def create_classroom():
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-    if not user_id or user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only admins can create classrooms"}), 403
-
-    data = request.json
-    name = data.get('name')
-    if not name:
-        return jsonify({"error": "Classroom name is required"}), 400
-
-    classroom_id = str(uuid.uuid4())
-    classrooms_collection.insert_one({
-        "id": classroom_id,
-        "name": name,
-        "created_by": user_id,
-        "created_at": datetime.utcnow()
-    })
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': classroom_id, # This is a new classroom, so no existing room to emit to yet
-        'message': f"New classroom '{name}' created by {session.get('username')}"
-    })
-    return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": name}}), 201
-
-@app.route('/api/classrooms', methods=['GET'])
-def get_user_classrooms():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    # In a real app, you'd fetch classrooms the user is enrolled in.
-    # For this example, we'll return all classrooms for simplicity,
-    # or you might want to adjust logic based on user role.
-    classrooms = list(classrooms_collection.find({}, {"_id": 0}))
-    return jsonify(classrooms), 200
-
-@app.route('/api/classrooms/join', methods=['POST'])
-def join_classroom():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json
-    classroomId = data.get('classroomId')
-    if not classroomId:
-        return jsonify({"error": "Classroom ID is required"}), 400
-
-    classroom = classrooms_collection.find_one({"id": classroomId})
-    if not classroom:
-        return jsonify({"error": "Classroom not found"}), 404
-    
-    # In a real app, you might add the user to a list of members in the classroom document
-    # For now, simply confirming join is enough as Socket.IO handles room joining.
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': classroomId,
-        'message': f"{session.get('username')} joined the classroom."
-    }, room=classroomId)
-
-    return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom['id'], "name": classroom['name']}}), 200
-
-# --- Assessment API Endpoints ---
-@app.route('/api/assessments', methods=['POST'])
+@app.route('/api/create-assessment', methods=['POST'])
 def create_assessment():
     user_id = session.get('user_id')
+    username = session.get('username')
     user_role = session.get('role')
+
     if not user_id or user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only admins can create assessments"}), 403
-    
+        return jsonify({"error": "Unauthorized: Only administrators can create assessments."}), 401
+
     data = request.json
-    classroomId = data.get('classroomId')
+    class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    questions_data = data.get('questions')
+    questions = data.get('questions') # List of question objects
 
-    if not all([classroomId, title, questions_data]):
-        return jsonify({"error": "Missing required assessment fields"}), 400
+    if not all([class_room_id, title, questions]):
+        return jsonify({"error": "Missing required fields: classroomId, title, or questions"}), 400
     
-    assessment_id = str(uuid.uuid4())
-    assessment_questions_for_db = []
-    for q_data in questions_data:
-        q_id = str(uuid.uuid4())
-        question_entry = {
-            "id": q_id,
-            "text": q_data['text'],
-            "type": q_data['type'],
-        }
-        if q_data['type'] == 'mcq':
-            question_entry['options'] = q_data['options']
-            question_entry['correct_answer'] = q_data['correct_answer']
-        assessment_questions_for_db.append(question_entry)
+    if not isinstance(questions, list) or not questions:
+        return jsonify({"error": "Questions must be a non-empty list"}), 400
 
+    assessment_id = str(uuid.uuid4())
+    
+    # Insert assessment details
     assessments_collection.insert_one({
         "id": assessment_id,
-        "classroomId": classroomId,
+        "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "created_by": user_id,
+        "creator_id": user_id,
+        "creator_username": username,
+        "creator_role": user_role, # Store creator's role
         "created_at": datetime.utcnow()
     })
-    assessment_questions_collection.insert_many([
-        {"assessmentId": assessment_id, **q} for q in assessment_questions_for_db
-    ])
+
+    # Insert each question linked to the assessment
+    for q_data in questions:
+        question_id = str(uuid.uuid4())
+        assessment_questions_collection.insert_one({
+            "id": question_id,
+            "assessmentId": assessment_id,
+            "classroomId": class_room_id, # Redundant but kept for consistency
+            "question_text": q_data.get('text'), # Changed from question_text to text
+            "question_type": q_data.get('type'), # Changed from question_type to type
+            "options": q_data.get('options'), # List of strings for MCQ
+            "correct_answer": q_data.get('correct_answer') # For MCQ, e.g., "A", "B"; for text, can be null or example answer
+        })
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
-        'classroomId': classroomId,
-        'message': f"New assessment '{title}' created by {session.get('username')}"
-    }, room=classroomId)
+        'classroomId': class_room_id,
+        'message': f"Admin {session.get('username')} created a new assessment: '{title}'."
+    }, room=class_room_id)
 
-    return jsonify({"message": "Assessment created successfully", "assessmentId": assessment_id}), 201
+    return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<classroomId>', methods=['GET'])
-def get_assessments_for_classroom(classroomId):
+def get_assessments(classroomId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
+    # Fetch questions for each assessment
     for assessment in assessments:
         assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessment['id']}, {"_id": 0}))
     return jsonify(assessments), 200
 
 @app.route('/api/assessments/<assessmentId>', methods=['GET'])
 def get_assessment_details(assessmentId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+    
     assessment = assessments_collection.find_one({"id": assessmentId}, {"_id": 0})
     if not assessment:
         return jsonify({"error": "Assessment not found"}), 404
+    
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
     return jsonify(assessment), 200
+
 
 @app.route('/api/assessments/<assessmentId>/submit', methods=['POST'])
 def submit_assessment():
     user_id = session.get('user_id')
-    user_username = session.get('username')
+    username = session.get('username')
+    user_role = session.get('role') # Get user role for submission record
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.json
-    assessmentId = data.get('assessmentId')
-    classroomId = data.get('classroomId') # Ensure classroomId is passed for room emission
-    answers = data.get('answers')
+    assessment_id = data.get('assessmentId')
+    class_room_id = data.get('classroomId')
+    answers = data.get('answers') # List of {question_id: "...", user_answer: "...", question_text: "...", question_type: "...", correct_answer: "..."}
 
-    if not all([assessmentId, answers, classroomId]):
-        return jsonify({"error": "Missing required submission fields"}), 400
+    if not all([assessment_id, class_room_id, answers]):
+        return jsonify({"error": "Missing required fields: assessmentId, classroomId, or answers"}), 400
+    
+    if not isinstance(answers, list):
+        return jsonify({"error": "Answers must be a list"}), 400
 
-    assessment_doc = assessments_collection.find_one({"id": assessmentId})
-    if not assessment_doc:
-        return jsonify({"error": "Assessment not found"}), 404
-
-    total_questions = len(answers)
-    correct_answers_count = 0
-    detailed_answers = []
+    submission_id = str(uuid.uuid4())
+    
+    score = 0
+    total_questions = 0
+    graded_answers = []
 
     for submitted_answer in answers:
         question_id = submitted_answer.get('question_id')
         user_answer = submitted_answer.get('user_answer')
-        question_text = submitted_answer.get('question_text') # Pass through for display
-        question_type = submitted_answer.get('question_type') # Pass through for display
-        correct_answer_from_client = submitted_answer.get('correct_answer') # From client, for scoring logic
-
-        # Fetch the original question to verify the correct answer
-        original_question = assessment_questions_collection.find_one({"id": question_id, "assessmentId": assessmentId})
-        if not original_question:
-            # Handle case where question might not be found (shouldn't happen if client data is correct)
-            is_correct = False
-            actual_correct_answer = "N/A"
-        else:
-            actual_correct_answer = original_question.get('correct_answer')
-            if question_type == 'mcq':
-                is_correct = (str(user_answer).strip().upper() == str(actual_correct_answer).strip().upper())
-            else: # For 'text' type, usually just record the answer, no auto-scoring
-                is_correct = None # Or implement fuzzy matching/manual review
-            
-            if is_correct:
-                correct_answers_count += 1
         
-        detailed_answers.append({
-            "question_id": question_id,
-            "question_text": question_text,
-            "question_type": question_type,
-            "user_answer": user_answer,
-            "correct_answer": actual_correct_answer,
-            "is_correct": is_correct
-        })
+        if question_id:
+            question = assessment_questions_collection.find_one({"id": question_id})
+            if question:
+                total_questions += 1
+                is_correct = False
+                if question.get('question_type') == 'mcq':
+                    if question.get('correct_answer') and user_answer and \
+                       user_answer.strip().lower() == question['correct_answer'].strip().lower():
+                        score += 1
+                        is_correct = True
+                
+                graded_answers.append({
+                    "question_id": question_id,
+                    "question_text": question.get('question_text'),
+                    "user_answer": user_answer,
+                    "correct_answer": question.get('correct_answer'),
+                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None # Only for MCQ
+                })
 
-    submission_id = str(uuid.uuid4())
     assessment_submissions_collection.insert_one({
         "id": submission_id,
-        "assessmentId": assessmentId,
-        "classroomId": classroomId,
-        "userId": user_id,
-        "username": user_username,
+        "assessmentId": assessment_id,
+        "classroomId": class_room_id,
+        "student_id": user_id,
+        "student_username": username,
+        "student_role": user_role, # Store student's role
         "submitted_at": datetime.utcnow(),
-        "answers": detailed_answers,
-        "score": correct_answers_count,
+        "answers": graded_answers,
+        "score": score,
         "total_questions": total_questions
     })
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
-        'classroomId': classroomId,
-        'message': f"User {user_username} submitted an assessment for '{assessment_doc.get('title')}'."
-    }, room=classroomId)
+        'classroomId': class_room_id,
+        'message': f"User {username} submitted an assessment for '{assessments_collection.find_one({'id': assessment_id}).get('title')}'."
+    }, room=class_room_id)
 
-    return jsonify({"message": "Assessment submitted successfully!", "submissionId": submission_id, "score": correct_answers_count, "total_questions": total_questions}), 201
+    return jsonify({"message": "Assessment submitted successfully", "submission_id": submission_id, "score": score, "total_questions": total_questions}), 201
 
 @app.route('/api/assessments/<assessmentId>/submissions', methods=['GET'])
 def get_assessment_submissions(assessmentId):
+    user_id = session.get('user_id')
     user_role = session.get('role')
-    if user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only admins can view submissions"}), 403
 
-    submissions = list(assessment_submissions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Admins can see all submissions for their assessment
+    # Students can only see their own submission (if any)
+    query = {"assessmentId": assessmentId}
+    if user_role != 'admin':
+        query["student_id"] = user_id
+
+    submissions = list(assessment_submissions_collection.find(query, {"_id": 0}).sort("submitted_at", -1))
     return jsonify(submissions), 200
 
 @app.route('/api/assessments/<assessmentId>', methods=['DELETE'])
@@ -484,22 +434,183 @@ def delete_assessment(assessmentId):
         # Emit admin action update
         socketio.emit('admin_action_update', {
             'classroomId': assessment.get('classroomId'),
-            'message': f"Assessment '{assessment.get('title')}' and its submissions deleted by {session.get('username')}"
+            'message': f"Admin {session.get('username')} deleted assessment '{assessment.get('title')}'."
         }, room=assessment.get('classroomId'))
         return jsonify({"message": "Assessment and its related data deleted successfully"}), 200
     return jsonify({"error": "Assessment not found"}), 404
 
-# --- Whiteboard API Endpoints (for persistence) ---
-@app.route('/api/whiteboard-history/<classroomId>', methods=['GET'])
-def get_whiteboard_history(classroomId):
-    # Fetch all drawing commands for all pages in this classroom
-    # Sort by pageIndex and then by the order in which they were stored
+@app.route('/api/classrooms', methods=['POST'])
+def create_classroom():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    user_role = session.get('role')
+
+    if not user_id or user_role != 'admin': # Only admins can create classrooms
+        return jsonify({"error": "Unauthorized: Only administrators can create classrooms."}), 401
+
+    data = request.json
+    classroom_name = data.get('name')
+
+    if not classroom_name:
+        return jsonify({"error": "Classroom name is required"}), 400
+
+    classroom_id = str(uuid.uuid4())
+    classrooms_collection.insert_one({
+        "id": classroom_id,
+        "name": classroom_name,
+        "creator_id": user_id,
+        "creator_username": username,
+        "created_at": datetime.utcnow(),
+        "participants": [user_id] # Creator is initially a participant
+    })
+    # Emit admin action update (this is for general notification, not room-specific yet)
+    socketio.emit('admin_action_update', {
+        'classroomId': classroom_id, # Use new classroom ID
+        'message': f"Admin {username} created a new classroom: '{classroom_name}'."
+    })
+    return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
+
+@app.route('/api/classrooms', methods=['GET'])
+def get_classrooms():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # MODIFIED: Return ALL classrooms for an authenticated user to discover
+    all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
+    return jsonify(all_classrooms), 200
+
+@app.route('/api/join-classroom', methods=['POST'])
+def join_classroom():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    classroom_id = data.get('classroomId')
+
+    if not classroom_id:
+        return jsonify({"error": "Classroom ID is required"}), 400
+
+    classroom = classrooms_collection.find_one({"id": classroom_id})
+    if not classroom:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    if user_id not in classroom.get('participants', []):
+        classrooms_collection.update_one(
+            {"id": classroom_id},
+            {"$addToSet": {"participants": user_id}} # Add user to participants if not already there
+        )
+        # Notify existing participants that a new user joined via Socket.IO
+        # Changed to emit with user_id, which can be used to send whiteboard history to specific user
+        # Also include the session ID (request.sid) for WebRTC peer identification
+        socketio.emit('user_joined', {
+            'username': session.get('username'),
+            'user_id': user_id,
+            'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
+            'classroomId': classroom_id,
+            'role': session.get('role') # Include role of joining user
+        }, room=classroom_id, include_sid=False)
+
+        # Emit admin action update
+        socketio.emit('admin_action_update', {
+            'classroomId': classroom_id,
+            'message': f"User {session.get('username')} joined classroom '{classroom.get('name')}'."
+        }, room=class_room_id)
+
+        return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
+    else:
+        return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
+
+@app.route('/api/generate-share-link/<classroomId>', methods=['GET'])
+def generate_share_link(classroomId):
+    # You might want to verify if the classroomId exists and if the user has access
+    classroom = classrooms_collection.find_one({"id": classroomId})
+    if not classroom:
+        return jsonify({"error": "Classroom not found"}), 404
+
+    # Construct the base URL for your application
+    # It's highly recommended to set APP_BASE_URL as an environment variable in Render.
+    # E.g., APP_BASE_URL=https://your-app-name.onrender.com
+    base_url = os.environ.get('APP_BASE_URL', request.host_url)
+    if base_url.endswith('/'):
+        base_url = base_url[:-1] # Remove trailing slash if present
+
+    # Construct the shareable URL for the classroom
+    # This URL should lead to your single-page app which then handles routing
+    share_link = f"{base_url}/classroom/{classroomId}"
+
+    return jsonify({"share_link": share_link}), 200
+
+# --- Socket.IO Event Handlers ---
+
+@socketio.on('connect')
+def connect():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    if user_id:
+        print(f"Client connected: {username} ({user_id}), SID: {request.sid}")
+        session['sid'] = request.sid
+    else:
+        print(f"Unauthenticated client connected, SID: {request.sid}")
+
+@socketio.on('disconnect')
+def disconnect():
+    user_id = session.get('user_id')
+    username = session.get('username')
+    sid = request.sid
+
+    print(f"Client disconnected: {username} ({user_id}), SID: {sid}")
+
+    # Find which classroom the user was in to emit user_left and webrtc_peer_disconnected
+    classroomId_to_leave = None
+    for room_id in socketio.rooms(sid):
+        # Exclude the user's own SID room and the default Flask-SocketIO app room
+        if room_id != sid and room_id != request.sid: # Check if it's a classroom room
+            # A simple check: assume classroom IDs are UUIDs (or specific prefix)
+            # This is a basic heuristic; a more robust way would be to store room_id in session on join
+            if len(room_id) == 36 and '-' in room_id: # Rough check for UUID format
+                classroomId_to_leave = room_id
+                break
+    
+    if classroomId_to_leave:
+        leave_room(classroomId_to_leave)
+        emit('user_left', {'username': username, 'sid': sid}, room=classroomId_to_leave, include_sid=False)
+        emit('webrtc_peer_disconnected', {'peer_id': sid}, room=classroomId_to_leave, include_sid=False)
+        print(f"User {username} ({sid}) left classroom {classroomId_to_leave} due to disconnect.")
+
+
+@socketio.on('join')
+def on_join(data):
+    classroomId = data.get('classroomId')
+    username = session.get('username')
+    user_id = session.get('user_id')
+    user_role = data.get('role') or session.get('role')
+    sid = request.sid
+
+    if not classroomId or not username or not user_id:
+        print("Missing data for join or user not authenticated.")
+        return
+
+    join_room(classroomId)
+    session['classroomId'] = classroomId # Store for disconnect handling
+    print(f"[Socket.IO] User '{username}' ({user_id}) joined room: {classroomId} with SID: {sid}")
+
+    # Broadcast to others in the room that a new user joined.
+    emit('user_joined', {
+        'username': username,
+        'user_id': user_id,
+        'sid': sid,
+        'role': user_role
+    }, room=classroomId, include_sid=False)
+
+    # Send whiteboard history to the joining user
+    # Fetch all pages and their drawings
     history_cursor = whiteboard_collection.find(
         {"classroomId": classroomId},
         {"_id": 0, "pageIndex": 1, "drawings": 1}
     ).sort("pageIndex", 1)
 
-    # Reconstruct history into a list of lists, where each inner list is a page
     whiteboard_history_pages = {}
     for entry in history_cursor:
         page_index = entry.get('pageIndex', 0)
@@ -510,61 +621,94 @@ def get_whiteboard_history(classroomId):
     
     # Convert dict to ordered list of lists
     ordered_history = [whiteboard_history_pages[i] for i in sorted(whiteboard_history_pages.keys())]
+    
+    emit('whiteboard_data', {'action': 'history', 'history': ordered_history}, room=sid)
+    print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
 
-    return jsonify({"history": ordered_history}), 200
+    # Send chat history to the joining user
+    chat_history_from_db = list(chat_messages_collection.find(
+        {"classroomId": classroomId},
+        {"_id": 0}
+    ).sort("timestamp", 1).limit(100)) # Get last 100 messages
+    if chat_history_from_db:
+        # Convert datetime objects to ISO format strings for client-side
+        for msg in chat_history_from_db:
+            msg['timestamp'] = msg['timestamp'].isoformat()
+        emit('chat_history', chat_history_from_db, room=sid)
+        print(f"Chat history sent to new participant {sid} in classroom {classroomId}")
 
 
-# --- Socket.IO Event Handlers ---
-@socketio.on('join')
-def on_join(data):
+@socketio.on('leave')
+def on_leave(data):
     classroomId = data.get('classroomId')
-    role = data.get('role')
-    username = session.get('username', 'Anonymous') # Get username from session
+    username = session.get('username')
+    sid = request.sid
 
-    if not classroomId:
-        print("Join failed: Missing classroomId")
+    if not classroomId or not username:
         return
-    
-    join_room(classroomId)
-    print(f"User {username} ({request.sid}) joined classroom {classroomId} with role {role}")
-    
-    # Notify others in the room that a user has joined
-    emit('user_joined', {'username': username, 'sid': request.sid, 'role': role}, room=classroomId, include_sid=False)
-    # Emit status back to the joining user
-    emit('status', {'message': f"Welcome to classroom {classroomId}!"})
+
+    leave_room(classroomId)
+    print(f"{username} left room: {classroomId}")
+    emit('user_left', {'username': username, 'sid': sid}, room=classroomId, include_sid=False)
 
 
 @socketio.on('message')
-def on_message(data):
+def handle_chat_message(data):
     classroomId = data.get('classroomId')
     message = data.get('message')
-    username = session.get('username', 'Anonymous') # Get username from session
-    role = session.get('role', 'user') # Get role from session
+    username = session.get('username')
+    user_id = session.get('user_id')
+    user_role = session.get('role')
 
-    if not classroomId or not message:
-        print("Message failed: Missing classroomId or message")
+    if not classroomId or not message or not username or not user_id:
+        print("Missing chat message data.")
         return
-    
-    # Emit the message to all clients in the classroom
-    emit('message', {'username': username, 'message': message, 'role': role}, room=classroomId)
-    print(f"Message from {username} in {classroomId}: {message}")
+
+    # Store message in MongoDB
+    chat_message_record = {
+        "classroomId": classroomId,
+        "user_id": user_id,
+        "username": username,
+        "role": user_role,
+        "message": message,
+        "timestamp": datetime.utcnow()
+    }
+    chat_messages_collection.insert_one(chat_message_record)
+
+    # Emit message to all in the room
+    emit('message', {
+        'user_id': user_id,
+        'username': username,
+        'message': message,
+        'timestamp': datetime.utcnow().isoformat(),
+        'role': user_role
+    }, room=classroomId)
+    print(f"Chat message from {username} in {classroomId} broadcasted and saved.")
 
 
 @socketio.on('whiteboard_data')
 def handle_whiteboard_data(data):
-    classroomId = data.get('data', {}).get('classroomId') # Handle nested data from client
+    classroomId = data.get('classroomId')
     action = data.get('action')
-    drawing_data = data.get('data')
+    drawing_data = data.get('data') # This now contains pageIndex and drawing coordinates/styles
+    sender_id = request.sid
+    user_role = session.get('role')
 
     if not classroomId or not action or not drawing_data:
         print(f"Whiteboard data missing: {data}")
         return
 
-    # Store data in MongoDB
+    # Only allow admins to draw or clear
+    if user_role != 'admin':
+        print(f"User {sender_id} (role: {user_role}) attempted to modify whiteboard in classroom {classroomId} without admin privileges.")
+        return
+
+    page_index = drawing_data.get('pageIndex', 0) # Default to page 0
+
     if action == 'draw':
-        # Find the document for the specific classroom and page, or create if it doesn't exist
+        # Store drawing action in MongoDB for the specific page
         whiteboard_collection.update_one(
-            {"classroomId": classroomId, "pageIndex": drawing_data['pageIndex']},
+            {"classroomId": classroomId, "pageIndex": page_index},
             {"$push": {"drawings": {
                 "prevX": drawing_data['prevX'],
                 "prevY": drawing_data['prevY'],
@@ -575,72 +719,59 @@ def handle_whiteboard_data(data):
             }}},
             upsert=True # Create the document if it doesn't exist
         )
+        # Broadcast drawing data to all in the room except the sender
+        emit('whiteboard_data', data, room=classroomId, include_sid=False)
+        print(f"Whiteboard draw data broadcasted and saved for page {page_index} in classroom {classroomId}")
+
     elif action == 'clear':
         # Clear drawings for a specific page
         whiteboard_collection.update_one(
-            {"classroomId": classroomId, "pageIndex": drawing_data['pageIndex']},
+            {"classroomId": classroomId, "pageIndex": page_index},
             {"$set": {"drawings": []}} # Set drawings to an empty array
         )
-        print(f"Whiteboard page {drawing_data['pageIndex']} cleared in classroom {classroomId}")
-
-    # Broadcast to all other clients in the room
-    emit('whiteboard_data', data, room=classroomId, include_sid=False)
-    print(f"Whiteboard: Broadcasted {action} data for classroom {classroomId}")
+        # Broadcast clear action to all in the room
+        emit('whiteboard_data', {'action': 'clear', 'data': {'pageIndex': page_index}}, room=classroomId, include_sid=False)
+        print(f"Whiteboard page {page_index} cleared in classroom {classroomId}")
+        # Emit admin action update
+        socketio.emit('admin_action_update', {
+            'classroomId': classroomId,
+            'message': f"Admin {session.get('username')} cleared whiteboard page {page_index + 1}."
+        }, room=classroomId)
 
 
 @socketio.on('whiteboard_page_change')
 def handle_whiteboard_page_change(data):
     classroomId = data.get('classroomId')
     new_page_index = data.get('newPageIndex')
-    action = data.get('action') # 'add_page' or just page change
+    action_type = data.get('action') # e.g., 'add_page'
 
     if not classroomId or new_page_index is None:
         print(f"Whiteboard page change missing data: {data}")
         return
 
+    user_role = session.get('role')
+    if user_role != 'admin':
+        print(f"Non-admin user attempted to change whiteboard page in classroom {classroomId}.")
+        return
+
     # If a new page is explicitly added by the admin, ensure it exists in DB
-    if action == 'add_page':
+    if action_type == 'add_page':
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": new_page_index},
             {"$setOnInsert": {"drawings": []}}, # Initialize with empty drawings if new
             upsert=True
         )
         print(f"Whiteboard: New page {new_page_index} ensured in classroom {classroomId}")
+        # Emit admin action update
+        socketio.emit('admin_action_update', {
+            'classroomId': classroomId,
+            'message': f"Admin {session.get('username')} added a new whiteboard page."
+        }, room=classroomId)
+
 
     # Broadcast page change to all other clients in the room
     emit('whiteboard_page_change', {'newPageIndex': new_page_index}, room=classroomId, include_sid=False)
     print(f"Whiteboard: Broadcasted page change to {new_page_index} for classroom {classroomId}")
-
-
-@socketio.on('admin_broadcast_started')
-def handle_admin_broadcast_started(data):
-    classroomId = data.get('classroomId')
-    stream_type = data.get('streamType')
-    username = session.get('username', 'Admin') # Assuming admin is broadcasting
-    if not classroomId or not stream_type:
-        print(f"Admin broadcast started signal missing data: {data}")
-        return
-    # Notify all clients in the room that an admin has started a broadcast
-    emit('admin_action_update', {
-        'classroomId': classroomId,
-        'message': f"{username} started a {stream_type} broadcast."
-    }, room=classroomId)
-    print(f"Admin: Broadcast started in classroom {classroomId} by {username} ({stream_type})")
-
-
-@socketio.on('admin_broadcast_ended')
-def handle_admin_broadcast_ended(data):
-    classroomId = data.get('classroomId')
-    username = session.get('username', 'Admin')
-    if not classroomId:
-        print(f"Admin broadcast ended signal missing data: {data}")
-        return
-    # Notify all clients in the room that an admin has ended a broadcast
-    emit('admin_action_update', {
-        'classroomId': classroomId,
-        'message': f"{username} ended the broadcast."
-    }, room=classroomId)
-    print(f"Admin: Broadcast ended in classroom {classroomId} by {username}")
 
 
 @socketio.on('webrtc_offer')
@@ -654,7 +785,6 @@ def handle_webrtc_offer(data):
         print(f"Missing data for webrtc_offer: {data}")
         return
     
-    # Emit the offer to the specific recipient
     emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
     print(f"WEBRTC: Offer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
@@ -669,7 +799,6 @@ def handle_webrtc_answer(data):
         print(f"Missing data for webrtc_answer: {data}")
         return
     
-    # Emit the answer to the specific recipient
     emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
     print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
@@ -685,52 +814,36 @@ def handle_webrtc_ice_candidate(data):
         print(f"Missing data for webrtc_ice_candidate: {data}")
         return
 
-    # Emit the ICE candidate to the specific recipient
     emit('webrtc_ice_candidate', {'candidate': candidate, 'sender_id': sender_id}, room=recipient_id)
     print(f"WEBRTC: ICE Candidate from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
 @socketio.on('webrtc_peer_disconnected')
 def handle_peer_disconnected_signal(data):
-    # This is a client-sent signal that a peer is intentionally disconnecting
     classroomId = data.get('classroomId')
-    peer_id = data.get('peer_id') # The socket.id of the peer that is disconnecting
+    peer_id = data.get('peer_id')
     sender_sid = request.sid
 
     if not classroomId or not peer_id:
         print(f"Missing data for webrtc_peer_disconnected: {data}")
         return
     
-    # Broadcast to all other clients in the room that this peer has disconnected
     emit('webrtc_peer_disconnected', {'peer_id': peer_id}, room=classroomId, include_sid=False)
     print(f"WEBRTC: Client {sender_sid} signaling peer {peer_id} disconnected in classroom {classroomId}")
 
 
-@socketio.on('disconnect')
-def on_disconnect():
-    user_id = session.get('user_id')
-    username = session.get('username', 'Anonymous')
-    role = session.get('role', 'user')
-    classroomId = None # Need to find the classroom the user was in
-
-    # Iterate through all rooms the user was in and identify classroom rooms
-    for room_id in socketio.rooms(request.sid):
-        if room_id != request.sid and room_id != app.sid: # Exclude personal room and main app room
-            classroomId = room_id
-            break
-
-    if classroomId:
-        leave_room(classroomId)
-        print(f"User {username} ({request.sid}) left classroom {classroomId}")
-        # Notify others in the room that a user has left
-        emit('user_left', {'username': username, 'sid': request.sid}, room=classroomId, include_sid=False)
-    else:
-        print(f"User {username} ({request.sid}) disconnected from no specific classroom.")
+@socketio.on('admin_action_update')
+def handle_admin_action_update(data):
+    classroomId = data.get('classroomId')
+    message = data.get('message')
+    # Only admins can send this, but we'll re-emit to everyone in the room
+    if classroomId and message:
+        emit('admin_action_update', {'message': message}, room=classroomId, include_sid=False)
+        print(f"Admin action update from {session.get('username')} in {classroomId}: {message}")
 
 
 # --- Main Run Block ---
 if __name__ == '__main__':
-    # When using Flask-SocketIO with gevent, you run the SocketIO instance
-    # directly using socketio.run, which wraps the WSGI server.
     print("Server running on http://localhost:5000 (with Socket.IO)")
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, debug=True, port=5000, host='0.0.0.0')
+
