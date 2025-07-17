@@ -1,6 +1,6 @@
 # server.py
 
-# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---\
+# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
 import gevent.monkey
 gevent.monkey.patch_all()
 
@@ -401,10 +401,12 @@ def get_classrooms():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # MODIFIED: Return ALL classrooms for an authenticated user to discover
-    # Previously: {"$or": [{"creator_id": user_id}, {"participants": user_id}]}
-    all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
-    return jsonify(all_classrooms), 200
+    # Get classrooms where the current user is either the creator or a participant
+    user_classrooms = list(classrooms_collection.find(
+        {"$or": [{"creator_id": user_id}, {"participants": user_id}]},
+        {"_id": 0} # Exclude MongoDB's default _id field
+    ))
+    return jsonify(user_classrooms), 200
 
 @app.route('/api/join-classroom', methods=['POST'])
 def join_classroom():
@@ -430,7 +432,7 @@ def join_classroom():
         # Notify existing participants that a new user joined via Socket.IO
         # Changed to emit with user_id, which can be used to send whiteboard history to specific user
         # Also include the session ID (request.sid) for WebRTC peer identification
-        socketio.emit('user_joined', { # Changed from 'participant_join' to 'user_joined' for consistency
+        socketio.emit('user_joined', {
             'username': session.get('username'),
             'user_id': user_id,
             'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
@@ -604,7 +606,7 @@ def handle_whiteboard_data(data):
             return # Prevent non-admins from drawing
 
         tool = data.get('tool')
-        draw_data = data.get('data')
+        draw_data = data.get('data') # Expect data to be nested under 'data' key
 
         if not tool or not draw_data:
             print(f"Missing tool or data for whiteboard draw action: {data}")
@@ -623,7 +625,8 @@ def handle_whiteboard_data(data):
         whiteboard_collection.insert_one(drawing_record)
         
         # Broadcast drawing data to all in the room except the sender
-        emit('whiteboard_data', data, room=classroomId, include_sid=False)
+        # Ensure the emitted data matches the structure expected by the client (action, tool, data)
+        emit('whiteboard_data', {'action': 'draw', 'tool': tool, 'data': draw_data}, room=classroomId, include_sid=False)
         print(f"Whiteboard draw data broadcasted and saved in classroom {classroomId} by {username} ({user_id}) (Tool: {tool})")
 
     elif action == 'clear':
@@ -681,7 +684,7 @@ def handle_webrtc_answer(data):
         return
 
     # Emit the answer to the specific recipient
-    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipientId)
+    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
     print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
