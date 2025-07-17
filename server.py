@@ -1,6 +1,6 @@
 # server.py
 
-# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
+# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---\
 import gevent.monkey
 gevent.monkey.patch_all()
 
@@ -37,6 +37,7 @@ assessments_collection = mongo.db.assessments
 assessment_questions_collection = mongo.db.assessment_questions # New
 assessment_submissions_collection = mongo.db.assessment_submissions # New
 whiteboard_collection = mongo.db.whiteboard_drawings # New collection for whiteboard data
+chat_messages_collection = mongo.db.chat_messages # NEW: Collection for chat messages
 
 # Ensure necessary directories exist for file uploads
 UPLOAD_FOLDER = 'uploads'
@@ -435,7 +436,7 @@ def join_classroom():
         # Notify existing participants that a new user joined via Socket.IO
         # Changed to emit with user_id, which can be used to send whiteboard history to specific user
         # Also include the session ID (request.sid) for WebRTC peer identification
-        socketio.emit('participant_join', {
+        socketio.emit('user_joined', { # Changed from 'participant_join' to 'user_joined' for consistency
             'username': session.get('username'),
             'user_id': user_id,
             'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
@@ -529,6 +530,15 @@ def on_join(data):
         emit('whiteboard_data', {'action': 'history', 'data': whiteboard_history_from_db}, room=sid)
         print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
 
+    # NEW: Send chat history to the joining user
+    chat_history_from_db = list(chat_messages_collection.find(
+        {"classroomId": classroomId},
+        {"_id": 0}
+    ).sort("timestamp", 1).limit(100)) # Get last 100 messages
+    if chat_history_from_db:
+        emit('chat_history', chat_history_from_db, room=sid)
+        print(f"Chat history sent to new participant {sid} in classroom {classroomId}")
+
 
 @socketio.on('leave') # Renamed from leave_room for consistency with client and previous response
 def on_leave(data):
@@ -556,14 +566,26 @@ def handle_chat_message(data):
         print("Missing chat message data.")
         return
 
-    timestamp = datetime.now().strftime('%H:%M')
+    # Store message in MongoDB
+    chat_message_record = {
+        "classroomId": classroomId,
+        "user_id": user_id,
+        "username": username,
+        "role": user_role,
+        "message": message,
+        "timestamp": datetime.utcnow() # Store as UTC datetime object
+    }
+    chat_messages_collection.insert_one(chat_message_record)
+
+    # Emit message to all in the room
     emit('message', { # Renamed to 'message'
         'user_id': user_id,
         'username': username,
         'message': message,
-        'timestamp': timestamp,
+        'timestamp': datetime.utcnow().isoformat(), # Send ISO format for client parsing
         'role': user_role # Include sender's role
     }, room=classroomId)
+    print(f"Chat message from {username} in {classroomId} broadcasted and saved.")
 
 
 @socketio.on('whiteboard_data')
