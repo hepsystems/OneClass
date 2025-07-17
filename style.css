@@ -15,7 +15,7 @@ body {
 }
 
 #app {
-    background-color: #ffffff; /* Pristine white for the main container */
+    background-color: #f00fF3; /* Pristine white for the main container */
     padding: 25px; /* More generous padding */
     border-radius: 12px; /* Softly rounded corners for a modern look */
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); /* Lighter, more diffused shadow */
