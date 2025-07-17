@@ -44,10 +44,6 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# --- Global Whiteboard History Storage (NO LONGER USED FOR PERSISTENCE, KEPT FOR REFERENCE IF NEEDED) ---
-# This will store whiteboard data per classroom, keyed by classroomId
-# whiteboard_history = {} # This will be replaced by database storage
-
 
 # --- API Endpoints ---
 
@@ -405,12 +401,10 @@ def get_classrooms():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Get classrooms where the current user is either the creator or a participant
-    user_classrooms = list(classrooms_collection.find(
-        {"$or": [{"creator_id": user_id}, {"participants": user_id}]},
-        {"_id": 0} # Exclude MongoDB's default _id field
-    ))
-    return jsonify(user_classrooms), 200
+    # MODIFIED: Return ALL classrooms for an authenticated user to discover
+    # Previously: {"$or": [{"creator_id": user_id}, {"participants": user_id}]}
+    all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
+    return jsonify(all_classrooms), 200
 
 @app.route('/api/join-classroom', methods=['POST'])
 def join_classroom():
@@ -536,6 +530,9 @@ def on_join(data):
         {"_id": 0}
     ).sort("timestamp", 1).limit(100)) # Get last 100 messages
     if chat_history_from_db:
+        # Convert datetime objects to ISO format strings for client-side
+        for msg in chat_history_from_db:
+            msg['timestamp'] = msg['timestamp'].isoformat()
         emit('chat_history', chat_history_from_db, room=sid)
         print(f"Chat history sent to new participant {sid} in classroom {classroomId}")
 
@@ -684,7 +681,7 @@ def handle_webrtc_answer(data):
         return
 
     # Emit the answer to the specific recipient
-    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
+    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipientId)
     print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 
