@@ -1,23 +1,26 @@
 /* General Body and App Layout */
 body {
-    font-family: 'Inter', sans-serif; /* Modern, clean font */
+    font-family: 'Inter', sans-serif; /* Modern, clean font, but we'll aim for bolder usage */
     margin: 0;
     padding: 0;
-    background-color: #f8f9fa; /* Very light grey background */
+    background-color: #e6e6e6; /* Slightly darker base for contrast */
+    /* Added a very subtle noise texture - this is a base64 encoded tiny image */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQImWNkYGD4z0ADwTAxMjC4sJQAwAECAAcxL5xLAAAAAElFTkSuQmCC');
+    background-repeat: repeat;
     display: flex;
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
     box-sizing: border-box;
-    color: #333333; /* Darker text for primary readability */
+    color: #2c2c2c; /* Darker text for primary readability */
     font-size: 14px; /* Base font size slightly smaller */
 }
 
 #app {
-    background-color: #ffffff;
+    background-color: #fdfdfd; /* Keep app container slightly brighter */
     padding: 20px; /* Reduced padding for the main app container */
-    border-radius: 10px; /* Slightly less rounded */
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* Softer, more subtle shadow */
+    border-radius: 5px; /* Less rounded corners for a sharper feel */
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); /* Stronger, deeper shadow */
     width: 95%;
     max-width: 1400px; /* Main app width remains generous for whiteboard */
     margin-top: 20px; /* Reduced margin */
@@ -26,16 +29,15 @@ body {
     display: flex;
     flex-direction: column;
     gap: 15px; /* Reduced spacing between main sections */
+    border: 1px solid #dcdcdc; /* Add a more prominent border */
 }
 
 section {
-    /* Reduced padding to make background fit content more snugly */
     padding: 15px;
-    border: 1px solid #e9ecef; /* Very light grey border */
-    border-radius: 8px; /* Consistent rounding */
+    border: 1px solid #c0c0c0; /* Stronger, more visible border */
+    border-radius: 4px; /* Sharper corners */
     background-color: #ffffff; /* Sections are white */
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.03); /* Very subtle shadow for sections */
-    /* Reduced margin-bottom for tighter vertical spacing between sections */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* More noticeable shadow */
     margin-bottom: 10px;
 }
 
@@ -45,11 +47,12 @@ section:last-of-type {
 }
 
 h2, h3, h4 {
-    color: #212529; /* Dark charcoal for headings */
+    color: #1a1a1a; /* Even darker, almost black for strong contrast */
     margin-top: 0;
     margin-bottom: 12px; /* Reduced margin */
-    font-weight: 600;
+    font-weight: 700; /* Bolder headings */
     font-size: 1.4em; /* H2 size */
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05); /* Subtle text shadow for depth */
 }
 h3 {
     font-size: 1.2em; /* H3 size */
@@ -70,19 +73,21 @@ h4 {
 
 /* Role-specific highlights */
 .admin-feature-highlight {
-    border: 2px solid #4a90e2; /* Primary blue border */
+    border: 2px solid #3f7bbf; /* Primary blue border (updated) */
     background-color: #eaf3fd; /* Very light blue background */
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 4px; /* Sharper corners */
     margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 .user-view-subtle {
-    border: 2px solid #5cb85c; /* Success green border */
+    border: 2px solid #4a884a; /* Success green border (updated) */
     background-color: #edf9ed; /* Very light green background */
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 4px; /* Sharper corners */
     margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 .role-message {
@@ -92,23 +97,26 @@ h4 {
     text-align: center;
     padding: 6px;
     background-color: #f0f2f5;
-    border-radius: 5px;
+    border-radius: 4px; /* Sharper corners */
     font-size: 0.85em;
+    border: 1px solid #d0d0d0; /* Added border */
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); /* Inset shadow */
 }
 
 /* Notifications Container */
 #notifications-container {
     margin: 10px 0; /* Reduced margin */
     padding: 10px 15px; /* Reduced padding */
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     font-weight: 500;
     text-align: center;
     opacity: 0;
     transform: translateY(-15px); /* Smaller transform */
     transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08); /* Smaller shadow */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); /* Larger, more defined shadow */
     display: none; /* Hidden by default */
     font-size: 0.9em; /* Smaller font */
+    border: 1px solid; /* Added border for definition */
 }
 
 #notifications-container.show {
@@ -120,13 +128,13 @@ h4 {
 .success-notification {
     background-color: #d4edda; /* Light green */
     color: #155724; /* Dark green */
-    border: 1px solid #c3e6cb;
+    border-color: #c3e6cb; /* Updated to border-color */
 }
 
 .error-notification {
     background-color: #f8d7da; /* Light red */
     color: #721c24; /* Dark red */
-    border: 1px solid #f5c6cb;
+    border-color: #f5c6cb; /* Updated to border-color */
 }
 
 
@@ -137,35 +145,48 @@ h4 {
     gap: 6px; /* Very small gap */
     margin-bottom: 15px; /* Reduced margin */
     padding-bottom: 10px; /* Reduced padding */
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid #d0d0d0; /* Stronger border */
     flex-wrap: wrap;
 }
 
 .main-nav button {
-    background-color: #e9ecef; /* Light grey */
-    border: 1px solid #dee2e6; /* Muted border */
-    padding: 6px 10px; /* Very small padding */
-    border-radius: 5px; /* Small rounding */
+    background-color: #cccccc; /* Muted grey for inactive nav */
+    border: 1px solid #999999; /* Stronger, darker border */
+    padding: 8px 15px; /* Slightly larger padding for impact */
+    border-radius: 3px; /* Sharper rounding */
     cursor: pointer;
     font-size: 0.8em; /* Very small font size */
     font-weight: 500;
     transition: all 0.2s ease-in-out;
     color: #495057; /* Darker text */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* More noticeable shadow */
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1)); /* Subtle gradient */
 }
 
 .main-nav button:hover {
-    background-color: #e2e6ea;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08); /* Subtle hover shadow */
+    background-color: #bbbbbb;
+    transform: translateY(0); /* Remove the lift, make it press down */
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); /* Smaller, pressed shadow */
+}
+.main-nav button:active {
+    transform: translateY(1px); /* Press down effect */
+    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3); /* Very flat shadow when pressed */
 }
 
 .main-nav button.active-nav {
-    background-color: #4a90e2; /* Primary blue */
+    background-color: #3f7bbf; /* New primary blue */
     color: white;
-    border-color: #4a90e2;
-    box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
-    transform: translateY(-1px);
+    border-color: #2a5a8f; /* Darker border for depth */
+    box-shadow: 0 2px 4px rgba(63, 123, 191, 0.3);
+}
+.main-nav button.active-nav:hover {
+    background-color: #316499; /* Darker blue on hover */
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(63, 123, 191, 0.4);
+}
+.main-nav button.active-nav:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5);
 }
 
 /* Forms and Inputs (General Styling) */
@@ -182,12 +203,14 @@ textarea,
 select {
     width: calc(100% - 16px); /* Account for padding and border */
     padding: 8px; /* Smaller padding */
-    border: 1px solid #ced4da; /* Light grey border */
-    border-radius: 5px;
+    border: 1px solid #a0a0a0; /* Stronger border */
+    border-radius: 3px; /* Sharper rounding */
     box-sizing: border-box;
     font-size: 0.9em; /* Smaller font */
     color: #495057;
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    background-color: #f8f8f8; /* Slightly off-white for inputs */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle inset shadow */
 }
 
 input[type="text"]:focus,
@@ -195,8 +218,8 @@ input[type="email"]:focus,
 input[type="password"]:focus,
 textarea:focus,
 select:focus {
-    border-color: #4a90e2;
-    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2); /* Smaller focus shadow */
+    border-color: #3f7bbf; /* New primary blue on focus */
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(63, 123, 191, 0.3); /* Keep inset, add subtle blue glow */
     outline: none;
 }
 
@@ -220,20 +243,21 @@ button[type="submit"],
 #copy-share-link-btn,
 #start-broadcast,
 #end-broadcast {
-    background-color: #4a90e2; /* Primary blue */
+    background-color: #3f7bbf; /* A slightly deeper, more muted blue */
     color: white;
-    padding: 7px 12px; /* Very small padding for all buttons */
-    border: none;
-    border-radius: 5px; /* Small rounding */
+    padding: 8px 15px; /* Slightly larger padding for impact */
+    border: 1px solid #2a5a8f; /* Darker border for depth */
+    border-radius: 3px; /* Sharper rounding */
     cursor: pointer;
     font-size: 0.8em; /* Very small font size for all buttons */
     font-weight: 600;
     transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
-    box-shadow: 0 1px 4px rgba(74, 144, 226, 0.2); /* Smaller shadow */
+    box-shadow: 0 3px 6px rgba(63, 123, 191, 0.3); /* Deeper initial shadow */
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 5px; /* Very small gap for icons */
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1)); /* Subtle gradient */
 }
 
 button[type="submit"]:hover,
@@ -256,47 +280,89 @@ button[type="submit"]:hover,
 #copy-share-link-btn:hover,
 #start-broadcast:hover,
 #end-broadcast:hover {
-    background-color: #3a7bd5; /* Darker blue */
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(74, 144, 226, 0.3); /* Smaller hover shadow */
+    background-color: #316499; /* Even darker blue on hover */
+    transform: translateY(0); /* Remove the lift, make it press down */
+    box-shadow: 0 1px 3px rgba(63, 123, 191, 0.4); /* Smaller, pressed shadow */
+}
+
+button[type="submit"]:active,
+.action-button:active,
+.tool-button:active,
+.go-to-classroom-btn:active,
+.join-classroom-btn:active,
+#send-chat-button:active,
+#upload-library-files-btn:active,
+#submit-assessment-btn:active,
+#add-question-btn:active,
+#submit-answers-btn:active,
+#back-to-assessment-list-btn:active,
+#back-to-assessment-list-from-submissions-btn:active,
+.view-submissions-btn:active,
+.take-assessment-btn:active,
+.delete-assessment-btn:active,
+#create-classroom-btn:active,
+#join-classroom-btn:active,
+#copy-share-link-btn:active,
+#start-broadcast:active,
+#end-broadcast:active {
+    transform: translateY(1px); /* Press down effect */
+    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5); /* Very flat shadow when pressed */
 }
 
 button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
-    box-shadow: none;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Inset disabled state */
     transform: none;
+    border-color: #b0b0b0;
+    background-image: none; /* No gradient when disabled */
 }
 
 /* Specific Button Overrides */
 #logout-btn {
-    background-color: #dc3545; /* Red for logout */
-    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.2);
+    background-color: #b83f3f; /* A more muted, earthy red */
+    border-color: #8c2a2a;
+    box-shadow: 0 3px 6px rgba(184, 63, 63, 0.3);
 }
 #logout-btn:hover {
-    background-color: #c82333;
-    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+    background-color: #993333;
+    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.4);
+}
+#logout-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.5);
 }
 
+
 #end-broadcast {
-    background-color: #dc3545;
-    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.2);
+    background-color: #b83f3f;
+    border-color: #8c2a2a;
+    box-shadow: 0 3px 6px rgba(184, 63, 63, 0.3);
 }
 #end-broadcast:hover {
-    background-color: #c82333;
-    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+    background-color: #993333;
+    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.4);
+}
+#end-broadcast:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.5);
 }
 
 .delete-file-btn, .delete-assessment-btn {
-    background-color: #dc3545;
+    background-color: #b83f3f;
+    border-color: #8c2a2a;
     padding: 5px 8px; /* Even smaller for list items */
     font-size: 0.75em;
-    box-shadow: none;
+    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.2); /* Smaller default shadow */
 }
 .delete-file-btn:hover, .delete-assessment-btn:hover {
-    background-color: #c82333;
-    transform: none;
-    box-shadow: none;
+    background-color: #993333;
+    transform: none; /* No transform on smaller delete buttons */
+    box-shadow: 0 1px 2px rgba(184, 63, 63, 0.3);
+}
+.delete-file-btn:active, .delete-assessment-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.4);
 }
 
 
@@ -310,8 +376,9 @@ button:disabled {
 #login-container, #register-container {
     background-color: #ffffff;
     padding: 20px; /* Reduced padding */
-    border-radius: 8px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); /* Smaller shadow */
+    border-radius: 4px; /* Sharper corners */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    border: 1px solid #c0c0c0; /* Added border */
 }
 
 #auth-section p {
@@ -321,7 +388,7 @@ button:disabled {
 }
 
 #auth-section a {
-    color: #4a90e2;
+    color: #3f7bbf; /* New primary blue */
     text-decoration: none;
     font-weight: 500;
 }
@@ -351,9 +418,9 @@ button:disabled {
 #join-classroom-section {
     background-color: #ffffff;
     padding: 15px; /* Reduced padding */
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    border-radius: 4px; /* Sharper corners */
+    border: 1px solid #c0c0c0; /* Stronger border */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 #classroom-list {
@@ -367,12 +434,13 @@ button:disabled {
     justify-content: space-between;
     align-items: center;
     padding: 8px 10px; /* Smaller padding */
-    border-bottom: 1px solid #f0f2f5; /* Lighter border */
+    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
     background-color: #fdfdfd; /* Slightly off-white for list items */
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     margin-bottom: 5px; /* Reduced margin */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02); /* Very subtle shadow */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
     font-size: 0.85em; /* Smaller font */
+    border: 1px solid #e0e0e0; /* Added subtle border to list items */
 }
 #classroom-list li:last-child {
     border-bottom: none;
@@ -394,43 +462,52 @@ button:disabled {
 .classroom-sub-section {
     background-color: #ffffff;
     padding: 15px; /* Reduced padding for sub-sections */
-    border-radius: 8px;
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.03);
+    border-radius: 4px; /* Sharper corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    border: 1px solid #c0c0c0; /* Added border */
 }
 
 /* Chat Section */
 #chat-messages {
-    border: 1px solid #e9ecef;
+    border: 1px solid #c0c0c0; /* Stronger border */
     padding: 10px; /* Reduced padding */
     height: 280px; /* Slightly shorter chat window */
     overflow-y: auto;
     margin-bottom: 10px; /* Reduced margin */
     background-color: #fefefe; /* Near white background for messages */
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     display: flex;
     flex-direction: column;
     gap: 5px; /* Reduced gap */
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.08); /* Inset shadow for chat window */
 }
 
 #chat-messages div {
-    padding: 5px 8px; /* Smaller padding */
-    border-radius: 4px;
-    background-color: #eaf3fd; /* Very light blue for messages */
+    padding: 7px 10px; /* Slightly more padding */
+    border-radius: 5px; /* Less rounded */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* More defined shadow */
     align-self: flex-start;
     max-width: 80%;
     word-wrap: break-word;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Smaller shadow */
     font-size: 0.85em; /* Smaller font */
+    border: 1px solid; /* Added border to messages */
 }
 
 #chat-messages div:nth-child(even) {
     background-color: #e2effc; /* Slightly different shade */
+    border-color: #cadbee;
+}
+#chat-messages div:nth-child(odd) {
+    background-color: #eaf3fd; /* Very light blue for messages */
+    border-color: #dbe4f1;
 }
 
 #chat-messages div.self-message {
-    background-color: #5cb85c; /* Success green for self */
+    background-color: #4a884a; /* Muted green for self */
     color: white;
     align-self: flex-end;
+    border-color: #356b35;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
 }
 
 #chat-messages div.status-message {
@@ -440,6 +517,7 @@ button:disabled {
     background-color: transparent;
     box-shadow: none;
     align-self: center;
+    border: none; /* No border for status messages */
 }
 
 
@@ -447,8 +525,12 @@ button:disabled {
     width: calc(100% - 70px); /* Adjusted for smaller button */
     margin-right: 6px; /* Reduced margin */
     vertical-align: middle;
-    padding: 7px; /* Smaller padding */
+    padding: 7px; /* Consistent smaller padding */
     font-size: 0.85em; /* Smaller font */
+    border: 1px solid #a0a0a0; /* Stronger border */
+    border-radius: 3px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle inset shadow */
+    background-color: #f8f8f8;
 }
 
 #send-chat-button {
@@ -462,11 +544,12 @@ button:disabled {
     gap: 8px; /* Reduced gap */
     margin-bottom: 12px; /* Reduced margin */
     padding: 8px; /* Reduced padding */
-    background-color: #e9ecef; /* Light grey toolbar */
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    background-color: #d5d5d5; /* A more substantial grey */
+    border-radius: 5px; /* Sharper corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow */
     align-items: center;
     justify-content: space-between;
+    border: 1px solid #b0b0b0; /* Define border */
 }
 
 .toolbar .tool-group {
@@ -479,34 +562,54 @@ button:disabled {
 .toolbar .tool-button, .toolbar .action-button {
     padding: 6px 10px; /* Smaller padding */
     font-size: 0.75em; /* Smaller font size */
-    border-radius: 4px;
-    background-color: #adb5bd; /* Muted grey for tools */
-    box-shadow: none;
+    border-radius: 4px; /* Sharper corners */
+    background-color: #a0a0a0; /* Muted grey for tools */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* More defined shadow */
+    border: 1px solid #777777; /* Stronger border */
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
 }
 .toolbar .tool-button:hover, .toolbar .action-button:hover {
-    background-color: #9da7b0;
-    transform: none;
+    background-color: #888888;
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
+.toolbar .tool-button:active, .toolbar .action-button:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3);
+}
+
 .toolbar .tool-button.active {
-    background-color: #4a90e2; /* Active tool blue */
+    background-color: #3f7bbf; /* Active tool blue */
     color: white;
+    border-color: #2a5a8f;
+    box-shadow: 0 2px 4px rgba(63, 123, 191, 0.3);
 }
+.toolbar .tool-button.active:hover {
+    background-color: #316499;
+}
+.toolbar .tool-button.active:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5);
+}
+
 
 .toolbar input[type="color"] {
     width: 30px; /* Smaller color picker */
     height: 20px; /* Smaller color picker */
-    border: 1px solid #ced4da;
+    border: 1px solid #777777; /* Darker border */
     border-radius: 4px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
 }
 .toolbar input[type="range"] {
     width: 90px; /* Shorter slider */
     height: 5px; /* Thinner slider */
     -webkit-appearance: none;
-    background: #ced4da;
+    background: #b0b0b0; /* Darker background for slider track */
     border-radius: 3px;
     outline: none;
-    opacity: 0.7;
+    opacity: 0.9; /* Slightly less transparent */
     transition: opacity .2s;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); /* Inset shadow for track */
 }
 .toolbar input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -514,31 +617,33 @@ button:disabled {
     width: 14px; /* Smaller thumb */
     height: 14px; /* Smaller thumb */
     border-radius: 50%;
-    background: #4a90e2;
+    background: #3f7bbf; /* New primary blue */
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 1px solid #2a5a8f; /* Added border to thumb */
 }
 .toolbar input[type="range"]::-moz-range-thumb {
     width: 14px; /* Smaller thumb */
     height: 14px; /* Smaller thumb */
     border-radius: 50%;
-    background: #4a90e2;
+    background: #3f7bbf; /* New primary blue */
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    border: 1px solid #2a5a8f; /* Added border to thumb */
 }
 
 
 #whiteboard-canvas {
-    border: 1px solid #dee2e6;
-    background-color: #000000; /* Solid black background */
+    border: 2px solid #555555; /* Thicker, darker border */
+    background-color: #222222; /* Solid black background */
     display: block;
     margin: 0 auto 15px auto; /* Reduced margin */
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1); /* Slightly smaller shadow */
-    border-radius: 8px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); /* Deeper shadow */
+    border-radius: 6px; /* Slightly sharper */
     width: 100%; /* Make it responsive */
-    max-width: 1600px; /* **Significantly Increased max-width for whiteboard** */
+    max-width: 1600px; /* Significantly Increased max-width for whiteboard */
     height: auto; /* Maintain aspect ratio based on width */
-    min-height: 700px; /* **Increased minimum height for a larger appearance** */
+    min-height: 700px; /* Increased minimum height for a larger appearance */
 }
 
 #whiteboard-navigation {
@@ -548,30 +653,46 @@ button:disabled {
     gap: 12px; /* Reduced gap */
     margin-top: 12px; /* Reduced margin */
     padding: 8px; /* Reduced padding */
-    background-color: #e9ecef;
-    border-radius: 8px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    background-color: #d5d5d5; /* Consistent with toolbar */
+    border-radius: 5px; /* Sharper corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+    border: 1px solid #b0b0b0; /* Define border */
 }
 
 #whiteboard-navigation button {
-    background-color: #adb5bd; /* Muted grey */
+    background-color: #a0a0a0; /* Muted grey */
     padding: 7px 12px; /* Consistent smaller button padding */
     font-weight: 500;
-    box-shadow: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    border: 1px solid #777777;
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
 }
 #whiteboard-navigation button:hover {
-    background-color: #9da7b0;
-    transform: none;
+    background-color: #888888;
+    transform: translateY(0);
+}
+#whiteboard-navigation button:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3);
 }
 #whiteboard-navigation button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    transform: none;
+    border-color: #b0b0b0;
+    background-image: none;
 }
 
 #whiteboard-page-display {
     font-weight: 600;
     color: #495057;
     font-size: 0.9em; /* Smaller font */
+    padding: 4px 8px; /* Added padding */
+    background-color: #efefef; /* Light background for display */
+    border-radius: 3px;
+    border: 1px solid #d0d0d0;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 
 #share-link-display {
@@ -581,8 +702,9 @@ button:disabled {
     align-items: center;
     padding: 6px; /* Reduced padding */
     background-color: #fefefe;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
+    border: 1px solid #d0d0d0; /* Stronger border */
+    border-radius: 4px; /* Sharper corners */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08); /* Subtle inset shadow */
 }
 #share-link-input {
     flex-grow: 1;
@@ -590,15 +712,24 @@ button:disabled {
     cursor: text;
     padding: 7px; /* Consistent smaller input padding */
     font-size: 0.8em; /* Consistent smaller font */
+    border: 1px solid #b0b0b0; /* More defined border for input */
+    border-radius: 3px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
 }
 #copy-share-link-btn {
     padding: 7px 12px;
     font-size: 0.8em;
-    background-color: #5cb85c; /* Success green for copy */
-    box-shadow: none;
+    background-color: #4a884a; /* Muted success green for copy */
+    border-color: #356b35;
+    box-shadow: 0 2px 4px rgba(74, 136, 74, 0.3);
 }
 #copy-share-link-btn:hover {
-    background-color: #4cae4c;
+    background-color: #3f7b3f;
+    box-shadow: 0 1px 2px rgba(74, 136, 74, 0.4);
+}
+#copy-share-link-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 0px 1px rgba(74, 136, 74, 0.5);
 }
 
 
@@ -606,10 +737,10 @@ button:disabled {
 #video-broadcast-section {
     margin-top: 15px; /* Reduced margin */
     padding: 15px; /* Reduced padding */
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border: 1px solid #c0c0c0; /* Stronger border */
+    border-radius: 4px; /* Sharper corners */
     background-color: #ffffff;
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 .broadcast-options {
@@ -635,16 +766,17 @@ button:disabled {
     appearance: none;
     width: 14px; /* Smaller radio button */
     height: 14px; /* Smaller radio button */
-    border: 2px solid #4a90e2;
+    border: 2px solid #3f7bbf; /* New primary blue */
     border-radius: 50%;
     outline: none;
     cursor: pointer;
     position: relative;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .broadcast-options input[type="radio"]:checked {
-    background-color: #4a90e2;
-    border-color: #4a90e2;
+    background-color: #3f7bbf; /* New primary blue */
+    border-color: #3f7bbf;
 }
 
 .broadcast-options input[type="radio"]:checked::before {
@@ -668,9 +800,10 @@ button:disabled {
     margin: 12px auto; /* Reduced margin */
     display: block;
     background-color: #343a40; /* Darker background for video */
-    border-radius: 8px;
+    border-radius: 6px; /* Sharper corners */
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     object-fit: cover;
+    border: 1px solid #555555; /* Added border */
 }
 
 #remote-video-container {
@@ -685,9 +818,9 @@ button:disabled {
     width: 100%;
     max-width: 280px; /* Slightly smaller remote videos */
     height: 200px; /* Fixed height for consistency */
-    border: 1px solid #4a90e2;
+    border: 1px solid #3f7bbf; /* New primary blue border */
     background-color: #343a40;
-    border-radius: 8px;
+    border-radius: 6px; /* Sharper corners */
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     object-fit: cover;
 }
@@ -703,16 +836,17 @@ button:disabled {
 /* Library Section */
 #library-files-list {
     margin-top: 10px;
-    border: 1px solid #e9ecef;
+    border: 1px solid #c0c0c0; /* Stronger border */
     padding: 10px;
     min-height: 100px; /* Reduced min-height */
     background-color: #fefefe;
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.08);
 }
 
 #library-files-list div {
     padding: 6px 0;
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -725,7 +859,7 @@ button:disabled {
 }
 
 #library-files-list a {
-    color: #4a90e2;
+    color: #3f7bbf; /* New primary blue */
     text-decoration: none;
 }
 
@@ -737,49 +871,53 @@ button:disabled {
 /* Assessments Section */
 #assessment-creation-form {
     padding: 15px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border: 1px solid #c0c0c0; /* Stronger border */
+    border-radius: 4px; /* Sharper corners */
     background-color: #ffffff;
     margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 .question-item {
-    border: 1px solid #e9ecef;
+    border: 1px solid #c0c0c0; /* Stronger border */
     padding: 10px;
     margin-bottom: 10px;
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     background-color: #fefefe;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
 }
 
 .mcq-options {
     margin-top: 10px;
     padding-left: 12px;
-    border-left: 2px solid #4a90e2; /* Thinner border */
+    border-left: 2px solid #3f7bbf; /* Thinner border, new primary blue */
     background-color: #eaf3fd;
     padding-top: 6px;
     padding-bottom: 6px;
-    border-radius: 4px;
+    border-radius: 3px; /* Sharper corners */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
 #assessment-list-container {
     margin-top: 15px;
     padding: 15px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border: 1px solid #c0c0c0; /* Stronger border */
+    border-radius: 4px; /* Sharper corners */
     background-color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 #assessment-list div.assessment-item {
     padding: 10px;
-    border-bottom: 1px solid #f0f2f5;
+    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
     display: flex;
     flex-direction: column;
     gap: 6px;
     background-color: #fdfdfd;
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     margin-bottom: 6px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
+    border: 1px solid #e0e0e0; /* Added subtle border to list items */
 }
 #assessment-list div.assessment-item:last-child {
     border-bottom: none;
@@ -787,7 +925,7 @@ button:disabled {
 
 #assessment-list div.assessment-item h4 {
     margin-bottom: 3px;
-    color: #4a90e2;
+    color: #3f7bbf; /* New primary blue */
     font-size: 0.95em;
 }
 #assessment-list div.assessment-item p {
@@ -807,18 +945,19 @@ button:disabled {
 #view-submissions-container {
     margin-top: 15px;
     padding: 15px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
+    border: 1px solid #c0c0c0; /* Stronger border */
+    border-radius: 4px; /* Sharper corners */
     background-color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
 }
 
 .question-display {
-    border: 1px solid #e9ecef;
+    border: 1px solid #c0c0c0; /* Stronger border */
     padding: 10px;
     margin-bottom: 10px;
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     background-color: #fefefe;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
 }
 .question-display label {
     font-weight: 600;
@@ -832,6 +971,10 @@ button:disabled {
     min-height: 60px;
     padding: 7px;
     font-size: 0.85em;
+    border: 1px solid #a0a0a0; /* Stronger border */
+    border-radius: 3px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    background-color: #f8f8f8;
 }
 .question-display input[type="radio"] {
     margin-right: 5px;
@@ -849,35 +992,37 @@ button:disabled {
     font-weight: bold;
     text-align: center;
     padding: 7px;
-    border-radius: 6px;
+    border-radius: 4px; /* Sharper corners */
     font-size: 0.85em;
+    border: 1px solid; /* Added border */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
 #assessment-submission-message.success {
     background-color: #d4edda;
     color: #155724;
-    border: 1px solid #c3e6cb;
+    border-color: #c3e6cb;
 }
 
 #assessment-submission-message.error {
     background-color: #f8d7da;
     color: #721c24;
-    border: 1px solid #f5c6cb;
+    border-color: #f5c6cb;
 }
 
 #submissions-list .submission-item {
-    border: 1px solid #e0e0e0;
+    border: 1px solid #c0c0c0; /* Stronger border */
     padding: 10px;
     margin-bottom: 10px;
-    border-radius: 8px;
+    border-radius: 4px; /* Sharper corners */
     background-color: #fdfdfd;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); /* Slightly more noticeable shadow */
 }
 
 #submissions-list .submission-item h5 {
     margin-top: 0;
     margin-bottom: 6px;
-    color: #4a90e2;
+    color: #3f7bbf; /* New primary blue */
     font-size: 0.95em;
 }
 
@@ -887,12 +1032,13 @@ button:disabled {
 }
 
 #submissions-list .question-answer-pair {
-    border-left: 2px solid #e0e0e0; /* Thinner border */
+    border-left: 2px solid #b0b0b0; /* Thinner border, muted grey */
     padding-left: 10px;
     margin-top: 10px;
     background-color: #eaf3fd;
     padding: 6px;
-    border-radius: 4px;
+    border-radius: 3px; /* Sharper corners */
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
 /* Responsive Adjustments */
