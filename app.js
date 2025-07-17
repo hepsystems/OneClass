@@ -1,4 +1,4 @@
-// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard)
+// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard, Discoverable Classrooms)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -26,8 +26,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const classroomMessage = document.getElementById('classroom-message');
     const joinClassroomIdInput = document.getElementById('join-classroom-id');
     const joinClassroomBtn = document.getElementById('join-classroom-btn');
-    const joinClassroomMessage = document.getElementById('join-classroom-message');
-    const classroomList = document.getElementById('classroom-list');
+    const joinClassroomMessage = document = document.getElementById('join-classroom-message');
+    const classroomList = document.getElementById('classroom-list'); // This will now list all discoverable classes
 
     const classroomSection = document.getElementById('classroom-section');
     const classNameValue = document.getElementById('class-name-value'); // For displaying current classroom name
@@ -228,27 +228,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    async function loadUserClassrooms() {
+    /**
+     * Loads all available classrooms for the user to join or enter.
+     * Renamed from loadUserClassrooms to reflect broader purpose.
+     */
+    async function loadAvailableClassrooms() {
         if (!currentUser || !currentUser.id) {
             console.warn("No current user to load classrooms for.");
-            classroomList.innerHTML = '<li>Please log in to see your classrooms.</li>';
+            classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             return;
         }
         try {
-            const response = await fetch('/api/classrooms');
+            const response = await fetch('/api/classrooms'); // This now fetches ALL classrooms
             const classrooms = await response.json();
             classroomList.innerHTML = ''; // Clear previous list
+
             if (classrooms.length === 0) {
-                classroomList.innerHTML = '<li>No classrooms found. Create one or join!</li>';
+                classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
             } else {
-                classrooms.forEach(classroom => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span>${classroom.name} (ID: ${classroom.id})</span>
-                        <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Go to Classroom</button>
-                    `;
-                    classroomList.appendChild(li);
-                });
+                // Sort classrooms: joined/created first, then others
+                const userJoinedClassrooms = classrooms.filter(cls =>
+                    cls.creator_id === currentUser.id || (cls.participants && cls.participants.includes(currentUser.id))
+                );
+                const otherClassrooms = classrooms.filter(cls =>
+                    cls.creator_id !== currentUser.id && (!cls.participants || !cls.participants.includes(currentUser.id))
+                );
+
+                // Display "Your Classrooms" heading if applicable
+                if (userJoinedClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Your Classrooms';
+                    classroomList.appendChild(h3);
+                    userJoinedClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
+
+                // Display "Available Classrooms to Join" heading if applicable
+                if (otherClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Available Classrooms to Join';
+                    classroomList.appendChild(h3);
+                    otherClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Join Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
+
+                // If no classrooms at all
+                if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
+                    classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
+                }
 
                 document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
                     button.addEventListener('click', (e) => {
@@ -340,7 +379,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const messageElement = document.createElement('div');
             // Display username with (Admin) tag if applicable
             const senderDisplayName = getDisplayName(data.username, data.role);
-            messageElement.textContent = `${senderDisplayName} (${data.timestamp}): ${data.message}`;
+            // Format timestamp from ISO string to local time
+            const date = new Date(data.timestamp);
+            const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${data.message}`;
             chatMessages.appendChild(messageElement);
             chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
         });
@@ -640,7 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Display username with (Admin) tag if applicable
             currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
             classroomIdDisplay.textContent = currentClassroom ? currentClassroom.id : 'N/A';
-            loadUserClassrooms();
+            loadAvailableClassrooms(); // Call the updated function
             updateNavActiveState(navDashboard);
             updateUIBasedOnRole(); // Apply role-based UI on dashboard load
 
@@ -649,7 +691,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (pathParts[1] === 'classroom' && pathParts.length > 2) {
                 const idFromUrl = pathParts[2];
                 // Fetch classroom details to get the correct name
-                fetch(`/api/classrooms`)
+                fetch(`/api/classrooms`) // Fetch all classrooms to find the one by ID
                     .then(res => res.json())
                     .then(classrooms => {
                         const matched = classrooms.find(cls => cls.id === idFromUrl);
@@ -661,14 +703,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             currentClassroom = null;
                             alert("Classroom not found or not joined yet.");
                             showSection(dashboardSection);
-                            loadUserClassrooms(); // Reload classrooms for the user
+                            loadAvailableClassrooms(); // Reload classrooms for the user
                         }
                     })
                     .catch(err => {
                         console.error("Error fetching classroom details:", err);
                         alert("Could not load classroom.");
                         showSection(dashboardSection); // Fallback to dashboard on error
-                        loadUserClassrooms();
+                        loadAvailableClassrooms();
                     });
             }
         } else {
@@ -837,7 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     displayMessage(classroomMessage, result.message, false);
                     newClassroomNameInput.value = ''; // Clear input
-                    loadUserClassrooms(); // Reload list
+                    loadAvailableClassrooms(); // Reload list to show new class
                 } else {
                     displayMessage(classroomMessage, result.error, true);
                 }
@@ -848,7 +890,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Join Classroom Button
+    // Join Classroom Button (still useful for direct ID input)
     if (joinClassroomBtn) {
         joinClassroomBtn.addEventListener('click', async () => {
             const classroomId = joinClassroomIdInput.value;
@@ -867,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     displayMessage(joinClassroomMessage, result.message, false);
                     joinClassroomIdInput.value = ''; // Clear input
-                    loadUserClassrooms(); // Reload list
+                    loadAvailableClassrooms(); // Reload list
                     // If successfully joined, automatically enter the classroom
                     if (result.classroom && result.classroom.id) {
                          enterClassroom(result.classroom.id, result.classroom.name);
@@ -887,7 +929,7 @@ document.addEventListener('DOMContentLoaded', () => {
         navDashboard.addEventListener('click', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
-            loadUserClassrooms();
+            loadAvailableClassrooms(); // Call the updated function
             updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
             // --- Direct calls for cleanup ---
             if (socket && currentClassroom && currentClassroom.id) {
@@ -960,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
         backToDashboardBtn.addEventListener('click', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
-            loadUserClassrooms();
+            loadAvailableClassrooms(); // Call the updated function
             updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
             // --- Direct calls for cleanup ---
             if (socket && currentClassroom && currentClassroom.id) {
@@ -992,7 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
         backToDashboardFromSettingsBtn.addEventListener('click', () => {
             showSection(dashboardSection);
             updateNavActiveState(navDashboard);
-            loadUserClassrooms();
+            loadAvailableClassrooms(); // Call the updated function
             updateUIBasedOnRole(); // Re-apply role-based UI for dashboard
         });
     }
