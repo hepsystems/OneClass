@@ -65,7 +65,7 @@
                 <p id="join-classroom-message"></p>
             </div>
 
-            <h3>Your Classrooms</h3>
+            <h3>Available Classrooms</h3>
             <ul id="classroom-list">
                 <li>Loading classrooms...</li>
             </ul>
@@ -125,6 +125,11 @@
                     <div id="video-broadcast-section">
                         <h4>Video Broadcast</h4>
                         <div data-admin-only>
+                            <div class="broadcast-options">
+                                <label><input type="radio" name="broadcastType" value="both" checked> Video & Audio</label>
+                                <label><input type="radio" name="broadcastType" value="video"> Video Only</label>
+                                <label><input type="radio" name="broadcastType" value="audio"> Audio Only</label>
+                            </div>
                             <button id="start-broadcast">Start Broadcast</button>
                             <button id="end-broadcast" disabled>End Broadcast</button>
                         </div>
