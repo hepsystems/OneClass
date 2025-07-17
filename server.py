@@ -362,18 +362,20 @@ def submit_assessment():
             if question:
                 total_questions += 1
                 is_correct = False
-                if question.get('question_type') == 'mcq':
-                    if question.get('correct_answer') and user_answer and \
-                       user_answer.strip().lower() == question['correct_answer'].strip().lower():
+                if question.get('question_type') == 'mcq' or question.get('type') == 'mcq':
+                    # Use the correct_answer from the DB, not client-provided
+                    db_correct_answer = question.get('correct_answer')
+                    if db_correct_answer and user_answer and \
+                       str(user_answer).strip().lower() == str(db_correct_answer).strip().lower():
                         score += 1
                         is_correct = True
                 
                 graded_answers.append({
                     "question_id": question_id,
-                    "question_text": question.get('question_text'),
+                    "question_text": question.get('question_text') or question.get('text'),
                     "user_answer": user_answer,
                     "correct_answer": question.get('correct_answer'),
-                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None # Only for MCQ
+                    "is_correct": is_correct if (question.get('question_type') == 'mcq' or question.get('type') == 'mcq') else None # Only for MCQ
                 })
 
     assessment_submissions_collection.insert_one({
@@ -710,12 +712,14 @@ def handle_whiteboard_data(data):
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": page_index},
             {"$push": {"drawings": {
-                "prevX": drawing_data['prevX'],
-                "prevY": drawing_data['prevY'],
-                "currX": drawing_data['currX'],
-                "currY": drawing_data['currY'],
+                "prevX": drawing_data['startX'], # Renamed to match client's startX/Y
+                "prevY": drawing_data['startY'], # Renamed to match client's startX/Y
+                "currX": drawing_data['endX'],   # Renamed to match client's endX/Y
+                "currY": drawing_data['endY'],   # Renamed to match client's endX/Y
                 "color": drawing_data['color'],
-                "width": drawing_data['width']
+                "width": drawing_data['width'],
+                "tool": drawing_data['tool'],    # Store tool type
+                "text": drawing_data.get('text', '') # Store text if present
             }}},
             upsert=True # Create the document if it doesn't exist
         )
