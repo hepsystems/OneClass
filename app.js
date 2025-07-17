@@ -125,12 +125,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Whiteboard Variables
     let whiteboardCtx;
     let isDrawing = false;
-    let startX, startY;
-    let lastX, lastY; // For continuous pen/eraser drawing
+    let startX, startY; // For shapes and text
     let currentColor = colorPicker ? colorPicker.value : '#FFFFFF';
     let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
     let currentTool = 'pen';
-    let snapshot; // For temporary drawing of shapes
+    let snapshot; // To store canvas state for drawing temporary shapes (for shapes only)
 
     // Whiteboard History (Multi-page)
     let whiteboardPages = [[]]; // Array of arrays, each sub-array is a page of drawing commands
@@ -1000,7 +999,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const coords = getCoords(e);
         startX = coords.x;
         startY = coords.y;
-        lastX = coords.x; // Initialize lastX for continuous drawing
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
             whiteboardCtx.beginPath(); // Start a new path for pen/eraser
@@ -1058,21 +1056,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
             if (currentTool === 'eraser') {
-                whiteboardCtx.globalCompositeOperation = 'destination-out';
+                whiteboardCtx.globalCompositeOperation = 'destination-out'; // Erase by drawing transparent
             } else {
-                whiteboardCtx.globalCompositeOperation = 'source-over';
+                whiteboardCtx.globalCompositeOperation = 'source-over'; // Ensure drawing mode
             }
             whiteboardCtx.lineTo(currentX, currentY); // Extend the current path
             whiteboardCtx.stroke(); // Draw the segment
 
             // Store this segment for history and broadcast
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: lastX, startY: lastY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
+            // Note: For pen/eraser, we store each segment as a separate drawing command.
+            // When re-rendering history, these segments are drawn sequentially to form the full stroke.
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: startX, startY: startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
             socket.emit('whiteboard_data', {
                 action: 'draw',
                 classroomId: currentClassroom.id,
                 data: {
-                    startX: lastX,
-                    startY: lastY,
+                    startX: startX,
+                    startY: startY,
                     endX: currentX,
                     endY: currentY,
                     color: currentColor,
@@ -1081,14 +1081,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     pageIndex: currentPageIndex
                 }
             });
-            lastX = currentX; // Update lastX for the next segment
-            lastY = currentY;
+            // For continuous drawing, update startX/startY to currentX/currentY for the next segment
+            startX = currentX;
+            startY = currentY;
         } else { // For shapes (line, rectangle, circle)
             if (snapshot) {
                 whiteboardCtx.putImageData(snapshot, 0, 0); // Restore original state for preview
             } else {
                 // Fallback if snapshot is somehow missing (shouldn't happen if mousedown is correct)
-                renderCurrentWhiteboardPage();
+                renderCurrentWhiteboardPage(); // Re-render from history if snapshot is missing
             }
             drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw preview of the shape
         }
@@ -1109,9 +1110,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentX = finalCoords.x;
             const currentY = finalCoords.y;
 
-            // Crucial: Clear and redraw the entire page history before adding the final shape
-            // This ensures no ghosting from the temporary snapshot and proper integration.
-            renderCurrentWhiteboardPage(); // This clears the canvas and redraws all existing commands
+            // Crucial: Restore snapshot and draw the final shape cleanly
+            if (snapshot) {
+                whiteboardCtx.putImageData(snapshot, 0, 0); // Restore to draw final shape cleanly
+            } else {
+                renderCurrentWhiteboardPage(); // Fallback
+            }
 
             whiteboardCtx.save();
             whiteboardCtx.strokeStyle = currentColor;
@@ -1165,9 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.moveTo(x1, y1);
                 whiteboardCtx.lineTo(x2, y2);
                 whiteboardCtx.stroke();
-                // No closePath here if we want to simulate continuous stroke during history replay
-                // However, for individual segments, closePath is fine.
-                // For live drawing, handleMouseMove manages the continuous path.
+                whiteboardCtx.closePath(); // Close path for individual segments during history replay
                 break;
             case 'line':
                 whiteboardCtx.beginPath();
