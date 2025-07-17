@@ -6,7 +6,7 @@
     <title>Virtual Classroom</title>
     <link rel="stylesheet" href="/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
-    <!-- Font Awesome for icons (NEW) -->
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
 <body>
@@ -87,7 +87,7 @@
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <h3>Whiteboard</h3>
                     <p id="whiteboard-role-message" class="role-message"></p>
-                    <canvas id="whiteboard-canvas" width="900" height="600"></canvas>
+                    <canvas id="whiteboard-canvas" width="1200" height="800"></canvas> <!-- ENLARGED SIZE -->
 
                     <div class="toolbar" data-admin-only>
                         <!-- Drawing Tools -->
@@ -117,7 +117,6 @@
                             <button class="action-button save-button" id="saveButton" title="Save Image"><i class="fas fa-save"></i> Save</button>
                         </div>
                     </div>
-                    <!-- Old share link elements removed as they are part of the new toolbar functionality now -->
                     <div id="share-link-display" class="hidden">
                         <input type="text" id="share-link-input" readonly>
                         <button id="copy-share-link-btn">Copy Link</button>
