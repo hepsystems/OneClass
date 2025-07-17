@@ -401,12 +401,9 @@ def get_classrooms():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Get classrooms where the current user is either the creator or a participant
-    user_classrooms = list(classrooms_collection.find(
-        {"$or": [{"creator_id": user_id}, {"participants": user_id}]},
-        {"_id": 0} # Exclude MongoDB's default _id field
-    ))
-    return jsonify(user_classrooms), 200
+    # MODIFIED: Return ALL classrooms for an authenticated user to discover
+    all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
+    return jsonify(all_classrooms), 200
 
 @app.route('/api/join-classroom', methods=['POST'])
 def join_classroom():
