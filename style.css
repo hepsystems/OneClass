@@ -1,44 +1,42 @@
 /* General Body and App Layout */
 body {
-    font-family: 'Inter', sans-serif; /* Modern, clean font, but we'll aim for bolder usage */
+    font-family: 'Inter', sans-serif; /* Keep Inter, it's a good modern font */
     margin: 0;
     padding: 0;
-    background-color: #e6e6e6; /* Slightly darker base for contrast */
-    /* Added a very subtle noise texture - this is a base64 encoded tiny image */
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQImWNkYGD4z0ADwTAxMjC4sJQAwAECAAcxL5xLAAAAAElFTkSuQmCC');
-    background-repeat: repeat;
+    background-color: #f0f2f5; /* Lighter, soft grey background for a clean feel */
+    background-image: none; /* Remove noise texture */
     display: flex;
     justify-content: center;
     align-items: flex-start;
     min-height: 100vh;
     box-sizing: border-box;
-    color: #2c2c2c; /* Darker text for primary readability */
-    font-size: 14px; /* Base font size slightly smaller */
+    color: #343a40; /* Darker grey for primary text */
+    font-size: 15px; /* Slightly larger base font size */
 }
 
 #app {
-    background-color: #fdfdfd; /* Keep app container slightly brighter */
-    padding: 20px; /* Reduced padding for the main app container */
-    border-radius: 5px; /* Less rounded corners for a sharper feel */
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); /* Stronger, deeper shadow */
+    background-color: #ffffff; /* Pristine white for the main container */
+    padding: 25px; /* More generous padding */
+    border-radius: 12px; /* Softly rounded corners for a modern look */
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); /* Lighter, more diffused shadow */
     width: 95%;
-    max-width: 1400px; /* Main app width remains generous for whiteboard */
-    margin-top: 20px; /* Reduced margin */
-    margin-bottom: 20px; /* Reduced margin */
+    max-width: 1400px;
+    margin-top: 30px; /* More margin from the top */
+    margin-bottom: 30px; /* More margin from the bottom */
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 15px; /* Reduced spacing between main sections */
-    border: 1px solid #dcdcdc; /* Add a more prominent border */
+    gap: 20px; /* Increased spacing between main sections */
+    border: none; /* Remove explicit border */
 }
 
 section {
-    padding: 15px;
-    border: 1px solid #c0c0c0; /* Stronger, more visible border */
-    border-radius: 4px; /* Sharper corners */
+    padding: 20px; /* More generous padding */
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #ffffff; /* Sections are white */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* More noticeable shadow */
-    margin-bottom: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Very subtle, light shadow */
+    margin-bottom: 15px; /* Increased margin */
 }
 
 /* Ensure the last section doesn't have extra bottom margin */
@@ -47,18 +45,18 @@ section:last-of-type {
 }
 
 h2, h3, h4 {
-    color: #1a1a1a; /* Even darker, almost black for strong contrast */
+    color: #212529; /* Darker, almost black for strong contrast */
     margin-top: 0;
-    margin-bottom: 12px; /* Reduced margin */
-    font-weight: 700; /* Bolder headings */
-    font-size: 1.4em; /* H2 size */
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.05); /* Subtle text shadow for depth */
+    margin-bottom: 15px; /* Increased margin */
+    font-weight: 600; /* Slightly less bold than 'crunchy', but still strong */
+    font-size: 1.6em; /* H2 size */
+    text-shadow: none; /* Remove text shadow */
 }
 h3 {
-    font-size: 1.2em; /* H3 size */
+    font-size: 1.3em; /* H3 size */
 }
 h4 {
-    font-size: 1.1em; /* H4 size */
+    font-size: 1.15em; /* H4 size */
 }
 
 
@@ -73,50 +71,50 @@ h4 {
 
 /* Role-specific highlights */
 .admin-feature-highlight {
-    border: 2px solid #3f7bbf; /* Primary blue border (updated) */
-    background-color: #eaf3fd; /* Very light blue background */
-    padding: 15px;
-    border-radius: 4px; /* Sharper corners */
-    margin-bottom: 15px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    border: 1px solid #cce5ff; /* Light, soft blue border */
+    background-color: #e6f3ff; /* Very light blue background */
+    padding: 20px;
+    border-radius: 8px; /* Softly rounded corners */
+    margin-bottom: 20px; /* Increased margin */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 .user-view-subtle {
-    border: 2px solid #4a884a; /* Success green border (updated) */
-    background-color: #edf9ed; /* Very light green background */
-    padding: 15px;
-    border-radius: 4px; /* Sharper corners */
-    margin-bottom: 15px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    border: 1px solid #d4edda; /* Light, soft green border */
+    background-color: #e8f9ed; /* Very light green background */
+    padding: 20px;
+    border-radius: 8px; /* Softly rounded corners */
+    margin-bottom: 20px; /* Increased margin */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 .role-message {
     font-style: italic;
     color: #6c757d; /* Muted grey */
-    margin-top: 8px;
+    margin-top: 10px; /* Increased margin */
     text-align: center;
-    padding: 6px;
-    background-color: #f0f2f5;
-    border-radius: 4px; /* Sharper corners */
-    font-size: 0.85em;
-    border: 1px solid #d0d0d0; /* Added border */
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); /* Inset shadow */
+    padding: 8px; /* Increased padding */
+    background-color: #f8f9fa; /* Very light grey background */
+    border-radius: 6px; /* Softly rounded corners */
+    font-size: 0.9em; /* Slightly larger font */
+    border: 1px solid #e9ecef; /* Light, soft border */
+    box-shadow: none; /* Remove inset shadow */
 }
 
 /* Notifications Container */
 #notifications-container {
-    margin: 10px 0; /* Reduced margin */
-    padding: 10px 15px; /* Reduced padding */
-    border-radius: 4px; /* Sharper corners */
+    margin: 15px 0; /* Increased margin */
+    padding: 12px 20px; /* Increased padding */
+    border-radius: 6px; /* Softly rounded corners */
     font-weight: 500;
     text-align: center;
     opacity: 0;
-    transform: translateY(-15px); /* Smaller transform */
-    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); /* Larger, more defined shadow */
+    transform: translateY(-20px); /* Larger transform */
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Lighter, more diffused shadow */
     display: none; /* Hidden by default */
-    font-size: 0.9em; /* Smaller font */
-    border: 1px solid; /* Added border for definition */
+    font-size: 0.95em; /* Slightly larger font */
+    border: 1px solid; /* Add a soft border */
 }
 
 #notifications-container.show {
@@ -128,13 +126,13 @@ h4 {
 .success-notification {
     background-color: #d4edda; /* Light green */
     color: #155724; /* Dark green */
-    border-color: #c3e6cb; /* Updated to border-color */
+    border-color: #c3e6cb;
 }
 
 .error-notification {
     background-color: #f8d7da; /* Light red */
     color: #721c24; /* Dark red */
-    border-color: #f5c6cb; /* Updated to border-color */
+    border-color: #f5c6cb;
 }
 
 
@@ -142,58 +140,58 @@ h4 {
 .main-nav {
     display: flex;
     justify-content: flex-start;
-    gap: 6px; /* Very small gap */
-    margin-bottom: 15px; /* Reduced margin */
-    padding-bottom: 10px; /* Reduced padding */
-    border-bottom: 1px solid #d0d0d0; /* Stronger border */
+    gap: 8px; /* Slightly larger gap */
+    margin-bottom: 20px; /* Increased margin */
+    padding-bottom: 15px; /* Increased padding */
+    border-bottom: 1px solid #e9ecef; /* Lighter, softer border */
     flex-wrap: wrap;
 }
 
 .main-nav button {
-    background-color: #cccccc; /* Muted grey for inactive nav */
-    border: 1px solid #999999; /* Stronger, darker border */
-    padding: 8px 15px; /* Slightly larger padding for impact */
-    border-radius: 3px; /* Sharper rounding */
+    background-color: #e9ecef; /* Light grey for inactive nav */
+    border: none; /* Remove explicit border */
+    padding: 10px 20px; /* Larger padding for impact */
+    border-radius: 8px; /* Softly rounded corners */
     cursor: pointer;
-    font-size: 0.8em; /* Very small font size */
+    font-size: 0.9em; /* Slightly larger font size */
     font-weight: 500;
     transition: all 0.2s ease-in-out;
     color: #495057; /* Darker text */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* More noticeable shadow */
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1)); /* Subtle gradient */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    background-image: none; /* Remove gradient */
 }
 
 .main-nav button:hover {
-    background-color: #bbbbbb;
-    transform: translateY(0); /* Remove the lift, make it press down */
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); /* Smaller, pressed shadow */
+    background-color: #dee2e6; /* Slightly darker grey on hover */
+    transform: translateY(-2px); /* Slight lift on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* More pronounced shadow on hover */
 }
 .main-nav button:active {
-    transform: translateY(1px); /* Press down effect */
-    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3); /* Very flat shadow when pressed */
+    transform: translateY(0); /* Return to original position */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Back to subtle shadow */
 }
 
 .main-nav button.active-nav {
-    background-color: #3f7bbf; /* New primary blue */
+    background-color: #007bff; /* Vibrant blue for active nav */
     color: white;
-    border-color: #2a5a8f; /* Darker border for depth */
-    box-shadow: 0 2px 4px rgba(63, 123, 191, 0.3);
+    border: none; /* Remove explicit border */
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Stronger, colored shadow */
 }
 .main-nav button.active-nav:hover {
-    background-color: #316499; /* Darker blue on hover */
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(63, 123, 191, 0.4);
+    background-color: #0069d9; /* Darker blue on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 105, 217, 0.3);
 }
 .main-nav button.active-nav:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5);
+    transform: translateY(0);
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
 }
 
 /* Forms and Inputs (General Styling) */
 form {
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Reduced spacing between form elements */
+    gap: 15px; /* Increased spacing between form elements */
 }
 
 input[type="text"],
@@ -201,16 +199,16 @@ input[type="email"],
 input[type="password"],
 textarea,
 select {
-    width: calc(100% - 16px); /* Account for padding and border */
-    padding: 8px; /* Smaller padding */
-    border: 1px solid #a0a0a0; /* Stronger border */
-    border-radius: 3px; /* Sharper rounding */
+    width: calc(100% - 20px); /* Account for padding and border */
+    padding: 10px; /* More generous padding */
+    border: 1px solid #ced4da; /* Soft grey border */
+    border-radius: 6px; /* Softly rounded corners */
     box-sizing: border-box;
-    font-size: 0.9em; /* Smaller font */
+    font-size: 0.95em; /* Slightly larger font */
     color: #495057;
     transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    background-color: #f8f8f8; /* Slightly off-white for inputs */
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle inset shadow */
+    background-color: #f8f9fa; /* Very light grey background for inputs */
+    box-shadow: none; /* Remove inset shadow */
 }
 
 input[type="text"]:focus,
@@ -218,9 +216,10 @@ input[type="email"]:focus,
 input[type="password"]:focus,
 textarea:focus,
 select:focus {
-    border-color: #3f7bbf; /* New primary blue on focus */
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1), 0 0 0 2px rgba(63, 123, 191, 0.3); /* Keep inset, add subtle blue glow */
+    border-color: #007bff; /* Vibrant blue on focus */
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Subtle blue glow */
     outline: none;
+    background-color: #ffffff; /* White background on focus */
 }
 
 button[type="submit"],
@@ -243,21 +242,21 @@ button[type="submit"],
 #copy-share-link-btn,
 #start-broadcast,
 #end-broadcast {
-    background-color: #3f7bbf; /* A slightly deeper, more muted blue */
+    background-color: #007bff; /* Vibrant blue */
     color: white;
-    padding: 8px 15px; /* Slightly larger padding for impact */
-    border: 1px solid #2a5a8f; /* Darker border for depth */
-    border-radius: 3px; /* Sharper rounding */
+    padding: 10px 20px; /* Larger padding for impact */
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     cursor: pointer;
-    font-size: 0.8em; /* Very small font size for all buttons */
+    font-size: 0.9em; /* Slightly larger font size */
     font-weight: 600;
     transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out, box-shadow 0.2s ease-in-out;
-    box-shadow: 0 3px 6px rgba(63, 123, 191, 0.3); /* Deeper initial shadow */
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2); /* Softer, colored shadow */
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 5px; /* Very small gap for icons */
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1)); /* Subtle gradient */
+    gap: 8px; /* Increased gap for icons */
+    background-image: none; /* Remove gradient */
 }
 
 button[type="submit"]:hover,
@@ -280,9 +279,9 @@ button[type="submit"]:hover,
 #copy-share-link-btn:hover,
 #start-broadcast:hover,
 #end-broadcast:hover {
-    background-color: #316499; /* Even darker blue on hover */
-    transform: translateY(0); /* Remove the lift, make it press down */
-    box-shadow: 0 1px 3px rgba(63, 123, 191, 0.4); /* Smaller, pressed shadow */
+    background-color: #0069d9; /* Darker blue on hover */
+    transform: translateY(-2px); /* Lift on hover */
+    box-shadow: 0 6px 12px rgba(0, 105, 217, 0.3); /* More pronounced shadow */
 }
 
 button[type="submit"]:active,
@@ -305,90 +304,90 @@ button[type="submit"]:active,
 #copy-share-link-btn:active,
 #start-broadcast:active,
 #end-broadcast:active {
-    transform: translateY(1px); /* Press down effect */
-    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5); /* Very flat shadow when pressed */
+    transform: translateY(0); /* Return to original position */
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2); /* Back to subtle shadow */
 }
 
 button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); /* Inset disabled state */
+    box-shadow: none; /* Remove shadow when disabled */
     transform: none;
-    border-color: #b0b0b0;
-    background-image: none; /* No gradient when disabled */
+    border: none;
+    background-image: none;
 }
 
 /* Specific Button Overrides */
 #logout-btn {
-    background-color: #b83f3f; /* A more muted, earthy red */
-    border-color: #8c2a2a;
-    box-shadow: 0 3px 6px rgba(184, 63, 63, 0.3);
+    background-color: #dc3545; /* Modern red for danger actions */
+    border: none;
+    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
 }
 #logout-btn:hover {
-    background-color: #993333;
-    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.4);
+    background-color: #c82333;
+    box-shadow: 0 6px 12px rgba(200, 35, 51, 0.3);
 }
 #logout-btn:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.5);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.2);
 }
 
 
 #end-broadcast {
-    background-color: #b83f3f;
-    border-color: #8c2a2a;
-    box-shadow: 0 3px 6px rgba(184, 63, 63, 0.3);
+    background-color: #dc3545;
+    border: none;
+    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
 }
 #end-broadcast:hover {
-    background-color: #993333;
-    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.4);
+    background-color: #c82333;
+    box-shadow: 0 6px 12px rgba(200, 35, 51, 0.3);
 }
 #end-broadcast:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.5);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.2);
 }
 
 .delete-file-btn, .delete-assessment-btn {
-    background-color: #b83f3f;
-    border-color: #8c2a2a;
-    padding: 5px 8px; /* Even smaller for list items */
-    font-size: 0.75em;
-    box-shadow: 0 1px 3px rgba(184, 63, 63, 0.2); /* Smaller default shadow */
+    background-color: #dc3545;
+    border: none;
+    padding: 6px 12px; /* Slightly larger for list items */
+    font-size: 0.8em;
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.1); /* Lighter default shadow */
 }
 .delete-file-btn:hover, .delete-assessment-btn:hover {
-    background-color: #993333;
-    transform: none; /* No transform on smaller delete buttons */
-    box-shadow: 0 1px 2px rgba(184, 63, 63, 0.3);
+    background-color: #c82333;
+    transform: translateY(-1px); /* Slight lift on smaller delete buttons */
+    box-shadow: 0 3px 8px rgba(200, 35, 51, 0.2);
 }
 .delete-file-btn:active, .delete-assessment-btn:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(184, 63, 63, 0.4);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(220, 53, 69, 0.1);
 }
 
 
 /* Auth Section */
 #auth-section {
-    max-width: 400px; /* Even narrower */
-    margin: 40px auto; /* Reduced margin */
+    max-width: 450px; /* Slightly wider */
+    margin: 60px auto; /* More margin */
     text-align: center;
 }
 
 #login-container, #register-container {
     background-color: #ffffff;
-    padding: 20px; /* Reduced padding */
-    border-radius: 4px; /* Sharper corners */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); /* Consistent shadow */
-    border: 1px solid #c0c0c0; /* Added border */
+    padding: 30px; /* More generous padding */
+    border-radius: 10px; /* Softly rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* Consistent subtle shadow */
+    border: none; /* Remove explicit border */
 }
 
 #auth-section p {
-    margin-top: 10px; /* Reduced margin */
-    font-size: 0.85em; /* Smaller font */
+    margin-top: 15px; /* Increased margin */
+    font-size: 0.9em; /* Slightly larger font */
     color: #666666;
 }
 
 #auth-section a {
-    color: #3f7bbf; /* New primary blue */
+    color: #007bff; /* Vibrant blue */
     text-decoration: none;
     font-weight: 500;
 }
@@ -405,8 +404,8 @@ button:disabled {
 #create-join-classroom {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 15px; /* Reduced gap */
-    margin-bottom: 20px; /* Reduced margin */
+    gap: 20px; /* Increased gap */
+    margin-bottom: 25px; /* Increased margin */
 }
 @media (min-width: 768px) {
     #create-join-classroom {
@@ -417,30 +416,30 @@ button:disabled {
 #create-classroom-section,
 #join-classroom-section {
     background-color: #ffffff;
-    padding: 15px; /* Reduced padding */
-    border-radius: 4px; /* Sharper corners */
-    border: 1px solid #c0c0c0; /* Stronger border */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    padding: 20px; /* More generous padding */
+    border-radius: 8px; /* Softly rounded corners */
+    border: none; /* Remove explicit border */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 #classroom-list {
     list-style: none;
     padding: 0;
-    margin-top: 10px; /* Reduced margin */
+    margin-top: 15px; /* Increased margin */
 }
 
 #classroom-list li {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 10px; /* Smaller padding */
-    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
-    background-color: #fdfdfd; /* Slightly off-white for list items */
-    border-radius: 4px; /* Sharper corners */
-    margin-bottom: 5px; /* Reduced margin */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
-    font-size: 0.85em; /* Smaller font */
-    border: 1px solid #e0e0e0; /* Added subtle border to list items */
+    padding: 10px 15px; /* More padding */
+    border-bottom: 1px solid #e9ecef; /* Lighter, softer border */
+    background-color: #fdfdfd; /* Very light background for list items */
+    border-radius: 6px; /* Softly rounded corners */
+    margin-bottom: 8px; /* Increased margin */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+    font-size: 0.9em; /* Slightly larger font */
+    border: none; /* Remove explicit border */
 }
 #classroom-list li:last-child {
     border-bottom: none;
@@ -452,62 +451,59 @@ button:disabled {
 }
 
 /* Classroom Section */
-/* This section itself is now more compact due to reduced padding and margin-bottom on the general 'section' rule */
 .classroom-content {
     display: flex;
     flex-direction: column;
-    gap: 12px; /* Reduced gap between classroom sub-sections */
+    gap: 15px; /* Increased gap between classroom sub-sections */
 }
 
 .classroom-sub-section {
     background-color: #ffffff;
-    padding: 15px; /* Reduced padding for sub-sections */
-    border-radius: 4px; /* Sharper corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
-    border: 1px solid #c0c0c0; /* Added border */
+    padding: 20px; /* More generous padding for sub-sections */
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
+    border: none; /* Remove explicit border */
 }
 
 /* Chat Section */
 #chat-messages {
-    border: 1px solid #c0c0c0; /* Stronger border */
-    padding: 10px; /* Reduced padding */
-    height: 280px; /* Slightly shorter chat window */
+    border: 1px solid #e9ecef; /* Light, soft border */
+    padding: 15px; /* Increased padding */
+    height: 300px; /* Slightly taller chat window */
     overflow-y: auto;
-    margin-bottom: 10px; /* Reduced margin */
+    margin-bottom: 15px; /* Increased margin */
     background-color: #fefefe; /* Near white background for messages */
-    border-radius: 4px; /* Sharper corners */
+    border-radius: 8px; /* Softly rounded corners */
     display: flex;
     flex-direction: column;
-    gap: 5px; /* Reduced gap */
-    box-shadow: inset 0 1px 5px rgba(0,0,0,0.08); /* Inset shadow for chat window */
+    gap: 8px; /* Increased gap */
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.02); /* Very subtle inset shadow */
 }
 
 #chat-messages div {
-    padding: 7px 10px; /* Slightly more padding */
-    border-radius: 5px; /* Less rounded */
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* More defined shadow */
+    padding: 8px 12px; /* More padding */
+    border-radius: 10px; /* More rounded */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Very subtle shadow */
     align-self: flex-start;
     max-width: 80%;
     word-wrap: break-word;
-    font-size: 0.85em; /* Smaller font */
-    border: 1px solid; /* Added border to messages */
+    font-size: 0.9em; /* Slightly larger font */
+    border: none; /* Remove explicit border */
 }
 
 #chat-messages div:nth-child(even) {
-    background-color: #e2effc; /* Slightly different shade */
-    border-color: #cadbee;
+    background-color: #f1f7fe; /* Very light blue */
 }
 #chat-messages div:nth-child(odd) {
-    background-color: #eaf3fd; /* Very light blue for messages */
-    border-color: #dbe4f1;
+    background-color: #e9f2ff; /* Slightly darker light blue */
 }
 
 #chat-messages div.self-message {
-    background-color: #4a884a; /* Muted green for self */
+    background-color: #28a745; /* Vibrant green for self */
     color: white;
     align-self: flex-end;
-    border-color: #356b35;
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
+    box-shadow: 0 1px 4px rgba(40, 167, 69, 0.2); /* Colored subtle shadow */
+    background-image: none; /* Remove gradient */
 }
 
 #chat-messages div.status-message {
@@ -517,246 +513,246 @@ button:disabled {
     background-color: transparent;
     box-shadow: none;
     align-self: center;
-    border: none; /* No border for status messages */
+    border: none;
 }
 
 
 #chat-input {
-    width: calc(100% - 70px); /* Adjusted for smaller button */
-    margin-right: 6px; /* Reduced margin */
+    width: calc(100% - 80px); /* Adjusted for larger button */
+    margin-right: 8px; /* Increased margin */
     vertical-align: middle;
-    padding: 7px; /* Consistent smaller padding */
-    font-size: 0.85em; /* Smaller font */
-    border: 1px solid #a0a0a0; /* Stronger border */
-    border-radius: 3px;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1); /* Subtle inset shadow */
-    background-color: #f8f8f8;
+    padding: 9px; /* Consistent larger padding */
+    font-size: 0.9em; /* Slightly larger font */
+    border: 1px solid #ced4da; /* Soft grey border */
+    border-radius: 6px; /* Softly rounded corners */
+    box-shadow: none; /* Remove inset shadow */
+    background-color: #f8f9fa;
 }
 
 #send-chat-button {
-    padding: 7px 12px; /* Consistent smaller button padding */
+    padding: 9px 18px; /* Consistent larger button padding */
 }
 
 /* Whiteboard Section */
 .toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px; /* Reduced gap */
-    margin-bottom: 12px; /* Reduced margin */
-    padding: 8px; /* Reduced padding */
-    background-color: #d5d5d5; /* A more substantial grey */
-    border-radius: 5px; /* Sharper corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow */
+    gap: 10px; /* Increased gap */
+    margin-bottom: 15px; /* Increased margin */
+    padding: 10px; /* Increased padding */
+    background-color: #f8f9fa; /* Very light grey background */
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
     align-items: center;
     justify-content: space-between;
-    border: 1px solid #b0b0b0; /* Define border */
+    border: none; /* Remove explicit border */
 }
 
 .toolbar .tool-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px; /* Reduced gap */
+    gap: 8px; /* Increased gap */
     align-items: center;
 }
 
 .toolbar .tool-button, .toolbar .action-button {
-    padding: 6px 10px; /* Smaller padding */
-    font-size: 0.75em; /* Smaller font size */
-    border-radius: 4px; /* Sharper corners */
-    background-color: #a0a0a0; /* Muted grey for tools */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* More defined shadow */
-    border: 1px solid #777777; /* Stronger border */
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
+    padding: 8px 15px; /* Larger padding */
+    font-size: 0.85em; /* Slightly larger font size */
+    border-radius: 6px; /* Softly rounded corners */
+    background-color: #e9ecef; /* Light grey for tools */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    border: none; /* Remove explicit border */
+    background-image: none; /* Remove gradient */
 }
 .toolbar .tool-button:hover, .toolbar .action-button:hover {
-    background-color: #888888;
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    background-color: #dee2e6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 .toolbar .tool-button:active, .toolbar .action-button:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .toolbar .tool-button.active {
-    background-color: #3f7bbf; /* Active tool blue */
+    background-color: #007bff; /* Active tool blue */
     color: white;
-    border-color: #2a5a8f;
-    box-shadow: 0 2px 4px rgba(63, 123, 191, 0.3);
+    border: none;
+    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
 }
 .toolbar .tool-button.active:hover {
-    background-color: #316499;
+    background-color: #0069d9;
 }
 .toolbar .tool-button.active:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(63, 123, 191, 0.5);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
 }
 
 
 .toolbar input[type="color"] {
-    width: 30px; /* Smaller color picker */
-    height: 20px; /* Smaller color picker */
-    border: 1px solid #777777; /* Darker border */
-    border-radius: 4px;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    width: 35px; /* Larger color picker */
+    height: 25px; /* Larger color picker */
+    border: 1px solid #ced4da; /* Soft grey border */
+    border-radius: 6px; /* Softly rounded corners */
+    box-shadow: none; /* Remove inset shadow */
 }
 .toolbar input[type="range"] {
-    width: 90px; /* Shorter slider */
-    height: 5px; /* Thinner slider */
+    width: 100px; /* Longer slider */
+    height: 6px; /* Thicker slider */
     -webkit-appearance: none;
-    background: #b0b0b0; /* Darker background for slider track */
+    background: #e9ecef; /* Light grey background for slider track */
     border-radius: 3px;
     outline: none;
-    opacity: 0.9; /* Slightly less transparent */
+    opacity: 1; /* Fully opaque */
     transition: opacity .2s;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.15); /* Inset shadow for track */
+    box-shadow: none; /* Remove inset shadow for track */
 }
 .toolbar input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 14px; /* Smaller thumb */
-    height: 14px; /* Smaller thumb */
+    width: 16px; /* Larger thumb */
+    height: 16px; /* Larger thumb */
     border-radius: 50%;
-    background: #3f7bbf; /* New primary blue */
+    background: #007bff; /* Vibrant blue */
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    border: 1px solid #2a5a8f; /* Added border to thumb */
+    border: none; /* Remove explicit border to thumb */
 }
 .toolbar input[type="range"]::-moz-range-thumb {
-    width: 14px; /* Smaller thumb */
-    height: 14px; /* Smaller thumb */
+    width: 16px; /* Larger thumb */
+    height: 16px; /* Larger thumb */
     border-radius: 50%;
-    background: #3f7bbf; /* New primary blue */
+    background: #007bff; /* Vibrant blue */
     cursor: pointer;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    border: 1px solid #2a5a8f; /* Added border to thumb */
+    border: none; /* Remove explicit border to thumb */
 }
 
 
 #whiteboard-canvas {
-    border: 2px solid #555555; /* Thicker, darker border */
-    background-color: #222222; /* Solid black background */
+    border: 1px solid #ced4da; /* Light, soft border */
+    background-color: #fefefe; /* Clean white background */
     display: block;
-    margin: 0 auto 15px auto; /* Reduced margin */
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.25); /* Deeper shadow */
-    border-radius: 6px; /* Slightly sharper */
-    width: 100%; /* Make it responsive */
-    max-width: 1600px; /* Significantly Increased max-width for whiteboard */
-    height: auto; /* Maintain aspect ratio based on width */
-    min-height: 700px; /* Increased minimum height for a larger appearance */
+    margin: 0 auto 20px auto; /* Increased margin */
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1); /* Lighter, more diffused shadow */
+    border-radius: 8px; /* Softly rounded corners */
+    width: 100%;
+    max-width: 1600px;
+    height: auto;
+    min-height: 750px; /* Increased minimum height for a larger appearance */
 }
 
 #whiteboard-navigation {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 12px; /* Reduced gap */
-    margin-top: 12px; /* Reduced margin */
-    padding: 8px; /* Reduced padding */
-    background-color: #d5d5d5; /* Consistent with toolbar */
-    border-radius: 5px; /* Sharper corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Stronger shadow */
-    border: 1px solid #b0b0b0; /* Define border */
+    gap: 15px; /* Increased gap */
+    margin-top: 15px; /* Increased margin */
+    padding: 10px; /* Increased padding */
+    background-color: #f8f9fa; /* Consistent with toolbar */
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    border: none; /* Remove explicit border */
 }
 
 #whiteboard-navigation button {
-    background-color: #a0a0a0; /* Muted grey */
-    padding: 7px 12px; /* Consistent smaller button padding */
+    background-color: #e9ecef; /* Light grey */
+    padding: 9px 18px; /* Consistent larger button padding */
     font-weight: 500;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    border: 1px solid #777777;
-    background-image: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(0,0,0,0.1));
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border: none;
+    background-image: none;
 }
 #whiteboard-navigation button:hover {
-    background-color: #888888;
-    transform: translateY(0);
+    background-color: #dee2e6;
+    transform: translateY(-2px);
 }
 #whiteboard-navigation button:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(0, 0, 0, 0.3);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 #whiteboard-navigation button:disabled {
     background-color: #cccccc;
     cursor: not-allowed;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: none;
     transform: none;
-    border-color: #b0b0b0;
+    border: none;
     background-image: none;
 }
 
 #whiteboard-page-display {
     font-weight: 600;
     color: #495057;
-    font-size: 0.9em; /* Smaller font */
-    padding: 4px 8px; /* Added padding */
-    background-color: #efefef; /* Light background for display */
-    border-radius: 3px;
-    border: 1px solid #d0d0d0;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    font-size: 0.95em; /* Slightly larger font */
+    padding: 6px 12px; /* Increased padding */
+    background-color: #f8f9fa; /* Light background for display */
+    border-radius: 6px; /* Softly rounded corners */
+    border: 1px solid #e9ecef; /* Soft border */
+    box-shadow: none; /* Remove inset shadow */
 }
 
 #share-link-display {
     display: flex;
-    gap: 6px; /* Reduced gap */
-    margin-top: 12px; /* Reduced margin */
+    gap: 8px; /* Increased gap */
+    margin-top: 15px; /* Increased margin */
     align-items: center;
-    padding: 6px; /* Reduced padding */
+    padding: 8px; /* Increased padding */
     background-color: #fefefe;
-    border: 1px solid #d0d0d0; /* Stronger border */
-    border-radius: 4px; /* Sharper corners */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08); /* Subtle inset shadow */
+    border: 1px solid #e9ecef; /* Soft border */
+    border-radius: 6px; /* Softly rounded corners */
+    box-shadow: none; /* Remove inset shadow */
 }
 #share-link-input {
     flex-grow: 1;
-    background-color: #f0f2f5;
+    background-color: #f8f9fa;
     cursor: text;
-    padding: 7px; /* Consistent smaller input padding */
-    font-size: 0.8em; /* Consistent smaller font */
-    border: 1px solid #b0b0b0; /* More defined border for input */
-    border-radius: 3px;
-    box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+    padding: 9px; /* Consistent larger input padding */
+    font-size: 0.85em; /* Slightly larger font */
+    border: 1px solid #ced4da; /* More defined border for input */
+    border-radius: 6px;
+    box-shadow: none; /* Remove inset shadow */
 }
 #copy-share-link-btn {
-    padding: 7px 12px;
-    font-size: 0.8em;
-    background-color: #4a884a; /* Muted success green for copy */
-    border-color: #356b35;
-    box-shadow: 0 2px 4px rgba(74, 136, 74, 0.3);
+    padding: 9px 18px;
+    font-size: 0.85em;
+    background-color: #28a745; /* Vibrant success green for copy */
+    border: none;
+    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
 }
 #copy-share-link-btn:hover {
-    background-color: #3f7b3f;
-    box-shadow: 0 1px 2px rgba(74, 136, 74, 0.4);
+    background-color: #218838;
+    box-shadow: 0 6px 12px rgba(33, 136, 56, 0.3);
 }
 #copy-share-link-btn:active {
-    transform: translateY(1px);
-    box-shadow: 0 0px 1px rgba(74, 136, 74, 0.5);
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(40, 167, 69, 0.2);
 }
 
 
 /* Video Broadcast Section */
 #video-broadcast-section {
-    margin-top: 15px; /* Reduced margin */
-    padding: 15px; /* Reduced padding */
-    border: 1px solid #c0c0c0; /* Stronger border */
-    border-radius: 4px; /* Sharper corners */
+    margin-top: 20px; /* Increased margin */
+    padding: 20px; /* Increased padding */
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 .broadcast-options {
     display: flex;
-    gap: 10px; /* Reduced gap */
-    margin-bottom: 10px; /* Reduced margin */
+    gap: 15px; /* Increased gap */
+    margin-bottom: 15px; /* Increased margin */
     align-items: center;
     font-weight: 500;
     color: #495057;
-    font-size: 0.85em; /* Smaller font */
+    font-size: 0.9em; /* Slightly larger font */
 }
 
 .broadcast-options label {
     display: flex;
     align-items: center;
-    gap: 5px; /* Reduced gap */
+    gap: 8px; /* Increased gap */
     cursor: pointer;
 }
 
@@ -764,26 +760,26 @@ button:disabled {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    width: 14px; /* Smaller radio button */
-    height: 14px; /* Smaller radio button */
-    border: 2px solid #3f7bbf; /* New primary blue */
+    width: 16px; /* Larger radio button */
+    height: 16px; /* Larger radio button */
+    border: 2px solid #007bff; /* Vibrant blue */
     border-radius: 50%;
     outline: none;
     cursor: pointer;
     position: relative;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    box-shadow: none; /* Remove shadow */
 }
 
 .broadcast-options input[type="radio"]:checked {
-    background-color: #3f7bbf; /* New primary blue */
-    border-color: #3f7bbf;
+    background-color: #007bff; /* Vibrant blue */
+    border-color: #007bff;
 }
 
 .broadcast-options input[type="radio"]:checked::before {
     content: '';
     display: block;
-    width: 6px; /* Smaller inner dot */
-    height: 6px; /* Smaller inner dot */
+    width: 8px; /* Larger inner dot */
+    height: 8px; /* Larger inner dot */
     background-color: white;
     border-radius: 50%;
     position: absolute;
@@ -795,33 +791,33 @@ button:disabled {
 
 #local-video {
     width: 100%;
-    max-width: 400px; /* Slightly smaller local video */
+    max-width: 450px; /* Slightly larger local video */
     height: auto;
-    margin: 12px auto; /* Reduced margin */
+    margin: 15px auto; /* Increased margin */
     display: block;
-    background-color: #343a40; /* Darker background for video */
-    border-radius: 6px; /* Sharper corners */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    background-color: #343a40; /* Dark background for video */
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15); /* Lighter shadow */
     object-fit: cover;
-    border: 1px solid #555555; /* Added border */
+    border: none; /* Remove explicit border */
 }
 
 #remote-video-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px; /* Reduced gap */
-    margin-top: 12px; /* Reduced margin */
+    gap: 10px; /* Increased gap */
+    margin-top: 15px; /* Increased margin */
     justify-content: center;
 }
 
 #remote-video-container video {
     width: 100%;
-    max-width: 280px; /* Slightly smaller remote videos */
-    height: 200px; /* Fixed height for consistency */
-    border: 1px solid #3f7bbf; /* New primary blue border */
+    max-width: 300px; /* Slightly larger remote videos */
+    height: 220px; /* Fixed height for consistency */
+    border: 1px solid #e9ecef; /* Light, soft border */
     background-color: #343a40;
-    border-radius: 6px; /* Sharper corners */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
     object-fit: cover;
 }
 
@@ -829,29 +825,29 @@ button:disabled {
 #settings-section label {
     font-weight: 600;
     color: #495057;
-    margin-bottom: 5px;
-    font-size: 0.85em;
+    margin-bottom: 8px; /* Increased margin */
+    font-size: 0.9em;
 }
 
 /* Library Section */
 #library-files-list {
-    margin-top: 10px;
-    border: 1px solid #c0c0c0; /* Stronger border */
-    padding: 10px;
-    min-height: 100px; /* Reduced min-height */
+    margin-top: 15px;
+    border: 1px solid #e9ecef; /* Light, soft border */
+    padding: 15px;
+    min-height: 120px; /* Increased min-height */
     background-color: #fefefe;
-    border-radius: 4px; /* Sharper corners */
-    box-shadow: inset 0 1px 5px rgba(0,0,0,0.08);
+    border-radius: 8px; /* Softly rounded corners */
+    box-shadow: none; /* Remove inset shadow */
 }
 
 #library-files-list div {
-    padding: 6px 0;
-    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef; /* Light, soft border */
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-weight: 500;
-    font-size: 0.85em;
+    font-size: 0.9em;
 }
 
 #library-files-list div:last-child {
@@ -859,7 +855,7 @@ button:disabled {
 }
 
 #library-files-list a {
-    color: #3f7bbf; /* New primary blue */
+    color: #007bff; /* Vibrant blue */
     text-decoration: none;
 }
 
@@ -870,132 +866,132 @@ button:disabled {
 
 /* Assessments Section */
 #assessment-creation-form {
-    padding: 15px;
-    border: 1px solid #c0c0c0; /* Stronger border */
-    border-radius: 4px; /* Sharper corners */
+    padding: 20px;
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #ffffff;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 .question-item {
-    border: 1px solid #c0c0c0; /* Stronger border */
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px; /* Sharper corners */
+    border: 1px solid #e9ecef; /* Light, soft border */
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #fefefe;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
 }
 
 .mcq-options {
-    margin-top: 10px;
-    padding-left: 12px;
-    border-left: 2px solid #3f7bbf; /* Thinner border, new primary blue */
-    background-color: #eaf3fd;
-    padding-top: 6px;
-    padding-bottom: 6px;
-    border-radius: 3px; /* Sharper corners */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    margin-top: 15px;
+    padding-left: 15px;
+    border-left: 3px solid #007bff; /* Thicker border, vibrant blue */
+    background-color: #e6f3ff; /* Light blue background */
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-radius: 6px; /* Softly rounded corners */
+    box-shadow: none; /* Remove inset shadow */
 }
 
 #assessment-list-container {
-    margin-top: 15px;
-    padding: 15px;
-    border: 1px solid #c0c0c0; /* Stronger border */
-    border-radius: 4px; /* Sharper corners */
+    margin-top: 20px;
+    padding: 20px;
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 #assessment-list div.assessment-item {
-    padding: 10px;
-    border-bottom: 1px solid #d0d0d0; /* Stronger lighter border */
+    padding: 12px 15px;
+    border-bottom: 1px solid #e9ecef; /* Light, soft border */
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     background-color: #fdfdfd;
-    border-radius: 4px; /* Sharper corners */
-    margin-bottom: 6px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
-    border: 1px solid #e0e0e0; /* Added subtle border to list items */
+    border-radius: 6px; /* Softly rounded corners */
+    margin-bottom: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
+    border: none; /* Remove explicit border */
 }
 #assessment-list div.assessment-item:last-child {
     border-bottom: none;
 }
 
 #assessment-list div.assessment-item h4 {
-    margin-bottom: 3px;
-    color: #3f7bbf; /* New primary blue */
-    font-size: 0.95em;
+    margin-bottom: 5px;
+    color: #007bff; /* Vibrant blue */
+    font-size: 1em;
 }
 #assessment-list div.assessment-item p {
-    margin: 3px 0;
-    font-size: 0.8em;
+    margin: 5px 0;
+    font-size: 0.85em;
     color: #666666;
 }
 
 #assessment-list div.assessment-item > div:last-child {
     display: flex;
-    gap: 6px;
-    margin-top: 6px;
+    gap: 8px;
+    margin-top: 8px;
     flex-wrap: wrap;
 }
 
 #take-assessment-container,
 #view-submissions-container {
-    margin-top: 15px;
-    padding: 15px;
-    border: 1px solid #c0c0c0; /* Stronger border */
-    border-radius: 4px; /* Sharper corners */
+    margin-top: 20px;
+    padding: 20px;
+    border: none; /* Remove explicit border */
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Consistent shadow */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Consistent subtle shadow */
 }
 
 .question-display {
-    border: 1px solid #c0c0c0; /* Stronger border */
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px; /* Sharper corners */
+    border: 1px solid #e9ecef; /* Light, soft border */
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #fefefe;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03); /* Very subtle shadow */
 }
 .question-display label {
     font-weight: 600;
     color: #495057;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     display: block;
-    font-size: 0.85em;
+    font-size: 0.9em;
 }
 .question-display textarea {
     width: 100%;
-    min-height: 60px;
-    padding: 7px;
-    font-size: 0.85em;
-    border: 1px solid #a0a0a0; /* Stronger border */
-    border-radius: 3px;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-    background-color: #f8f8f8;
+    min-height: 80px; /* Taller textarea */
+    padding: 9px;
+    font-size: 0.9em;
+    border: 1px solid #ced4da; /* Soft grey border */
+    border-radius: 6px;
+    box-shadow: none;
+    background-color: #f8f9fa;
 }
 .question-display input[type="radio"] {
-    margin-right: 5px;
+    margin-right: 8px; /* Increased margin */
 }
 .question-display .mcq-option-label {
     font-weight: normal;
     display: inline-block;
-    margin-bottom: 3px;
-    font-size: 0.85em;
+    margin-bottom: 5px;
+    font-size: 0.9em;
 }
 
 
 #assessment-submission-message {
-    margin-top: 10px;
+    margin-top: 15px;
     font-weight: bold;
     text-align: center;
-    padding: 7px;
-    border-radius: 4px; /* Sharper corners */
-    font-size: 0.85em;
-    border: 1px solid; /* Added border */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    padding: 10px;
+    border-radius: 6px; /* Softly rounded corners */
+    font-size: 0.9em;
+    border: 1px solid;
+    box-shadow: none;
 }
 
 #assessment-submission-message.success {
@@ -1011,76 +1007,76 @@ button:disabled {
 }
 
 #submissions-list .submission-item {
-    border: 1px solid #c0c0c0; /* Stronger border */
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px; /* Sharper corners */
+    border: 1px solid #e9ecef; /* Light, soft border */
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px; /* Softly rounded corners */
     background-color: #fdfdfd;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08); /* Slightly more noticeable shadow */
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05); /* Slightly more noticeable shadow */
 }
 
 #submissions-list .submission-item h5 {
     margin-top: 0;
-    margin-bottom: 6px;
-    color: #3f7bbf; /* New primary blue */
-    font-size: 0.95em;
+    margin-bottom: 8px;
+    color: #007bff; /* Vibrant blue */
+    font-size: 1em;
 }
 
 #submissions-list .submission-item p {
-    margin: 3px 0;
-    font-size: 0.85em;
+    margin: 5px 0;
+    font-size: 0.9em;
 }
 
 #submissions-list .question-answer-pair {
-    border-left: 2px solid #b0b0b0; /* Thinner border, muted grey */
-    padding-left: 10px;
-    margin-top: 10px;
-    background-color: #eaf3fd;
-    padding: 6px;
-    border-radius: 3px; /* Sharper corners */
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    border-left: 3px solid #ced4da; /* Thicker border, soft grey */
+    padding-left: 15px;
+    margin-top: 15px;
+    background-color: #f8f9fa; /* Lighter background */
+    padding: 8px;
+    border-radius: 6px; /* Softly rounded corners */
+    box-shadow: none;
 }
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     #app {
-        padding: 10px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        gap: 10px;
+        padding: 15px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+        gap: 15px;
     }
 
     section {
-        padding: 10px;
-        margin-bottom: 8px;
+        padding: 15px;
+        margin-bottom: 12px;
     }
 
     h2 {
-        font-size: 1.2em;
+        font-size: 1.4em;
     }
     h3 {
-        font-size: 1.1em;
+        font-size: 1.2em;
     }
     h4 {
-        font-size: 1em;
+        font-size: 1.1em;
     }
 
     .main-nav {
         flex-direction: column;
         align-items: stretch;
-        gap: 5px;
-        margin-bottom: 10px;
+        gap: 6px;
+        margin-bottom: 15px;
     }
 
     .main-nav button {
         width: 100%;
-        margin-bottom: 5px;
-        padding: 5px 8px;
-        font-size: 0.75em;
+        margin-bottom: 6px;
+        padding: 8px 15px;
+        font-size: 0.85em;
     }
 
     form {
-        gap: 8px;
+        gap: 12px;
     }
 
     input[type="text"],
@@ -1088,8 +1084,8 @@ button:disabled {
     input[type="password"],
     textarea,
     select {
-        padding: 7px;
-        font-size: 0.85em;
+        padding: 8px;
+        font-size: 0.9em;
     }
 
     button[type="submit"],
@@ -1112,46 +1108,46 @@ button:disabled {
     #copy-share-link-btn,
     #start-broadcast,
     #end-broadcast {
-        padding: 6px 10px;
-        font-size: 0.75em;
-        gap: 4px;
+        padding: 8px 15px;
+        font-size: 0.85em;
+        gap: 6px;
     }
 
     .toolbar {
         flex-direction: column;
         align-items: stretch;
-        gap: 6px;
-        padding: 6px;
+        gap: 8px;
+        padding: 8px;
     }
     .toolbar .tool-group {
         width: 100%;
         justify-content: center;
-        gap: 5px;
+        gap: 6px;
     }
 
     .toolbar input[type="color"] {
-        width: 25px;
-        height: 18px;
+        width: 30px;
+        height: 20px;
     }
     .toolbar input[type="range"] {
-        width: 80px;
-        height: 4px;
+        width: 90px;
+        height: 5px;
     }
     .toolbar input[type="range"]::-webkit-slider-thumb,
     .toolbar input[type="range"]::-moz-range-thumb {
-        width: 12px;
-        height: 12px;
+        width: 14px;
+        height: 14px;
     }
 
     #chat-input {
-        width: calc(100% - 50px);
-        padding: 6px;
-        font-size: 0.8em;
+        width: calc(100% - 60px);
+        padding: 8px;
+        font-size: 0.85em;
     }
     #send-chat-button {
-        width: 40px;
-        padding: 5px 8px;
-        font-size: 0.7em;
+        width: 50px;
+        padding: 7px 10px;
+        font-size: 0.8em;
     }
 
     #local-video, #remote-video-container video {
@@ -1159,6 +1155,6 @@ button:disabled {
         height: auto;
     }
     #whiteboard-canvas {
-        min-height: 400px; /* Adjust min-height for mobile */
+        min-height: 500px; /* Adjust min-height for mobile */
     }
 }
