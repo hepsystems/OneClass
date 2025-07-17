@@ -64,6 +64,9 @@ def serve_js():
 
 @app.route('/classroom.js')
 def serve_classroom_js():
+    # This file is no longer needed as its content is merged into app.js
+    # You might want to remove this route if classroom.js is completely gone.
+    # For now, it's kept to prevent errors if something still tries to fetch it.
     return send_from_directory('.', 'classroom.js')
 
 
@@ -559,7 +562,7 @@ def handle_chat_message(data):
         'username': username,
         'message': message,
         'timestamp': timestamp,
-        'role': user_role # Include sender's role for display
+        'role': user_role # Include sender's role
     }, room=classroomId)
 
 
@@ -581,27 +584,28 @@ def handle_whiteboard_data(data):
             print(f"User {sender_id} (role: {user_role}) attempted to draw on whiteboard in classroom {classroomId} without admin privileges.")
             return # Prevent non-admins from drawing
 
-        # Store drawing action in MongoDB
-        drawing_data = {
+        tool = data.get('tool')
+        draw_data = data.get('data')
+
+        if not tool or not draw_data:
+            print(f"Missing tool or data for whiteboard draw action: {data}")
+            return
+
+        # Store drawing action in MongoDB with more detail
+        drawing_record = {
             "classroomId": classroomId,
             "action": "draw",
             "timestamp": datetime.utcnow(),
-            "data": {
-                "prevX": data.get('prevX'),
-                "prevY": data.get('prevY'),
-                "currX": data.get('currX'),
-                "currY": data.get('currY'),
-                "color": data.get('color'),
-                "width": data.get('width')
-            },
+            "tool": tool, # Store the tool used (pen, line, rect, circle, text, eraser)
+            "data": draw_data, # This will contain specific data for each tool (coords, text, etc.)
             "user_id": user_id,
             "username": username
         }
-        whiteboard_collection.insert_one(drawing_data)
+        whiteboard_collection.insert_one(drawing_record)
         
         # Broadcast drawing data to all in the room except the sender
         emit('whiteboard_data', data, room=classroomId, include_sid=False)
-        print(f"Whiteboard draw data broadcasted and saved in classroom {classroomId} by {username} ({user_id})")
+        print(f"Whiteboard draw data broadcasted and saved in classroom {classroomId} by {username} ({user_id}) (Tool: {tool})")
 
     elif action == 'clear':
         # Only allow admin to clear the board
