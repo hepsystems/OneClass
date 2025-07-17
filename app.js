@@ -1,4 +1,4 @@
-// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard, Discoverable Classrooms)
+// app.js (Integrated Professional Whiteboard, Stable Drawing, Black Board, Chat History, Resized Video/Whiteboard, Discoverable Classrooms, Whiteboard/WebRTC Sync Fixes)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const classroomMessage = document.getElementById('classroom-message');
     const joinClassroomIdInput = document.getElementById('join-classroom-id');
     const joinClassroomBtn = document.getElementById('join-classroom-btn');
-    const joinClassroomMessage = document = document.getElementById('join-classroom-message');
+    const joinClassroomMessage = document.getElementById('join-classroom-message');
     const classroomList = document.getElementById('classroom-list'); // This will now list all discoverable classes
 
     const classroomSection = document.getElementById('classroom-section');
@@ -441,22 +441,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // --- Whiteboard Socket.IO Handlers (UPDATED) ---
+        // --- Whiteboard Socket.IO Handlers (UPDATED FOR CONSISTENT RENDERING) ---
         socket.on('whiteboard_data', (data) => {
-            if (data.action === 'draw') {
-                // Ensure the context is available before drawing
-                if (!whiteboardCtx) {
-                    console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving draw data.');
-                    return;
-                }
-                // Apply received drawing action
-                const { tool, startX, startY, endX, endY, color, width, text } = data.data;
+            if (!whiteboardCtx) {
+                console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
+                return;
+            }
 
-                // Temporarily set context properties for drawing received data
-                const originalStrokeStyle = whiteboardCtx.strokeStyle;
-                const originalLineWidth = whiteboardCtx.lineWidth;
-                const originalFillStyle = whiteboardCtx.fillStyle;
-                const originalGlobalCompositeOperation = whiteboardCtx.globalCompositeOperation;
+            // Temporarily set context properties for drawing received data
+            const originalStrokeStyle = whiteboardCtx.strokeStyle;
+            const originalLineWidth = whiteboardCtx.lineWidth;
+            const originalFillStyle = whiteboardCtx.fillStyle;
+            const originalGlobalCompositeOperation = whiteboardCtx.globalCompositeOperation;
+
+            if (data.action === 'draw') {
+                const { tool, startX, startY, endX, endY, color, width, text } = data.data; // Data is now consistently nested
 
                 whiteboardCtx.strokeStyle = color;
                 whiteboardCtx.lineWidth = width;
@@ -472,9 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'pen':
                     case 'eraser':
                         // For pen/eraser, data comes as segments.
-                        // The server sends individual segments, so draw each as a line.
-                        // If we were sending full paths, this would be different.
-                        // For stability, ensure a path is always started and stroked.
                         whiteboardCtx.beginPath();
                         whiteboardCtx.moveTo(startX, startY);
                         whiteboardCtx.lineTo(endX, endY);
@@ -502,44 +498,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         whiteboardCtx.fillText(text, startX, startY);
                         break;
                 }
-
-                // Restore original context properties
-                whiteboardCtx.strokeStyle = originalStrokeStyle;
-                whiteboardCtx.lineWidth = originalLineWidth;
-                whiteboardCtx.fillStyle = originalFillStyle;
-                whiteboardCtx.globalCompositeOperation = originalGlobalCompositeOperation;
-
             } else if (data.action === 'clear') {
                 console.log('[Whiteboard] Received clear command.');
-                if (whiteboardCtx) {
-                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                    // Fill with black after clearing
-                    whiteboardCtx.fillStyle = '#000000';
-                    whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                }
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                // Fill with black after clearing
+                whiteboardCtx.fillStyle = '#000000';
+                whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             } else if (data.action === 'history' && data.data) {
                 // Redraw history for new participants
                 console.log('[Whiteboard] Receiving history. Items:', data.data.length);
                 // Clear current canvas before redrawing history
-                if (whiteboardCtx) {
-                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                    whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
-                    whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                }
+                whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
+                whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
 
                 data.data.forEach(drawCommand => {
                     if (drawCommand.action === 'draw' && drawCommand.data) {
                         const { tool, startX, startY, endX, endY, color, width, text } = drawCommand.data;
 
-                        // Temporarily set context properties for drawing history
-                        const originalStrokeStyle = whiteboardCtx.strokeStyle;
-                        const originalLineWidth = whiteboardCtx.lineWidth;
-                        const originalFillStyle = whiteboardCtx.fillStyle;
-                        const originalGlobalCompositeOperation = whiteboardCtx.globalCompositeOperation;
-
+                        // Apply history drawing properties
                         whiteboardCtx.strokeStyle = color;
                         whiteboardCtx.lineWidth = width;
-                        whiteboardCtx.fillStyle = color; // For text
+                        whiteboardCtx.fillStyle = color;
 
                         if (tool === 'eraser') {
                             whiteboardCtx.globalCompositeOperation = 'destination-out';
@@ -550,7 +530,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         switch (tool) {
                             case 'pen':
                             case 'eraser':
-                                // For historical pen/eraser data, draw as individual line segments
                                 whiteboardCtx.beginPath();
                                 whiteboardCtx.moveTo(startX, startY);
                                 whiteboardCtx.lineTo(endX, endY);
@@ -578,14 +557,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 whiteboardCtx.fillText(text, startX, startY);
                                 break;
                         }
-                        // Restore original context properties after drawing each history item
-                        whiteboardCtx.strokeStyle = originalStrokeStyle;
-                        whiteboardCtx.lineWidth = originalLineWidth;
-                        whiteboardCtx.fillStyle = originalFillStyle;
-                        whiteboardCtx.globalCompositeOperation = originalGlobalCompositeOperation;
                     }
                 });
             }
+
+            // Restore original context properties after drawing all received data
+            whiteboardCtx.strokeStyle = originalStrokeStyle;
+            whiteboardCtx.lineWidth = originalLineWidth;
+            whiteboardCtx.fillStyle = originalFillStyle;
+            whiteboardCtx.globalCompositeOperation = originalGlobalCompositeOperation;
         });
 
         // --- WebRTC Socket.IO Handlers ---
@@ -600,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Ensure local stream is acquired if not already (for receiving)
+            // This block is crucial for the receiving peer to add its own tracks
             if (!localStream) {
                 try {
                     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -614,6 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert("Could not access camera/microphone for video call. Receiving might be affected.");
                 }
             } else {
+                 // Even if localStream exists, ensure tracks are added to this specific peer connection
                  if (peerConnections[peerId] && !peerConnections[peerId].getLocalStreams().length) {
                     localStream.getTracks().forEach(track => peerConnections[peerId].addTrack(track, localStream));
                  }
@@ -1690,14 +1672,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (endBroadcastBtn) endBroadcastBtn.disabled = true;
     }
 
-    function createPeerConnection(peerId, isCaller) {
+    async function createPeerConnection(peerId, isCaller) {
         console.log(`[WebRTC] Creating peer connection for ${peerId}, isCaller: ${isCaller}`);
         const pc = new RTCPeerConnection(iceServers);
         peerConnections[peerId] = pc;
 
+        // Ensure local stream is acquired and added to the peer connection
+        if (!localStream) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                console.log("[WebRTC] Acquired local stream for peer connection.");
+            } catch (err) {
+                console.error("[WebRTC] Error acquiring local stream for peer connection:", err);
+                // Even if getUserMedia fails, continue to set up PC for receiving, but alert user
+                alert("Could not access camera/microphone. Video broadcast might not work correctly.");
+            }
+        }
+        // Add tracks from localStream to the peer connection if localStream exists
         if (localStream) {
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            console.log(`[WebRTC] Added local tracks to peer connection for ${peerId}.`);
+        } else {
+            console.warn(`[WebRTC] No local stream to add for peer connection with ${peerId}.`);
         }
+
 
         pc.ontrack = (event) => {
             console.log('[WebRTC] Remote track received from:', peerId);
@@ -1821,7 +1820,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 libraryFilesList.appendChild(ul);
             }
         } catch (error) {
-            console.error('Error loading library files:', error);
+                console.error('Error loading library files:', error);
             libraryFilesList.innerHTML = '<p>Failed to load library files.</p>';
         }
     }
