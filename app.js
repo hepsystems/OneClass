@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
 
     // Video Broadcast Elements
-    const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]'); // Changed from select to radio
+    const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
     const startBroadcastBtn = document.getElementById('start-broadcast');
     const endBroadcastBtn = document.getElementById('end-broadcast');
     const localVideo = document.getElementById('local-video');
@@ -430,14 +430,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         initializeSocketIO();
         setupWhiteboardControls();
-        
+        setupChatControls(); // Ensure chat controls are also set up
+
         // Reset broadcast buttons state based on role
         if (currentUser && currentUser.role === 'admin') {
             startBroadcastBtn.disabled = false;
             endBroadcastBtn.disabled = true;
+            // Ensure broadcast type radios are visible for admin
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
         } else {
             startBroadcastBtn.classList.add('hidden');
             endBroadcastBtn.classList.add('hidden');
+            // Hide broadcast type radios for non-admins
             broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
         }
 
@@ -461,20 +465,27 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.disconnect();
             socket = null;
         }
-        endBroadcast(); // Clean up broadcast related resources
+        endBroadcast(); // Clean up all WebRTC resources
+
+        // Clear whiteboard canvas and reset state
         if (whiteboardCtx && whiteboardCanvas) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             whiteboardCtx.fillStyle = '#000000'; // Fill with black
             whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
-        if (chatMessages) chatMessages.innerHTML = '';
-        if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
-        currentClassroom = null;
-        localStorage.removeItem('currentClassroom');
         whiteboardPages = [[]]; // Reset whiteboard pages
         currentPageIndex = 0;
+        undoStack.length = 0; // Clear undo/redo stacks
+        redoStack.length = 0;
         updateUndoRedoButtons(); // Reset undo/redo buttons
         updateWhiteboardPageDisplay(); // Reset page display
+
+        // Clear chat messages and remote videos
+        if (chatMessages) chatMessages.innerHTML = '';
+        if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
+        
+        currentClassroom = null;
+        localStorage.removeItem('currentClassroom');
     }
 
     // --- Socket.IO Initialization and Handlers ---
@@ -502,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('disconnect', () => {
             console.log('[Socket.IO] Disconnected');
             showNotification("Disconnected from classroom.", true);
+            // Close all peer connections and remove remote videos on disconnect
             for (const peerId in peerConnections) {
                 if (peerConnections[peerId]) {
                     peerConnections[peerId].close();
@@ -551,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('user_joined', (data) => {
+            console.log(`[Socket.IO] User joined: ${data.username} (${data.sid})`);
             const statusMessage = document.createElement('div');
             const joinedDisplayName = getDisplayName(data.username, data.role);
             statusMessage.textContent = `${joinedDisplayName} has joined the classroom.`;
@@ -558,12 +571,15 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessages.appendChild(statusMessage);
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            if (localStream && localStream.active && currentUser && currentUser.role === 'admin' && data.sid !== socket.id) {
-                createPeerConnection(data.sid, true);
+            // Admin: If I am the admin broadcaster and have a local stream, create an offer for the new participant
+            if (currentUser && currentUser.role === 'admin' && localStream && localStream.active && data.sid !== socket.id) {
+                console.log(`[WebRTC] Admin (${socket.id}) broadcasting. Creating offer for new peer: ${data.sid}`);
+                createPeerConnection(data.sid, true); // true indicates caller (initiating offer)
             }
         });
 
         socket.on('user_left', (data) => {
+            console.log(`[Socket.IO] User left: ${data.username} (${data.sid})`);
             const statusMessage = document.createElement('div');
             statusMessage.textContent = `${data.username} has left the classroom.`;
             statusMessage.style.fontStyle = 'italic';
@@ -601,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.action === 'draw') {
                 const { startX, startY, endX, endY, color, width, tool, text, pageIndex } = data.data;
-                // Ensure page exists
+                // Ensure page exists locally
                 if (!whiteboardPages[pageIndex]) {
                     whiteboardPages[pageIndex] = [];
                 }
@@ -646,10 +662,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('webrtc_offer', async (data) => {
             if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received WebRTC Offer from: ${data.sender_id} to ${socket.id}`);
+
             const peerId = data.sender_id;
             if (!peerConnections[peerId]) {
-                createPeerConnection(peerId, false); // Receiver
+                createPeerConnection(peerId, false); // false: this peer is the receiver
             }
+
             try {
                 await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.offer));
                 const answer = await peerConnections[peerId].createAnswer();
@@ -659,6 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     recipient_id: peerId,
                     answer: peerConnections[peerId].localDescription
                 });
+                console.log(`[WebRTC] Sent WebRTC Answer to: ${peerId} from ${socket.id}`);
             } catch (error) {
                 console.error('[WebRTC] Error handling offer:', error);
             }
@@ -666,6 +686,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('webrtc_answer', async (data) => {
             if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received WebRTC Answer from: ${data.sender_id} to ${socket.id}`);
             const peerId = data.sender_id;
             if (peerConnections[peerId]) {
                 try {
@@ -678,6 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('webrtc_ice_candidate', async (data) => {
             if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received ICE Candidate from: ${data.sender_id} to ${socket.id}`);
             const peerId = data.sender_id;
             if (peerConnections[peerId] && data.candidate) {
                 try {
@@ -691,6 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('webrtc_peer_disconnected', (data) => {
+            console.log(`[WebRTC] Peer disconnected signal received for: ${data.peer_id}`);
             const peerId = data.peer_id;
             if (peerConnections[peerId]) {
                 peerConnections[peerId].close();
@@ -740,10 +763,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 message: `Admin ${currentUser.username} started a ${selectedType === 'video_audio' ? 'video and audio' : 'audio only'} broadcast.`
             });
 
-            // For existing peers, create offers. This would typically be handled by server
-            // sending 'user_joined' to all on admin broadcast start, or admin explicitly
-            // sending offers to all current SIDs in the room. For simplicity, we assume
-            // new joiners will trigger offers from admin, and existing will react to broadcast.
+            // Iterate over all currently connected peers and initiate offers
+            // This is crucial for connecting to users already in the room when broadcast starts
+            // The server's `user_joined` event also triggers this for new joiners.
+            // We need a way to get all current SIDs in the room. This is usually managed on the server.
+            // For now, we'll rely on `user_joined` for new users, and for existing users,
+            // the `admin_action_update` might prompt them to refresh or the server could
+            // send a specific "broadcast_available" signal to existing users.
+            // A more robust solution would involve the server maintaining a list of SIDs per room
+            // and the admin requesting that list to send offers.
+            // For this setup, the `user_joined` event on the admin side is the primary trigger.
+            // To ensure existing users get the stream, the admin needs to send offers to them.
+            // Let's assume the `user_joined` event handles new connections, and for existing ones,
+            // the admin would need to know their SIDs.
 
         } catch (err) {
             console.error('[WebRTC] Error accessing media devices:', err);
@@ -799,6 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const pc = new RTCPeerConnection(iceServers);
         peerConnections[peerId] = pc;
+        console.log(`[WebRTC] Created RTCPeerConnection for peer: ${peerId}. Is caller: ${isCaller}`);
 
         // Only add local stream tracks if this is the caller (broadcaster)
         if (isCaller && localStream) {
@@ -809,6 +842,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         pc.ontrack = (event) => {
+            console.log(`[WebRTC] Remote track received from: ${peerId}, kind: ${event.track.kind}`);
             let remoteVideo = document.getElementById(`remote-video-${peerId}`);
             if (!remoteVideo) {
                 remoteVideo = document.createElement('video');
@@ -817,6 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 remoteVideo.playsInline = true;
                 remoteVideo.controls = false; // Hide controls for a cleaner look
                 remoteVideoContainer.appendChild(remoteVideo);
+                console.log(`[WebRTC] Created remote video element for: ${peerId}`);
             }
             if (event.streams && event.streams[0]) {
                 remoteVideo.srcObject = event.streams[0];
@@ -829,6 +864,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
+                console.log(`[WebRTC] Sending ICE Candidate from ${socket.id} to: ${peerId}`);
                 socket.emit('webrtc_ice_candidate', {
                     classroomId: currentClassroom.id,
                     recipient_id: peerId,
@@ -838,14 +874,16 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state with ${peerId}: ${pc.connectionState}`);
             if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-                const videoElement = document.getElementById(`remote-video-${peerId}`);
-                if (videoElement) {
-                    videoElement.remove();
-                }
+                console.log(`[WebRTC] Peer ${peerId} connection closed or failed. Cleaning up.`);
                 if (peerConnections[peerId]) {
                     peerConnections[peerId].close();
                     delete peerConnections[peerId];
+                }
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
                 }
             }
         };
@@ -854,6 +892,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
+                console.log(`[WebRTC] Sending WebRTC Offer from ${socket.id} to: ${peerId}`);
                 socket.emit('webrtc_offer', {
                     classroomId: currentClassroom.id,
                     recipient_id: peerId,
@@ -932,28 +971,33 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function resizeCanvas() {
         const container = whiteboardCanvas.parentElement;
+        // Save current content before resizing
         const imageData = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
 
-        const aspectRatio = 1200 / 800;
-        let newWidth = container.clientWidth - 40;
+        const aspectRatio = 1200 / 800; // Original design aspect ratio
+        let newWidth = container.clientWidth - 40; // Account for padding/margins
         let newHeight = newWidth / aspectRatio;
 
+        // Ensure it doesn't exceed viewport height significantly
         if (newHeight > window.innerHeight * 0.9) {
             newHeight = window.innerHeight * 0.9;
             newWidth = newHeight * aspectRatio;
         }
 
-        whiteboardCanvas.width = Math.max(newWidth, 300);
-        whiteboardCanvas.height = Math.max(newHeight, 200);
+        whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
+        whiteboardCanvas.height = Math.max(newHeight, 200); // Minimum height
 
+        // Restore content. This might scale pixelated, but it's the simplest way to preserve.
+        // For perfect scaling, one would need to re-render all drawing commands.
         whiteboardCtx.putImageData(imageData, 0, 0);
 
+        // Reapply styles as context state can be reset on dimension change
         whiteboardCtx.lineJoin = 'round';
         whiteboardCtx.lineCap = 'round';
         whiteboardCtx.lineWidth = currentBrushSize;
         whiteboardCtx.strokeStyle = currentColor;
         whiteboardCtx.fillStyle = currentColor;
-        renderCurrentWhiteboardPage(); // Re-render to ensure content scales correctly
+        renderCurrentWhiteboardPage(); // Re-render to ensure content scales correctly and fills background
     }
 
     /**
@@ -988,6 +1032,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     data: {
                         startX: startX,
                         startY: startY,
+                        endX: startX, // For text, endX/Y are same as start
+                        endY: startY,
                         text: textInput,
                         color: currentColor,
                         width: currentBrushSize,
@@ -996,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
                 // Add to local page data
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
             }
             isDrawing = false;
         }
@@ -1378,6 +1424,7 @@ document.addEventListener('DOMContentLoaded', () => {
             prevWhiteboardPageBtn.disabled = currentPageIndex === 0;
         }
         if (nextWhiteboardPageBtn) {
+            // Next button is disabled if at last page AND not admin (cannot create new pages)
             nextWhiteboardPageBtn.disabled = currentPageIndex === whiteboardPages.length - 1 && currentUser.role !== 'admin';
         }
     }
@@ -1688,7 +1735,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (question.question_type === 'text' || question.type === 'text') {
                     const textarea = document.createElement('textarea');
-                    textarea.name = `question-${question.id}`;
+                    textarea.name = `question_${question.id}`;
                     textarea.placeholder = 'Your answer here...';
                     textarea.rows = 3;
                     questionDiv.appendChild(textarea);
@@ -1697,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const optionId = `q${question.id}-opt${optIndex}`;
                         const radioInput = document.createElement('input');
                         radioInput.type = 'radio';
-                        radioInput.name = `question-${question.id}`;
+                        radioInput.name = `question_${question.id}`;
                         radioInput.id = optionId;
                         radioInput.value = option;
                         radioInput.classList.add('mcq-option-radio');
@@ -1988,16 +2035,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Share Link
-    if (copyShareLinkBtn) copyShareLinkBtn.addEventListener('click', () => { shareLinkInput.select(); document.execCommand('copy'); showNotification('Link copied to clipboard!'); });
+    if (shareLinkInput && copyShareLinkBtn) { // Ensure elements exist before adding listeners
+        // The share button is now on the whiteboard section
+        const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn');
+        if (shareWhiteboardBtn) {
+            shareWhiteboardBtn.addEventListener('click', async () => {
+                const classroomId = currentClassroom ? currentClassroom.id : null;
+                if (classroomId) {
+                    try {
+                        const response = await fetch(`/api/generate-share-link/${classroomId}`);
+                        const data = await response.json();
+                        if (response.ok) {
+                            shareLinkInput.value = data.share_link;
+                            shareLinkDisplay.classList.remove('hidden');
+                            shareLinkInput.select(); // Select the text for easy copying
+                            showNotification("Share link generated. Click 'Copy Link' to copy.");
+                        } else {
+                            showNotification('Error generating share link: ' + (data.error || 'Unknown error'), true);
+                        }
+                    } catch (error) {
+                        console.error('Error generating share link:', error);
+                        showNotification('An error occurred while generating the share link.', true);
+                    }
+                } else {
+                    showNotification('Please create or join a classroom first to get a shareable link.', true);
+                }
+            });
+        }
+        copyShareLinkBtn.addEventListener('click', () => { shareLinkInput.select(); document.execCommand('copy'); showNotification('Link copied to clipboard!'); });
+    }
 
-    // Whiteboard Controls (already handled in setupWhiteboardControls, but ensure listeners are attached)
-    // The event listeners for drawing, tool selection, color, size, undo, redo, clear, save, page navigation
-    // are now primarily attached within `setupWhiteboardControls()` to ensure they are available
-    // only when the whiteboard is active and initialized.
-
-    // Broadcast Controls
+    // Broadcast Controls (already handled in setupWhiteboardControls, but ensure listeners are attached)
     if (startBroadcastBtn) startBroadcastBtn.addEventListener('click', startBroadcast);
     if (endBroadcastBtn) endBroadcastBtn.addEventListener('click', endBroadcast);
+    broadcastTypeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            // If broadcast is active and type changes, restart it
+            if (localStream && localStream.active) {
+                showNotification("Broadcast type changed. Restarting broadcast...");
+                endBroadcast();
+                setTimeout(() => startBroadcast(), 500); // Small delay for cleanup
+            }
+        });
+    });
 
     // Assessment Controls
     if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
