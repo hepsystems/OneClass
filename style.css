@@ -269,67 +269,211 @@ section {
     box-sizing: border-box;
 }
 
-/* Whiteboard Styles */
-#whiteboard-area {
-    order: 1; /* Display first */
-    flex-basis: 100%; /* Take full width initially */
+/* NEW PROFESSIONAL WHITEBOARD STYLES START */
+/* Main container for whiteboard and controls */
+.whiteboard-container {
     display: flex;
     flex-direction: column;
     align-items: center;
+    background-color: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15); /* Deeper shadow */
+    padding: 20px;
+    max-width: 95%; /* Ensure it fits on most screens */
+    width: 100%;
+    box-sizing: border-box;
 }
 
-#whiteboard-tools {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 15px;
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-    width: 100%; /* Occupy full width within its parent */
-    justify-content: center;
-}
-
-#whiteboard-tools button,
-#whiteboard-tools label,
-#whiteboard-tools input[type="color"],
-#whiteboard-tools input[type="range"],
-#whiteboard-tools span {
-    align-self: center; /* Vertically center items */
-}
-
-#whiteboard-tools button {
-    background-color: #007bff;
-    color: white;
-    padding: 8px 15px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#whiteboard-tools button:hover {
-    background-color: #0056b3;
-}
-
-#whiteboard-tools input[type="color"] {
-    width: 40px; /* Adjust size */
-    height: 30px;
-    padding: 2px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-}
-
-#whiteboard-tools input[type="range"] {
-    width: 80px;
-}
-
+/* Canvas styling - Now with a black background */
 #whiteboard-canvas {
-    background-color: black; /* Changed to black */
-    border: 1px solid #ccc;
-    cursor: crosshair;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-    max-width: 95%; /* Increased max-width */
-    height: 600px; /* Set a fixed height to make it visibly larger */
+    background-color: #000000; /* Black drawing surface */
+    border: 1px solid #333; /* Subtle border for black board */
+    border-radius: 8px; /* Slightly less rounded than container */
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06); /* Inner shadow for depth */
+    touch-action: none; /* Prevent browser gestures on canvas */
+    max-width: 100%; /* Ensure canvas is responsive */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Remove extra space below canvas */
+    margin-bottom: 20px;
+    cursor: crosshair; /* Keep crosshair cursor */
 }
+
+/* Toolbar styling */
+.toolbar {
+    display: flex;
+    flex-wrap: wrap; /* Allow tools to wrap on smaller screens */
+    gap: 10px; /* Space between tool groups */
+    padding: 15px;
+    background-color: #f8fafc; /* Lighter background for toolbar */
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    justify-content: center; /* Center controls horizontally */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Tool group styling */
+.tool-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* Button styling for tools and actions */
+.tool-button, .action-button {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    background-color: #e2e8f0; /* Light gray default */
+    color: #334155; /* Darker text */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tool-button:hover, .action-button:hover {
+    background-color: #cbd5e1; /* Slightly darker on hover */
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tool-button:active, .action-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tool-button.active {
+    background-color: #3b82f6; /* Blue for active tool */
+    color: white;
+    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Color input styling */
+input[type="color"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden; /* Hide default color picker border */
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 8px;
+}
+
+input[type="color"]::-moz-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 8px;
+}
+
+/* Brush size slider styling */
+.brush-size-slider {
+    width: 80px; /* Compact width for slider */
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    background: #d1d5db; /* Light gray track */
+    outline: none;
+    border-radius: 4px;
+    transition: opacity .2s;
+}
+
+.brush-size-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3b82f6; /* Blue thumb */
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.brush-size-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Specific action button colors */
+.clear-button {
+    background-color: #ef4444; /* Red */
+    color: white;
+}
+
+.save-button {
+    background-color: #22c55e; /* Green */
+    color: white;
+}
+
+.undo-button, .redo-button {
+    background-color: #f97316; /* Orange */
+    color: white;
+}
+
+/* Responsive adjustments for new whiteboard elements */
+@media (max-width: 768px) {
+    .whiteboard-container {
+        padding: 15px;
+    }
+    .toolbar {
+        flex-direction: column; /* Stack tool groups vertically */
+        align-items: center;
+        gap: 15px;
+    }
+    .tool-group {
+        width: 100%;
+        justify-content: center;
+    }
+    .tool-button, .action-button {
+        padding: 8px 12px;
+        font-size: 0.9rem;
+    }
+    .brush-size-slider {
+        width: 100px; /* Allow more width for slider */
+    }
+}
+
+@media (max-width: 480px) {
+    .tool-group {
+        flex-wrap: wrap; /* Allow buttons within group to wrap */
+        justify-content: center;
+    }
+    .tool-button, .action-button {
+        width: auto; /* Let buttons size naturally */
+        flex-grow: 1; /* Allow buttons to grow */
+    }
+}
+/* NEW PROFESSIONAL WHITEBOARD STYLES END */
+
 
 /* Share Link Display */
 #share-link-display {
