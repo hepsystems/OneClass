@@ -302,19 +302,22 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles direct classroom link access.
      */
     async function checkLoginStatus() {
+        console.log("checkLoginStatus called.");
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
             currentUser = JSON.parse(storedUser);
+            console.log("Stored user found:", currentUser.username);
             // Verify session with backend
             try {
-                const response = await fetch('/@me');
+                const response = await fetch('/api/@me');
                 if (response.ok) {
                     const data = await response.json();
                     // Update currentUser with fresh data from server (e.g., if role changed)
                     currentUser = { ...currentUser, ...data };
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    console.log("Session verified. Current user updated:", currentUser);
 
-                    currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
+                    if (currentUsernameDisplay) currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
                     updateUIBasedOnRole();
                     showSection(dashboardSection);
                     loadAvailableClassrooms();
@@ -344,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     // Session expired or invalid, force re-login
-                    console.log("Session invalid, forcing re-login.");
+                    console.log("Session invalid or expired, forcing re-login.");
                     localStorage.removeItem('currentUser');
                     currentUser = null;
                     showSection(authSection);
@@ -358,6 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification("Error verifying session. Please log in again.", 'error');
             }
         } else {
+            console.log("No stored user found. Showing auth section.");
             showSection(authSection);
             document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
                 el.classList.add('hidden');
@@ -395,17 +399,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentUser = result.user;
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     displayMessage(authMessage, result.message, false);
-                    checkLoginStatus(); // Re-check status to navigate to dashboard
+                    showNotification(result.message, 'success');
+                    console.log("Login successful. Calling checkLoginStatus in 1 second...");
+                    setTimeout(() => {
+                        authMessage.textContent = ''; // Clear message after delay
+                        checkLoginStatus(); // Re-check status to navigate to dashboard
+                    }, 1000); // Small delay to show notification
                 } else { // Registration
                     displayMessage(authMessage, result.message + " Please log in.", false);
+                    showNotification(result.message, 'success');
                     form.reset();
-                    loginContainer.classList.remove('hidden');
-                    registerContainer.classList.add('hidden');
+                    if (loginContainer) loginContainer.classList.remove('hidden');
+                    if (registerContainer) registerContainer.classList.add('hidden');
+                    console.log("Registration successful. Redirecting to login.");
                 }
-                showNotification(result.message, 'success');
             } else {
                 displayMessage(authMessage, result.error, true);
                 showNotification(result.error, 'error');
+                console.error("Auth failed:", result.error);
             }
         } catch (error) {
             console.error('Error during authentication:', error);
@@ -422,8 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadAvailableClassrooms() {
         if (!currentUser || !currentUser.id) {
             if (classroomList) classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
+            console.log("loadAvailableClassrooms: No current user, skipping fetch.");
             return;
         }
+        console.log("loadAvailableClassrooms: Fetching classrooms for user:", currentUser.username);
         try {
             const response = await fetch('/api/classrooms');
             const classrooms = await response.json();
@@ -522,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {string} code - The code of the classroom.
      */
     function enterClassroom(id, name, code) {
+        console.log("Entering classroom:", name, id);
         currentClassroom = { id: id, name: name, code: code };
         localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
         if (classroomIdDisplay) classroomIdDisplay.textContent = id;
@@ -530,10 +544,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showSection(classroomSection);
         showClassroomSubSection(whiteboardArea); // Default to whiteboard view
-        if (navWhiteboard) navWhiteboard.classList.add('active-nav'); // Highlight whiteboard nav
+        if (navWhiteboard) {
+            navWhiteboard.classList.add('active-nav'); // Highlight whiteboard nav
+            navChat.classList.remove('active-nav');
+            navLibrary.classList.remove('active-nav');
+            navAssessments.classList.remove('active-nav');
+        }
         updateUIBasedOnRole();
 
-        initializeSocketIO();
+        initializeSocketIO(); // Ensure socket is initialized and joined to classroom
         setupWhiteboardControls(); // Setup controls for whiteboard
         setupChatControls(); // Ensure chat controls are also set up
 
@@ -559,11 +578,11 @@ document.addEventListener('DOMContentLoaded', () => {
      * Cleans up classroom-related resources when leaving a classroom.
      */
     function cleanupClassroomResources() {
-        if (socket && currentClassroom && currentClassroom.id) {
-            socket.emit('leave', { 'classroomId': currentClassroom.id });
-            socket.disconnect();
-            socket = null;
-        } else if (socket) {
+        console.log("Cleaning up classroom resources.");
+        if (socket && socket.connected) {
+            if (currentClassroom && currentClassroom.id) {
+                socket.emit('leave', { 'classroomId': currentClassroom.id });
+            }
             socket.disconnect();
             socket = null;
         }
@@ -596,19 +615,21 @@ document.addEventListener('DOMContentLoaded', () => {
      * Initializes the Socket.IO connection and sets up event listeners.
      */
     function initializeSocketIO() {
-        if (socket) {
-            socket.disconnect();
+        if (socket && socket.connected) {
+            console.log("[Socket.IO] Already connected, skipping re-initialization.");
+            return;
         }
+        console.log("[Socket.IO] Initializing Socket.IO connection.");
         socket = io();
 
         socket.on('connect', () => {
             console.log('[Socket.IO] Connected. SID:', socket.id);
-            if (currentClassroom && currentClassroom.id) {
+            if (currentClassroom && currentClassroom.id && currentUser) {
                 socket.emit('join', { 'classroomId': currentClassroom.id, 'role': currentUser.role, 'username': currentUser.username });
                 showNotification("Connected to classroom: " + currentClassroom.name, 'success');
             } else {
-                console.error('[Socket.IO] Cannot join classroom: currentClassroom.id is undefined.');
-                showNotification("Error: Could not join classroom.", 'error');
+                console.warn('[Socket.IO] Cannot join classroom: currentClassroom or currentUser is undefined after connect. Not emitting join.');
+                showNotification("Error: Could not join classroom on connect.", 'error');
             }
         });
 
