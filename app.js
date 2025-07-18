@@ -2259,21 +2259,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         checkLoginStatus();
 
-    // --- Sidebar Toggle for Hamburger Menu ---
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
-    const sidebar = document.getElementById('classroom-sidebar');
-    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+const sidebar = document.getElementById('classroom-sidebar');
+const closeSidebarBtn = document.getElementById('close-sidebar-btn');
 
-    if (hamburgerMenuBtn && sidebar) {
-        hamburgerMenuBtn.addEventListener('click', () => {
-            sidebar.classList.add('active');
-        });
-    }
+if (hamburgerMenuBtn && sidebar && closeSidebarBtn) {
+    // Open sidebar
+    hamburgerMenuBtn.addEventListener('click', () => {
+        sidebar.classList.add('active');
+        sidebar.classList.remove('hidden');
+    });
 
-    if (closeSidebarBtn && sidebar) {
-        closeSidebarBtn.addEventListener('click', () => {
+    // Close via X button
+    closeSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.remove('active');
+        sidebar.classList.add('hidden');
+    });
+
+    // Optional: Click outside to close
+    document.addEventListener('click', (e) => {
+        if (
+            sidebar.classList.contains('active') &&
+            !sidebar.contains(e.target) &&
+            !hamburgerMenuBtn.contains(e.target)
+        ) {
             sidebar.classList.remove('active');
-        });
-    }
-});
+            sidebar.classList.add('hidden');
+        }
+    });
+
 
