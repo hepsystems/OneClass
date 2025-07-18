@@ -88,6 +88,11 @@ section {
     padding-bottom: 10px;
     border-bottom: 1px solid #eee;
     flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    /* Spherical background for navigation */
+    background: radial-gradient(circle at top left, #a1c4fd, #c2e9fb);
+    border-radius: 25px; /* Adjust for desired "spherical" look */
+    padding: 15px 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .main-nav button {
@@ -276,9 +281,11 @@ section {
     cursor: crosshair;
     display: block; /* Ensures it takes up full width */
     margin-top: 10px;
-    width: 100%; /* Adjust as needed */
-    height: 400px; /* Fixed height for now */
+    width: 95%; /* Increased width */
+    height: 600px; /* Increased height for more writing space */
     box-sizing: border-box;
+    float: right; /* Make whiteboard float to the right */
+    margin-left: 20px; /* Add some margin to the left when floating */
 }
 
 #whiteboard-tools {
@@ -311,7 +318,7 @@ section {
 }
 
 #whiteboard-tools button {
-    background-color: #007bff;
+    background-color: #ff6347; /* Tomato color for whiteboard tools */
     color: white;
     padding: 8px 15px;
     border: none;
@@ -321,7 +328,7 @@ section {
 }
 
 #whiteboard-tools button:hover {
-    background-color: #0056b3;
+    background-color: #e5533d;
 }
 
 #whiteboard-navigation { /* New style for whiteboard navigation */
@@ -343,10 +350,11 @@ section {
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    background-color: #4CAF50; /* Green for navigation buttons */
 }
 
 #whiteboard-navigation button:hover {
-    background-color: #5a6268;
+    background-color: #45a049;
 }
 
 #whiteboard-page-display {
