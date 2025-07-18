@@ -2257,6 +2257,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
     if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
 
-    // Initial Load
-    checkLoginStatus();
+        checkLoginStatus();
+
+    // --- Sidebar Toggle for Hamburger Menu ---
+    const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
+    const sidebar = document.getElementById('classroom-sidebar');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+
+    if (hamburgerMenuBtn && sidebar) {
+        hamburgerMenuBtn.addEventListener('click', () => {
+            sidebar.classList.add('active');
+        });
+    }
+
+    if (closeSidebarBtn && sidebar) {
+        closeSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+        });
+    }
 });
+
