@@ -31,21 +31,30 @@ section {
     border-radius: 5px;
     margin-bottom: 20px;
     flex-grow: 1; /* Allow sections to grow and fill space */
+    display: none; /* Default to hidden, controlled by JS */
 }
 
-/* Visibility Classes */
+/* Visibility Classes - Explicitly controlled by JS */
 .hidden {
     display: none !important; /* Use !important to ensure override */
 }
 
 .active {
-    display: block;
+    display: block !important; /* Ensure visibility for active sections */
 }
 
 /* Role-specific highlights */
 .admin-feature-highlight {
     border: 1px solid #007bff; /* Blue border for admin features */
     background-color: #e6f0ff; /* Light blue background */
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.user-view-subtle {
+    border: 1px solid #28a745; /* Green border for user-specific views */
+    background-color: #e6ffe6; /* Light green background */
     padding: 10px;
     border-radius: 5px;
     margin-bottom: 10px;
@@ -158,6 +167,7 @@ section {
     padding: 0; /* Remove padding from section itself */
     border: none; /* Remove border from section itself */
     flex-grow: 1;
+    height: 100%; /* Ensure it takes full height */
 }
 
 .classroom-header {
@@ -187,7 +197,7 @@ section {
 /* Sidebar Navigation */
 .sidebar {
     height: 100%; /* Full height */
-    width: 250px; /* Set a fixed width */
+    width: 280px; /* Set a fixed width */
     position: fixed; /* Stay in place */
     z-index: 100; /* Stay on top */
     top: 0;
@@ -200,6 +210,11 @@ section {
     box-shadow: 2px 0 5px rgba(0,0,0,0.5);
     display: flex;
     flex-direction: column;
+    transform: translateX(-100%); /* Start off-screen */
+}
+
+.sidebar.active {
+    transform: translateX(0); /* Slide in */
 }
 
 .sidebar a, .sidebar button {
@@ -235,6 +250,7 @@ section {
     display: flex;
     flex-grow: 1; /* Allows it to take up remaining vertical space */
     position: relative; /* For notifications positioning */
+    height: calc(100vh - 100px); /* Adjust based on header height */
 }
 
 .classroom-sub-section {
@@ -244,6 +260,7 @@ section {
     flex-grow: 1; /* Allow sub-sections to fill space */
     display: flex;
     flex-direction: column; /* Stack content within sub-sections */
+    height: 100%; /* Take full height of wrapper */
 }
 
 /* Whiteboard specific styles */
@@ -261,10 +278,11 @@ section {
     flex-grow: 1; /* Canvas fills available space */
     width: 100%; /* Ensure canvas takes full width */
     cursor: crosshair;
+    display: block; /* Ensure no extra space below canvas */
 }
 
 /* Toolbar inside sidebar */
-.sidebar .toolbar {
+#whiteboard-tools-container {
     display: flex;
     flex-direction: column; /* Stack tool groups vertically */
     gap: 10px;
@@ -272,14 +290,21 @@ section {
     border-bottom: 1px solid #333; /* Separator for toolbar */
 }
 
-.sidebar .toolbar .tool-group {
+#whiteboard-tools-container h4 {
+    margin-top: 0;
+    color: white;
+    text-align: center;
+}
+
+.sidebar .tool-group {
     display: flex;
     flex-wrap: wrap; /* Allow tools to wrap */
     gap: 5px;
+    justify-content: center;
 }
 
-.sidebar .toolbar .tool-button,
-.sidebar .toolbar .action-button {
+.sidebar .tool-button,
+.sidebar .action-button {
     background-color: #555;
     color: white;
     padding: 8px 12px;
@@ -287,15 +312,18 @@ section {
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
+    flex-grow: 1; /* Allow buttons to grow */
+    min-width: 80px; /* Minimum width for buttons */
+    text-align: center;
 }
 
-.sidebar .toolbar .tool-button.active,
-.sidebar .toolbar .tool-button:hover,
-.sidebar .toolbar .action-button:hover {
+.sidebar .tool-button.active,
+.sidebar .tool-button:hover,
+.sidebar .action-button:hover {
     background-color: #007bff;
 }
 
-.sidebar .toolbar input[type="color"] {
+.sidebar input[type="color"] {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -305,20 +333,23 @@ section {
     cursor: pointer;
     background: none;
     padding: 0;
+    margin: 0 auto; /* Center color picker */
+    display: block;
 }
 
-.sidebar .toolbar input[type="color"]::-webkit-color-swatch-wrapper {
+.sidebar input[type="color"]::-webkit-color-swatch-wrapper {
     padding: 0;
 }
 
-.sidebar .toolbar input[type="color"]::-webkit-color-swatch {
+.sidebar input[type="color"]::-webkit-color-swatch {
     border: 1px solid #ccc;
     border-radius: 3px;
 }
 
-.sidebar .toolbar input[type="range"] {
-    width: 100px;
-    margin-left: 5px;
+.sidebar input[type="range"] {
+    width: calc(100% - 10px);
+    margin: 0 auto;
+    display: block;
 }
 
 #whiteboard-navigation {
@@ -328,6 +359,7 @@ section {
     padding: 10px;
     background-color: #f0f0f0;
     border-top: 1px solid #ddd;
+    flex-shrink: 0; /* Prevent navigation from shrinking */
 }
 
 #whiteboard-navigation button {
@@ -348,26 +380,28 @@ section {
 #whiteboard-page-display {
     font-weight: bold;
     margin: 0 10px;
+    color: #333;
 }
 
 /* Video Broadcast controls inside sidebar */
-.sidebar #video-broadcast-section {
+#video-broadcast-section {
     padding: 15px;
     border-top: 1px solid #333;
+    text-align: center;
 }
 
-.sidebar #video-broadcast-section h4 {
+#video-broadcast-section h4 {
     margin-top: 0;
     color: white;
 }
 
-.sidebar .broadcast-options label {
+.broadcast-options label {
     display: block;
     margin-bottom: 5px;
     color: #ccc;
 }
 
-.sidebar #video-broadcast-section button {
+#video-broadcast-section button {
     background-color: #dc3545;
     color: white;
     padding: 8px 12px;
@@ -377,10 +411,44 @@ section {
     font-size: 14px;
     margin-top: 10px;
     width: auto; /* Override sidebar button width */
+    display: inline-block; /* Allow side-by-side buttons */
+    margin-right: 5px;
 }
 
-.sidebar #video-broadcast-section button:hover {
+#video-broadcast-section button:hover {
     background-color: #c82333;
+}
+
+/* Local and Remote Video Display */
+#local-video {
+    width: 100px;
+    height: 75px;
+    background-color: black;
+    border: 1px solid white;
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 10;
+    border-radius: 8px;
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+#remote-video-container {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    z-index: 5;
+}
+
+#remote-video-container video {
+    width: 120px;
+    height: 90px;
+    background-color: black;
+    border: 1px solid #007bff;
+    border-radius: 8px;
 }
 
 /* Notifications within whiteboard area */
@@ -426,12 +494,18 @@ section {
     background-color: #f9f9f9;
 }
 
+.chat-input-area {
+    display: flex;
+    gap: 5px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
 #chat-input {
+    flex-grow: 1;
     padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    width: calc(100% - 70px); /* Adjust width for button */
-    margin-right: 5px;
 }
 
 #send-chat-button {
@@ -444,12 +518,11 @@ section {
 }
 
 /* Library Section */
-#library-files-list ul {
-    list-style: none;
-    padding: 0;
+#library-files-list {
+    margin-top: 15px;
 }
 
-#library-files-list li {
+#library-files-list div {
     background-color: #e9ecef;
     margin-bottom: 8px;
     padding: 10px;
@@ -457,6 +530,25 @@ section {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+#library-files-list a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+#library-files-list button {
+    background-color: #dc3545;
+    color: white;
+    padding: 5px 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#library-files-list button:hover {
+    background-color: #c82333;
 }
 
 /* Assessments Section */
