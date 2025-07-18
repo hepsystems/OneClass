@@ -12,7 +12,8 @@ import os
 import uuid
 from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
-from flask_socketio import SocketIO, emit, join_room, leave_room
+# ADDED 'rooms' to the import list
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
@@ -596,17 +597,18 @@ def connect():
         print(f"Unauthenticated client connected, SID: {request.sid}")
 
 @socketio.on('disconnect')
-def disconnect():
+def disconnect(sid): # MODIFIED: Added 'sid' argument
     user_id = session.get('user_id')
     username = session.get('username')
-    sid = request.sid
+    # sid is now passed as an argument
 
     print(f"Client disconnected: {username} ({user_id}), SID: {sid}")
 
     # Find which classroom the user was in to emit user_left and webrtc_peer_disconnected
     classroomId_to_leave = None
     # Iterate through all rooms the sid is in
-    for room_id in socketio.rooms(sid):
+    # MODIFIED: Used 'rooms(sid)' directly
+    for room_id in rooms(sid):
         # Exclude the user's own SID room and the default Flask-SocketIO app room
         # A simple check: assume classroom IDs are UUIDs (or specific prefix)
         if room_id != sid and room_id != request.sid:
@@ -741,6 +743,11 @@ def handle_whiteboard_data(data):
     if not classroomId or not action or not drawing_data:
         print(f"Whiteboard data missing: {data}")
         return
+    
+    # ADDED: Check if drawing_data is a dictionary
+    if not isinstance(drawing_data, dict):
+        print(f"Received malformed drawing_data (not a dictionary): {drawing_data}")
+        return
 
     # Only allow admins to draw or clear
     if user_role != 'admin':
@@ -750,19 +757,34 @@ def handle_whiteboard_data(data):
     page_index = drawing_data.get('pageIndex', 0) # Default to page 0
 
     if action == 'draw':
+        # Safely get drawing coordinates and properties using .get()
+        start_x = drawing_data.get('startX')
+        start_y = drawing_data.get('startY')
+        end_x = drawing_data.get('endX')
+        end_y = drawing_data.get('endY')
+        color = drawing_data.get('color')
+        # Assuming 'width' is the key used for line thickness
+        line_thickness = drawing_data.get('width')
+        tool = drawing_data.get('tool')
+        text = drawing_data.get('text', '')
+
+        # ADDED: Basic validation for essential drawing data
+        if None in [start_x, start_y, end_x, end_y, color, line_thickness, tool]:
+            print(f"Missing essential drawing data for 'draw' action: {drawing_data}")
+            return
+
         # Store drawing action in MongoDB for the specific page
-        # Ensure 'drawings' array exists and push to it
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": page_index},
             {"$push": {"drawings": {
-                "startX": drawing_data['startX'],
-                "startY": drawing_data['startY'],
-                "endX": drawing_data['endX'],
-                "endY": drawing_data['endY'],
-                "color": drawing_data['color'],
-                "width": drawing_data['width'],
-                "tool": drawing_data['tool'],
-                "text": drawing_data.get('text', '')
+                "startX": start_x, # MODIFIED: Using variables from .get()
+                "startY": start_y, # MODIFIED: Using variables from .get()
+                "endX": end_x,     # MODIFIED: Using variables from .get()
+                "endY": end_y,     # MODIFIED: Using variables from .get()
+                "color": color,    # MODIFIED: Using variables from .get()
+                "width": line_thickness, # MODIFIED: Using variable from .get()
+                "tool": tool,      # MODIFIED: Using variables from .get()
+                "text": text       # MODIFIED: Using variables from .get()
             }}},
             upsert=True # Create the document if it doesn't exist
         )
