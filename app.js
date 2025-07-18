@@ -2259,33 +2259,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         checkLoginStatus();
 
+    // ✅ Sidebar toggle logic — moved here from bottom
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
-const sidebar = document.getElementById('classroom-sidebar');
-const closeSidebarBtn = document.getElementById('close-sidebar-btn');
+    const sidebar = document.getElementById('classroom-sidebar');
+    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
 
-if (hamburgerMenuBtn && sidebar && closeSidebarBtn) {
-    // Open sidebar
-    hamburgerMenuBtn.addEventListener('click', () => {
-        sidebar.classList.add('active');
-        sidebar.classList.remove('hidden');
-    });
+    if (hamburgerMenuBtn && sidebar && closeSidebarBtn) {
+        hamburgerMenuBtn.addEventListener('click', () => {
+            sidebar.classList.add('active');
+            sidebar.classList.remove('hidden');
+            document.body.classList.add('sidebar-open');
+        });
 
-    // Close via X button
-    closeSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.remove('active');
-        sidebar.classList.add('hidden');
-    });
-
-    // Optional: Click outside to close
-    document.addEventListener('click', (e) => {
-        if (
-            sidebar.classList.contains('active') &&
-            !sidebar.contains(e.target) &&
-            !hamburgerMenuBtn.contains(e.target)
-        ) {
+        closeSidebarBtn.addEventListener('click', () => {
             sidebar.classList.remove('active');
             sidebar.classList.add('hidden');
-        }
-    });
+            document.body.classList.remove('sidebar-open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (
+                sidebar.classList.contains('active') &&
+                !sidebar.contains(e.target) &&
+                !hamburgerMenuBtn.contains(e.target)
+            ) {
+                sidebar.classList.remove('active');
+                sidebar.classList.add('hidden');
+                document.body.classList.remove('sidebar-open');
+            }
+        });
+    }
+});
+
+
 
 
