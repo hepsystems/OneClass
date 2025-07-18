@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded. Starting app initialization.");
 
     // --- DOM Element References ---
+    // It's crucial that these elements exist in index.html. If any are null, it can cause errors.
     const app = document.getElementById('app');
     const authSection = document.getElementById('auth-section');
     const loginContainer = document.getElementById('login-container');
@@ -161,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {number} duration - How long the notification should be visible in ms.
      */
     function showNotification(message, type = 'info', duration = 3000) {
-        console.log(`[Notification] Showing: ${message} (${type})`);
+        console.log(`[Notification] Showing: ${message} (Type: ${type})`);
         if (!notificationsContainer) {
             console.warn("Notifications container not found. Cannot display notification.");
             return;
@@ -203,7 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             element.className = isError ? 'error' : 'success';
             console.log(`[UI Message] ${element.id}: ${message} (Error: ${isError})`);
         } else {
-            console.warn(`Attempted to display message to null element: ${message}`);
+            console.warn(`Attempted to display message to null element (ID unknown): ${message}`);
         }
     }
 
@@ -212,23 +213,33 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {HTMLElement} sectionToShow - The DOM element of the section to show.
      */
     function showSection(sectionToShow) {
-        console.log(`[Navigation] Attempting to show section: ${sectionToShow ? sectionToShow.id : 'null'}`);
+        const sectionId = sectionToShow ? sectionToShow.id : 'null';
+        console.log(`[Navigation] showSection called. Attempting to show: ${sectionId}`);
+
         const allSections = [authSection, dashboardSection, classroomSection, settingsSection];
+        
         allSections.forEach(section => {
             if (section) {
+                console.log(`[Navigation] Hiding section: ${section.id}`);
                 section.classList.remove('active');
-                section.classList.add('hidden'); // Ensure it's hidden first
-                section.style.display = 'none'; // Force hide
+                section.classList.add('hidden');
+                // Directly manipulate style.display to ensure visibility is controlled
+                section.style.display = 'none'; 
             }
         });
 
         if (sectionToShow) {
+            console.log(`[Navigation] Making section active: ${sectionId}`);
             sectionToShow.classList.remove('hidden');
             sectionToShow.classList.add('active');
-            sectionToShow.style.display = 'block'; // Or 'flex', 'grid' depending on its internal display
-            console.log(`[Navigation] Successfully set ${sectionToShow.id} to active.`);
+            // Use 'block' or 'flex' based on the section's intended layout.
+            // For general sections, 'block' is usually safe. For #app which is flex,
+            // its direct children (sections) can be block or flex depending on their content.
+            // Given the CSS, 'block' is appropriate for these main sections.
+            sectionToShow.style.display = 'block'; 
+            console.log(`[Navigation] Successfully set ${sectionId} to display: ${sectionToShow.style.display}`);
         } else {
-            console.error("[Navigation] showSection called with a null sectionToShow.");
+            console.error("[Navigation] showSection called with a null sectionToShow. This indicates a missing DOM element.");
         }
     }
 
@@ -237,7 +248,8 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {HTMLElement} subSectionToShow - The DOM element of the sub-section to show.
      */
     function showClassroomSubSection(subSectionToShow) {
-        console.log(`[Classroom Nav] Showing sub-section: ${subSectionToShow ? subSectionToShow.id : 'null'}`);
+        const subSectionId = subSectionToShow ? subSectionToShow.id : 'null';
+        console.log(`[Classroom Nav] showClassroomSubSection called. Showing: ${subSectionId}`);
         const allSubSections = [whiteboardArea, chatSection, librarySection, assessmentsSection];
         allSubSections.forEach(subSection => {
             if (subSection) {
@@ -248,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (subSectionToShow) {
             subSectionToShow.classList.remove('hidden');
             subSectionToShow.classList.add('active');
-            console.log(`[Classroom Nav] Successfully set ${subSectionToShow.id} to active.`);
+            console.log(`[Classroom Nav] Successfully set ${subSectionId} to active.`);
         } else {
             console.error("[Classroom Nav] showClassroomSubSection called with a null subSectionToShow.");
         }
@@ -267,42 +279,56 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('[data-admin-only]').forEach(el => {
             el.classList.toggle('hidden', !isAdmin);
             el.classList.toggle('admin-feature-highlight', isAdmin);
+            console.log(`[UI Update] Element ${el.id || el.tagName} [data-admin-only]: hidden=${!isAdmin}`);
         });
 
         document.querySelectorAll('[data-user-only]').forEach(el => {
             el.classList.toggle('hidden', !isUser);
             el.classList.toggle('user-view-subtle', isUser);
+            console.log(`[UI Update] Element ${el.id || el.tagName} [data-user-only]: hidden=${!isUser}`);
         });
 
         if (whiteboardRoleMessage) {
             whiteboardRoleMessage.classList.toggle('hidden', isAdmin);
             whiteboardRoleMessage.textContent = isAdmin ? '' : 'Only administrators can draw on the whiteboard. Your view is read-only.';
+            console.log(`[UI Update] Whiteboard role message hidden=${isAdmin}`);
         }
         if (broadcastRoleMessage) {
             broadcastRoleMessage.classList.toggle('hidden', isAdmin);
             broadcastRoleMessage.textContent = isAdmin ? '' : 'Only administrators can start a video broadcast.';
+            console.log(`[UI Update] Broadcast role message hidden=${isAdmin}`);
         }
         if (libraryRoleMessage) {
             libraryRoleMessage.classList.toggle('hidden', isAdmin);
             libraryRoleMessage.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
+            console.log(`[UI Update] Library role message hidden=${isAdmin}`);
         }
 
         if (whiteboardCanvas) {
             whiteboardCanvas.style.pointerEvents = isAdmin ? 'auto' : 'none';
+            console.log(`[UI Update] Whiteboard canvas pointerEvents=${whiteboardCanvas.style.pointerEvents}`);
         }
 
         // Hide/show toolbar based on admin role
-        if (whiteboardToolsContainer) { // Changed from 'toolbar' to 'whiteboardToolsContainer'
+        if (whiteboardToolsContainer) {
             whiteboardToolsContainer.classList.toggle('hidden', !isAdmin);
+            console.log(`[UI Update] Whiteboard toolbar hidden=${!isAdmin}`);
         }
         // Hide/show video broadcast controls based on admin role
         if (videoBroadcastSection) {
             videoBroadcastSection.classList.toggle('hidden', !isAdmin);
+            console.log(`[UI Update] Video broadcast section hidden=${!isAdmin}`);
         }
 
         // Disable/enable broadcast buttons for admin
-        if (startBroadcastBtn) startBroadcastBtn.disabled = !isAdmin;
-        if (endBroadcastBtn) endBroadcastBtn.disabled = !isAdmin || !localStream; // Only enabled if admin AND stream exists
+        if (startBroadcastBtn) {
+            startBroadcastBtn.disabled = !isAdmin;
+            console.log(`[UI Update] Start broadcast button disabled=${!isAdmin}`);
+        }
+        if (endBroadcastBtn) {
+            endBroadcastBtn.disabled = !isAdmin || !localStream; // Only enabled if admin AND stream exists
+            console.log(`[UI Update] End broadcast button disabled=${!isAdmin || !localStream}`);
+        }
     }
 
     /**
@@ -312,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {string} The formatted display name.
      */
     function getDisplayName(username, role) {
-        return role === 'admin' ? `${username} (Admin)` : username : username;
+        return role === 'admin' ? `${username} (Admin)` : username;
     }
 
 
@@ -323,15 +349,19 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles direct classroom link access.
      */
     async function checkLoginStatus() {
-        console.log("checkLoginStatus called. Checking localStorage for user...");
+        console.log("checkLoginStatus called. (Line 160)");
         const storedUser = localStorage.getItem('currentUser');
+        console.log("Stored user in localStorage:", storedUser ? JSON.parse(storedUser) : "None");
+
         if (storedUser) {
             try {
                 currentUser = JSON.parse(storedUser);
-                console.log("Stored user found:", currentUser.username, "Role:", currentUser.role);
+                console.log("Parsed currentUser from localStorage:", currentUser.username, "Role:", currentUser.role);
 
-                // Verify session with backend
+                console.log("Attempting to verify session with backend at /api/@me...");
                 const response = await fetch('/api/@me');
+                console.log("/api/@me response status:", response.status);
+
                 if (response.ok) {
                     const data = await response.json();
                     // Update currentUser with fresh data from server (e.g., if role changed)
@@ -339,9 +369,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     console.log("Session verified with backend. Current user updated:", currentUser);
 
-                    if (currentUsernameDisplay) currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
-                    updateUIBasedOnRole();
-                    showSection(dashboardSection); // This is the key line for navigation
+                    // --- CRITICAL NAVIGATION STEPS ---
+                    if (currentUsernameDisplay) {
+                        currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
+                        console.log("Updated current username display.");
+                    }
+                    updateUIBasedOnRole(); // Update UI elements based on the *verified* role
+                    console.log("Calling showSection(dashboardSection)... (Line 189)");
+                    showSection(dashboardSection); // THIS IS THE LINE THAT SHOULD RENDER THE DASHBOARD
+                    // --- END CRITICAL NAVIGATION STEPS ---
+
                     loadAvailableClassrooms();
                     initializeSocketIO(); // Initialize socket after successful login
 
@@ -349,44 +386,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     const pathParts = window.location.pathname.split('/');
                     if (pathParts[1] === 'classroom' && pathParts.length > 2) {
                         const idFromUrl = pathParts[2];
-                        // Fetch all classrooms to find the one by ID
+                        console.log(`Direct classroom access detected for ID: ${idFromUrl}`);
                         const classroomsResponse = await fetch(`/api/classrooms`);
                         if (classroomsResponse.ok) {
                             const classrooms = await classroomsResponse.json();
                             const matched = classrooms.find(cls => cls.id === idFromUrl);
                             if (matched) {
+                                console.log(`Matching classroom found: ${matched.name}. Entering classroom.`);
                                 enterClassroom(matched.id, matched.name, matched.code);
                             } else {
+                                console.warn("Direct classroom access: Classroom not found or not joined.");
                                 localStorage.removeItem('currentClassroom');
                                 currentClassroom = null;
                                 showNotification("Classroom not found or not joined yet.", 'error');
-                                showSection(dashboardSection);
+                                showSection(dashboardSection); // Fallback to dashboard
                                 loadAvailableClassrooms();
                             }
                         } else {
+                            console.error("Failed to fetch classrooms for URL check:", classroomsResponse.status);
                             throw new Error("Failed to fetch classrooms for URL check.");
                         }
                     }
                 } else {
                     // Session expired or invalid, force re-login
-                    console.log("Session invalid or expired (backend response not OK). Forcing re-login.");
+                    console.log("Session invalid or expired (backend response not OK). Forcing re-login. (Line 221)");
                     localStorage.removeItem('currentUser');
                     currentUser = null;
                     showSection(authSection);
                     showNotification("Your session has expired. Please log in again.", 'error');
                 }
             } catch (err) {
-                console.error("Error during session verification:", err);
+                console.error("Error during session verification in checkLoginStatus:", err);
                 localStorage.removeItem('currentUser');
                 currentUser = null;
                 showSection(authSection);
                 showNotification("Error verifying session. Please log in again.", 'error');
             }
         } else {
-            console.log("No stored user found in localStorage. Showing auth section.");
+            console.log("No stored user found in localStorage. Showing auth section. (Line 233)");
             showSection(authSection);
             document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
-                el.classList.add('hidden');
+                el.classList.add('hidden'); // Ensure admin/user specific elements are hidden
             });
         }
     }
@@ -398,16 +438,22 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function handleAuth(event, endpoint) {
         event.preventDefault();
-        console.log(`handleAuth called for endpoint: ${endpoint}`);
+        console.log(`handleAuth called for endpoint: ${endpoint} (Line 247)`);
         const form = event.target;
-        const email = form.querySelector('input[type="email"])').value;
-        const password = form.querySelector('input[type="password"])').value;
+        // Ensure elements are accessed safely
+        const emailInput = form.querySelector('input[type="email"]');
+        const passwordInput = form.querySelector('input[type="password"]');
         const usernameInput = form.querySelector('#register-username');
         const roleSelect = form.querySelector('#register-role');
+
+        const email = emailInput ? emailInput.value : '';
+        const password = passwordInput ? passwordInput.value : '';
 
         const payload = { email, password };
         if (usernameInput) payload.username = usernameInput.value;
         if (roleSelect) payload.role = roleSelect.value;
+
+        console.log("Auth payload:", payload);
 
         try {
             const response = await fetch(endpoint, {
@@ -416,6 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
             const result = await response.json();
+            console.log("Auth API response:", result);
 
             if (response.ok) {
                 if (endpoint === '/api/login') {
@@ -423,18 +470,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     displayMessage(authMessage, result.message, false);
                     showNotification(result.message, 'success');
-                    console.log("Login successful. User data saved to localStorage. Calling checkLoginStatus in 1 second...");
+                    console.log("Login successful. User data saved to localStorage. Calling checkLoginStatus in 1 second... (Line 281)");
+                    // Give a small delay to allow notification to show and browser to process
                     setTimeout(() => {
-                        authMessage.textContent = ''; // Clear message after delay
-                        checkLoginStatus(); // Re-check status to navigate to dashboard
-                    }, 1000); // Small delay to show notification and allow DOM to settle
+                        if (authMessage) authMessage.textContent = ''; // Clear message after delay
+                        checkLoginStatus(); // Re-check status to trigger dashboard navigation
+                    }, 1000); 
                 } else { // Registration
                     displayMessage(authMessage, result.message + " Please log in.", false);
                     showNotification(result.message, 'success');
                     form.reset();
                     if (loginContainer) loginContainer.classList.remove('hidden');
                     if (registerContainer) registerContainer.classList.add('hidden');
-                    console.log("Registration successful. Redirecting to login form.");
+                    console.log("Registration successful. Redirecting to login form. (Line 293)");
                 }
             } else {
                 displayMessage(authMessage, result.error, true);
@@ -454,7 +502,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Loads all available classrooms and displays them, categorized by user's participation.
      */
     async function loadAvailableClassrooms() {
-        console.log("loadAvailableClassrooms called.");
+        console.log("loadAvailableClassrooms called. (Line 317)");
         if (!currentUser || !currentUser.id) {
             if (classroomList) classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             console.log("loadAvailableClassrooms: No current user, skipping fetch.");
@@ -464,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('/api/classrooms');
             const classrooms = await response.json();
+            console.log("Fetched classrooms:", classrooms);
             if (classroomList) classroomList.innerHTML = '';
 
             if (classrooms.length === 0) {
@@ -570,9 +619,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showClassroomSubSection(whiteboardArea); // Default to whiteboard view
         if (navWhiteboard) {
             navWhiteboard.classList.add('active-nav'); // Highlight whiteboard nav
-            navChat.classList.remove('active-nav');
-            navLibrary.classList.remove('active-nav');
-            navAssessments.classList.remove('active-nav');
+            if (navChat) navChat.classList.remove('active-nav');
+            if (navLibrary) navLibrary.classList.remove('active-nav');
+            if (navAssessments) navAssessments.classList.remove('active-nav');
         }
         updateUIBasedOnRole();
 
@@ -641,11 +690,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * Initializes the Socket.IO connection and sets up event listeners.
      */
     function initializeSocketIO() {
+        console.log("initializeSocketIO called. (Line 475)");
         if (socket && socket.connected) {
             console.log("[Socket.IO] Already connected, skipping re-initialization.");
             return;
         }
-        console.log("[Socket.IO] Initializing Socket.IO connection.");
+        console.log("[Socket.IO] Attempting to connect Socket.IO.");
         socket = io();
 
         socket.on('connect', () => {
@@ -920,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showNotification(`Could not start broadcast. Error: ${err.message}. Please ensure camera and microphone access are granted.`, 'error');
             localStream = null;
             if (localVideo) localVideo.classList.add('hidden'); // Hide local video
-            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+            if (startBroadcastBtn) startBroadcastBtn.disabled = true;
             if (endBroadcastBtn) endBroadcastBtn.disabled = true;
         }
     }
@@ -1054,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Sets up the whiteboard canvas and its controls.
      */
     function setupWhiteboardControls() {
-        console.log("setupWhiteboardControls called.");
+        console.log("setupWhiteboardControls called. (Line 766)");
         if (!whiteboardCanvas || !whiteboardCtx) {
              console.warn("[Whiteboard] Canvas element or context not found. Whiteboard controls not set up.");
              return;
@@ -1125,7 +1175,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
      */
     function resizeCanvas() {
-        console.log("resizeCanvas called.");
+        console.log("resizeCanvas called. (Line 839)");
         if (!whiteboardCanvas || !whiteboardCtx) return;
 
         const container = whiteboardCanvas.parentElement;
@@ -2485,7 +2535,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { console.log("Back to Assessment List from Submissions button clicked."); loadAssessments(); });
 
     // Initial Load
-    console.log("Calling checkLoginStatus on initial load.");
+    console.log("Calling checkLoginStatus on initial load. (Line 1600)");
     checkLoginStatus();
     if (whiteboardCanvas) resizeCanvas(); // Initial canvas setup
 });
