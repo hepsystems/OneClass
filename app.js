@@ -1,4 +1,4 @@
-// app.js (Complete Rewrite with Hamburger Menu, Whiteboard Pages, Notifications, and Selective Broadcast)
+// app.js (Final Integrated Version with Hamburger Menu, Robust Navigation, and Enhanced Logging)
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM Content Loaded. Starting app initialization.");
@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const classCodeDisplay = document.getElementById('class-code'); // Corrected from classCodeSpan
     const backToDashboardBtn = document.getElementById('back-to-dashboard');
 
-    // Hamburger Menu Elements
+    // Hamburger Menu Elements - THESE MUST EXIST IN index.html FOR MENU TO WORK
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
     const classroomSidebar = document.getElementById('classroom-sidebar');
     const closeSidebarBtn = document.getElementById('close-sidebar-btn');
@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles direct classroom link access.
      */
     async function checkLoginStatus() {
-        console.log("checkLoginStatus called. (Line 160)");
+        console.log("checkLoginStatus called. (Entry Point)");
         const storedUser = localStorage.getItem('currentUser');
         console.log("Stored user in localStorage:", storedUser ? JSON.parse(storedUser) : "None");
 
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log("Updated current username display.");
                     }
                     updateUIBasedOnRole(); // Update UI elements based on the *verified* role
-                    console.log("Calling showSection(dashboardSection)... (Line 189)");
+                    console.log("Calling showSection(dashboardSection)... (Triggering Dashboard Render)");
                     showSection(dashboardSection); // THIS IS THE LINE THAT SHOULD RENDER THE DASHBOARD
                     updateNavActiveState(navDashboard); // Ensure dashboard nav button is active
                     // --- END CRITICAL NAVIGATION STEPS ---
@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 } else {
                     // Session expired or invalid, force re-login
-                    console.log("Session invalid or expired (backend response not OK). Forcing re-login. (Line 221)");
+                    console.log("Session invalid or expired (backend response not OK). Forcing re-login.");
                     localStorage.removeItem('currentUser');
                     currentUser = null;
                     showSection(authSection);
@@ -445,11 +445,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification("Error verifying session. Please log in again.", 'error');
             }
         } else {
-            console.log("No stored user found in localStorage. Showing auth section. (Line 233)");
+            console.log("No stored user found in localStorage. Showing auth section.");
             showSection(authSection);
             updateNavActiveState(null); // Clear active nav
+            // Ensure admin/user specific elements are hidden if no user is logged in
             document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
-                el.classList.add('hidden'); // Ensure admin/user specific elements are hidden
+                el.classList.add('hidden');
             });
         }
     }
@@ -461,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function handleAuth(event, endpoint) {
         event.preventDefault();
-        console.log(`handleAuth called for endpoint: ${endpoint} (Line 247)`);
+        console.log(`handleAuth called for endpoint: ${endpoint}`);
         const form = event.target;
         // Ensure elements are accessed safely
         const emailInput = form.querySelector('input[type="email"]');
@@ -493,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     displayMessage(authMessage, result.message, false);
                     showNotification(result.message, 'success');
-                    console.log("Login successful. User data saved to localStorage. Calling checkLoginStatus in 1 second... (Line 281)");
+                    console.log("Login successful. User data saved to localStorage. Calling checkLoginStatus in 1 second...");
                     // Give a small delay to allow notification to show and browser to process
                     setTimeout(() => {
                         if (authMessage) authMessage.textContent = ''; // Clear message after delay
@@ -505,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     form.reset();
                     if (loginContainer) loginContainer.classList.remove('hidden');
                     if (registerContainer) registerContainer.classList.add('hidden');
-                    console.log("Registration successful. Redirecting to login form. (Line 293)");
+                    console.log("Registration successful. Redirecting to login form.");
                 }
             } else {
                 displayMessage(authMessage, result.error, true);
@@ -525,7 +526,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Loads all available classrooms and displays them, categorized by user's participation.
      */
     async function loadAvailableClassrooms() {
-        console.log("loadAvailableClassrooms called. (Line 317)");
+        console.log("loadAvailableClassrooms called.");
         if (!currentUser || !currentUser.id) {
             if (classroomList) classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             console.log("loadAvailableClassrooms: No current user, skipping fetch.");
@@ -709,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Initializes the Socket.IO connection and sets up event listeners.
      */
     function initializeSocketIO() {
-        console.log("initializeSocketIO called. (Line 475)");
+        console.log("initializeSocketIO called.");
         if (socket && socket.connected) {
             console.log("[Socket.IO] Already connected, skipping re-initialization.");
             return;
@@ -1123,7 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Sets up the whiteboard canvas and its controls.
      */
     function setupWhiteboardControls() {
-        console.log("setupWhiteboardControls called. (Line 766)");
+        console.log("setupWhiteboardControls called.");
         if (!whiteboardCanvas || !whiteboardCtx) {
              console.warn("[Whiteboard] Canvas element or context not found. Whiteboard controls not set up.");
              return;
@@ -1194,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
      */
     function resizeCanvas() {
-        console.log("resizeCanvas called. (Line 839)");
+        console.log("resizeCanvas called.");
         if (!whiteboardCanvas || !whiteboardCtx) return;
 
         const container = whiteboardCanvas.parentElement;
@@ -1626,7 +1627,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function updateUndoRedoButtons() {
         if (undoButton) undoButton.disabled = undoStack.length <= 1;
-        if (redoButton) redoButton.disabled = redoStack.length === 0;
+        if (redoButton) redoStack.disabled = redoStack.length === 0; // Fixed typo: redoStack.disabled
     }
 
     /**
@@ -2555,7 +2556,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { console.log("Back to Assessment List from Submissions button clicked."); loadAssessments(); });
 
     // Initial Load
-    console.log("Calling checkLoginStatus on initial load. (Line 1600)");
+    console.log("Calling checkLoginStatus on initial load.");
     checkLoginStatus();
     if (whiteboardCanvas) resizeCanvas(); // Initial canvas setup
 });
