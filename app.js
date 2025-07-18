@@ -1,6 +1,8 @@
 // app.js (Complete Rewrite with Hamburger Menu, Whiteboard Pages, Notifications, and Selective Broadcast)
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM Content Loaded. Starting app initialization.");
+
     // --- DOM Element References ---
     const app = document.getElementById('app');
     const authSection = document.getElementById('auth-section');
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
     const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
     const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize context safely
-    const toolbar = document.querySelector('.toolbar'); // Now inside the sidebar
+    const whiteboardToolsContainer = document.getElementById('whiteboard-tools-container'); // Toolbar now within sidebar
     const colorPicker = document.getElementById('colorPicker');
     const brushSizeInput = document.getElementById('brushSize');
     const toolButtons = document.querySelectorAll('.tool-button');
@@ -63,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareLinkDisplay = document.getElementById('share-link-display');
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
+    const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn'); // New share button in sidebar
 
     // Whiteboard Page Navigation
     const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
@@ -158,8 +161,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {number} duration - How long the notification should be visible in ms.
      */
     function showNotification(message, type = 'info', duration = 3000) {
+        console.log(`[Notification] Showing: ${message} (${type})`);
         if (!notificationsContainer) {
-            console.warn("Notifications container not found.");
+            console.warn("Notifications container not found. Cannot display notification.");
             return;
         }
         const notificationDiv = document.createElement('div');
@@ -197,6 +201,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (element) {
             element.textContent = message;
             element.className = isError ? 'error' : 'success';
+            console.log(`[UI Message] ${element.id}: ${message} (Error: ${isError})`);
+        } else {
+            console.warn(`Attempted to display message to null element: ${message}`);
         }
     }
 
@@ -205,15 +212,23 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {HTMLElement} sectionToShow - The DOM element of the section to show.
      */
     function showSection(sectionToShow) {
-        [authSection, dashboardSection, classroomSection, settingsSection].forEach(section => {
+        console.log(`[Navigation] Attempting to show section: ${sectionToShow ? sectionToShow.id : 'null'}`);
+        const allSections = [authSection, dashboardSection, classroomSection, settingsSection];
+        allSections.forEach(section => {
             if (section) {
-                section.classList.add('hidden');
                 section.classList.remove('active');
+                section.classList.add('hidden'); // Ensure it's hidden first
+                section.style.display = 'none'; // Force hide
             }
         });
+
         if (sectionToShow) {
             sectionToShow.classList.remove('hidden');
             sectionToShow.classList.add('active');
+            sectionToShow.style.display = 'block'; // Or 'flex', 'grid' depending on its internal display
+            console.log(`[Navigation] Successfully set ${sectionToShow.id} to active.`);
+        } else {
+            console.error("[Navigation] showSection called with a null sectionToShow.");
         }
     }
 
@@ -222,15 +237,20 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {HTMLElement} subSectionToShow - The DOM element of the sub-section to show.
      */
     function showClassroomSubSection(subSectionToShow) {
-        [whiteboardArea, chatSection, librarySection, assessmentsSection].forEach(subSection => {
+        console.log(`[Classroom Nav] Showing sub-section: ${subSectionToShow ? subSectionToShow.id : 'null'}`);
+        const allSubSections = [whiteboardArea, chatSection, librarySection, assessmentsSection];
+        allSubSections.forEach(subSection => {
             if (subSection) {
-                subSection.classList.add('hidden');
                 subSection.classList.remove('active');
+                subSection.classList.add('hidden');
             }
         });
         if (subSectionToShow) {
             subSectionToShow.classList.remove('hidden');
             subSectionToShow.classList.add('active');
+            console.log(`[Classroom Nav] Successfully set ${subSectionToShow.id} to active.`);
+        } else {
+            console.error("[Classroom Nav] showClassroomSubSection called with a null subSectionToShow.");
         }
     }
 
@@ -240,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Elements with `data-user-only` are shown only for regular users.
      */
     function updateUIBasedOnRole() {
+        console.log("[UI Update] Updating UI based on role. Current user:", currentUser ? currentUser.role : 'none');
         const isAdmin = currentUser && currentUser.role === 'admin';
         const isUser = currentUser && currentUser.role === 'user';
 
@@ -271,8 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Hide/show toolbar based on admin role
-        if (toolbar) {
-            toolbar.classList.toggle('hidden', !isAdmin);
+        if (whiteboardToolsContainer) { // Changed from 'toolbar' to 'whiteboardToolsContainer'
+            whiteboardToolsContainer.classList.toggle('hidden', !isAdmin);
         }
         // Hide/show video broadcast controls based on admin role
         if (videoBroadcastSection) {
@@ -291,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {string} The formatted display name.
      */
     function getDisplayName(username, role) {
-        return role === 'admin' ? `${username} (Admin)` : username;
+        return role === 'admin' ? `${username} (Admin)` : username : username;
     }
 
 
@@ -302,24 +323,25 @@ document.addEventListener('DOMContentLoaded', () => {
      * Handles direct classroom link access.
      */
     async function checkLoginStatus() {
-        console.log("checkLoginStatus called.");
+        console.log("checkLoginStatus called. Checking localStorage for user...");
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
-            currentUser = JSON.parse(storedUser);
-            console.log("Stored user found:", currentUser.username);
-            // Verify session with backend
             try {
+                currentUser = JSON.parse(storedUser);
+                console.log("Stored user found:", currentUser.username, "Role:", currentUser.role);
+
+                // Verify session with backend
                 const response = await fetch('/api/@me');
                 if (response.ok) {
                     const data = await response.json();
                     // Update currentUser with fresh data from server (e.g., if role changed)
                     currentUser = { ...currentUser, ...data };
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    console.log("Session verified. Current user updated:", currentUser);
+                    console.log("Session verified with backend. Current user updated:", currentUser);
 
                     if (currentUsernameDisplay) currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
                     updateUIBasedOnRole();
-                    showSection(dashboardSection);
+                    showSection(dashboardSection); // This is the key line for navigation
                     loadAvailableClassrooms();
                     initializeSocketIO(); // Initialize socket after successful login
 
@@ -342,26 +364,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                 loadAvailableClassrooms();
                             }
                         } else {
-                            throw new Error("Failed to fetch classrooms.");
+                            throw new Error("Failed to fetch classrooms for URL check.");
                         }
                     }
                 } else {
                     // Session expired or invalid, force re-login
-                    console.log("Session invalid or expired, forcing re-login.");
+                    console.log("Session invalid or expired (backend response not OK). Forcing re-login.");
                     localStorage.removeItem('currentUser');
                     currentUser = null;
                     showSection(authSection);
                     showNotification("Your session has expired. Please log in again.", 'error');
                 }
             } catch (err) {
-                console.error("Error verifying login status:", err);
+                console.error("Error during session verification:", err);
                 localStorage.removeItem('currentUser');
                 currentUser = null;
                 showSection(authSection);
                 showNotification("Error verifying session. Please log in again.", 'error');
             }
         } else {
-            console.log("No stored user found. Showing auth section.");
+            console.log("No stored user found in localStorage. Showing auth section.");
             showSection(authSection);
             document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
                 el.classList.add('hidden');
@@ -376,9 +398,10 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function handleAuth(event, endpoint) {
         event.preventDefault();
+        console.log(`handleAuth called for endpoint: ${endpoint}`);
         const form = event.target;
-        const email = form.querySelector('input[type="email"]').value;
-        const password = form.querySelector('input[type="password"]').value;
+        const email = form.querySelector('input[type="email"])').value;
+        const password = form.querySelector('input[type="password"])').value;
         const usernameInput = form.querySelector('#register-username');
         const roleSelect = form.querySelector('#register-role');
 
@@ -400,26 +423,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     displayMessage(authMessage, result.message, false);
                     showNotification(result.message, 'success');
-                    console.log("Login successful. Calling checkLoginStatus in 1 second...");
+                    console.log("Login successful. User data saved to localStorage. Calling checkLoginStatus in 1 second...");
                     setTimeout(() => {
                         authMessage.textContent = ''; // Clear message after delay
                         checkLoginStatus(); // Re-check status to navigate to dashboard
-                    }, 1000); // Small delay to show notification
+                    }, 1000); // Small delay to show notification and allow DOM to settle
                 } else { // Registration
                     displayMessage(authMessage, result.message + " Please log in.", false);
                     showNotification(result.message, 'success');
                     form.reset();
                     if (loginContainer) loginContainer.classList.remove('hidden');
                     if (registerContainer) registerContainer.classList.add('hidden');
-                    console.log("Registration successful. Redirecting to login.");
+                    console.log("Registration successful. Redirecting to login form.");
                 }
             } else {
                 displayMessage(authMessage, result.error, true);
                 showNotification(result.error, 'error');
-                console.error("Auth failed:", result.error);
+                console.error("Authentication failed:", result.error);
             }
         } catch (error) {
-            console.error('Error during authentication:', error);
+            console.error('Error during authentication fetch:', error);
             displayMessage(authMessage, 'An error occurred during authentication.', true);
             showNotification('An error occurred during authentication.', 'error');
         }
@@ -431,6 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Loads all available classrooms and displays them, categorized by user's participation.
      */
     async function loadAvailableClassrooms() {
+        console.log("loadAvailableClassrooms called.");
         if (!currentUser || !currentUser.id) {
             if (classroomList) classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             console.log("loadAvailableClassrooms: No current user, skipping fetch.");
@@ -584,6 +608,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('leave', { 'classroomId': currentClassroom.id });
             }
             socket.disconnect();
+            socket = null;
+        } else if (socket) { // If socket exists but not connected, still try to null it
             socket = null;
         }
         endBroadcast(); // Clean up all WebRTC resources
@@ -875,7 +901,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             localStream = await navigator.mediaDevices.getUserMedia(constraints);
-            if (localVideo) localVideo.srcObject = localStream;
+            if (localVideo) {
+                localVideo.srcObject = localStream;
+                localVideo.classList.remove('hidden'); // Show local video preview
+            }
             if (startBroadcastBtn) startBroadcastBtn.disabled = true;
             if (endBroadcastBtn) endBroadcastBtn.disabled = false;
             showNotification(`Broadcast started: ${selectedType && selectedType.value === 'video_audio' ? 'Video & Audio' : 'Audio Only'}`, 'success');
@@ -890,6 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[WebRTC] Error accessing media devices:', err);
             showNotification(`Could not start broadcast. Error: ${err.message}. Please ensure camera and microphone access are granted.`, 'error');
             localStream = null;
+            if (localVideo) localVideo.classList.add('hidden'); // Hide local video
             if (startBroadcastBtn) startBroadcastBtn.disabled = false;
             if (endBroadcastBtn) endBroadcastBtn.disabled = true;
         }
@@ -903,6 +933,7 @@ document.addEventListener('DOMContentLoaded', () => {
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
             if (localVideo) localVideo.srcObject = null;
+            if (localVideo) localVideo.classList.add('hidden'); // Hide local video
         }
 
         for (const peerId in peerConnections) {
@@ -1023,6 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Sets up the whiteboard canvas and its controls.
      */
     function setupWhiteboardControls() {
+        console.log("setupWhiteboardControls called.");
         if (!whiteboardCanvas || !whiteboardCtx) {
              console.warn("[Whiteboard] Canvas element or context not found. Whiteboard controls not set up.");
              return;
@@ -1093,9 +1125,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
      */
     function resizeCanvas() {
+        console.log("resizeCanvas called.");
         if (!whiteboardCanvas || !whiteboardCtx) return;
 
         const container = whiteboardCanvas.parentElement;
+        if (!container) {
+            console.warn("Canvas parent container not found for resizing.");
+            return;
+        }
         
         const aspectRatio = 1200 / 800; // Original design aspect ratio
         let newWidth = container.clientWidth - 40; // Account for padding/margins
@@ -2257,8 +2294,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
 
     // Auth Section
-    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); if (loginContainer) loginContainer.classList.add('hidden'); if (registerContainer) registerContainer.classList.remove('hidden'); if (authMessage) authMessage.textContent = ''; });
-    if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); if (registerContainer) registerContainer.classList.add('hidden'); if (loginContainer) loginContainer.classList.remove('hidden'); if (authMessage) authMessage.textContent = ''; });
+    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); console.log("Show Register Link clicked."); if (loginContainer) loginContainer.classList.add('hidden'); if (registerContainer) registerContainer.classList.remove('hidden'); if (authMessage) authMessage.textContent = ''; });
+    if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); console.log("Show Login Link clicked."); if (registerContainer) registerContainer.classList.add('hidden'); if (loginContainer) loginContainer.classList.remove('hidden'); if (authMessage) authMessage.textContent = ''; });
 
     if (loginForm) {
         loginForm.addEventListener('submit', (e) => handleAuth(e, '/api/login'));
@@ -2270,6 +2307,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
+            console.log("Logout button clicked.");
             try {
                 const response = await fetch('/api/logout', { method: 'POST' });
                 if (response.ok) {
@@ -2280,11 +2318,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     cleanupClassroomResources(); // Clean up all classroom-related state
                     showSection(authSection);
                     showNotification("Logged out successfully.", 'success');
+                    console.log("Logout successful. Redirecting to auth section.");
                 } else {
                     showNotification('Failed to logout.', 'error');
+                    console.error("Logout failed (server response not OK).");
                 }
             } catch (error) {
-                console.error('Error during logout:', error);
+                console.error('Error during logout fetch:', error);
                 showNotification('An error occurred during logout.', 'error');
             }
         });
@@ -2293,6 +2333,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dashboard Section
     if (createClassroomBtn) {
         createClassroomBtn.addEventListener('click', async () => {
+            console.log("Create Classroom button clicked.");
             const classroomName = newClassroomNameInput ? newClassroomNameInput.value.trim() : '';
             if (!classroomName) {
                 displayMessage(classroomMessage, 'Please enter a classroom name.', true);
@@ -2310,9 +2351,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (newClassroomNameInput) newClassroomNameInput.value = '';
                     loadAvailableClassrooms();
                     showNotification("Classroom created!", 'success');
+                    console.log("Classroom created successfully.");
                 } else {
                     displayMessage(classroomMessage, result.error, true);
                     showNotification(result.error, 'error');
+                    console.error("Classroom creation failed:", result.error);
                 }
             } catch (error) {
                 console.error('Error creating classroom:', error);
@@ -2323,36 +2366,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Main Navigation
-    if (navDashboard) navDashboard.addEventListener('click', () => { showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
-    if (navClassroom) navClassroom.addEventListener('click', () => { if (currentClassroom && currentClassroom.id) { enterClassroom(currentClassroom.id, currentClassroom.name, currentClassroom.code); } else { showNotification('Please create or join a classroom first!', 'error'); } });
-    if (navSettings) navSettings.addEventListener('click', () => { showSection(settingsSection); if (navSettings) navSettings.classList.add('active-nav'); if (navDashboard) navDashboard.classList.remove('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (currentUser) { if (settingsUsernameInput) settingsUsernameInput.value = currentUser.username; if (settingsEmailInput) settingsEmailInput.value = currentUser.email; } cleanupClassroomResources(); });
-    if (backToDashboardBtn) backToDashboardBtn.addEventListener('click', () => { showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
-    if (backToDashboardFromSettingsBtn) backToDashboardFromSettingsBtn.addEventListener('click', () => { showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); });
+    if (navDashboard) navDashboard.addEventListener('click', () => { console.log("Nav Dashboard clicked."); showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
+    if (navClassroom) navClassroom.addEventListener('click', () => { console.log("Nav Classroom clicked."); if (currentClassroom && currentClassroom.id) { enterClassroom(currentClassroom.id, currentClassroom.name, currentClassroom.code); } else { showNotification('Please create or join a classroom first!', 'error'); } });
+    if (navSettings) navSettings.addEventListener('click', () => { console.log("Nav Settings clicked."); showSection(settingsSection); if (navSettings) navSettings.classList.add('active-nav'); if (navDashboard) navDashboard.classList.remove('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (currentUser) { if (settingsUsernameInput) settingsUsernameInput.value = currentUser.username; if (settingsEmailInput) settingsEmailInput.value = currentUser.email; } cleanupClassroomResources(); });
+    if (backToDashboardBtn) backToDashboardBtn.addEventListener('click', () => { console.log("Back to Dashboard button clicked."); showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navClassroom) navClassroom.classList.remove('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
+    if (backToDashboardFromSettingsBtn) backToDashboardFromSettingsBtn.addEventListener('click', () => { console.log("Back to Dashboard from Settings button clicked."); showSection(dashboardSection); if (navDashboard) navDashboard.classList.add('active-nav'); if (navSettings) navSettings.classList.remove('active-nav'); loadAvailableClassrooms(); updateUIBasedOnRole(); });
 
     // Classroom - Hamburger Menu Toggle
     if (hamburgerMenuBtn) {
         hamburgerMenuBtn.addEventListener('click', () => {
-            if (classroomSidebar) classroomSidebar.classList.remove('hidden');
+            console.log("Hamburger menu button clicked.");
+            if (classroomSidebar) classroomSidebar.classList.toggle('active'); // Use toggle for consistent behavior
         });
     }
 
     if (closeSidebarBtn) {
         closeSidebarBtn.addEventListener('click', () => {
-            if (classroomSidebar) classroomSidebar.classList.add('hidden');
+            console.log("Close sidebar button clicked.");
+            if (classroomSidebar) classroomSidebar.classList.remove('active');
         });
     }
 
     // Classroom Sub-section Navigation (within sidebar)
-    if (navChat) navChat.addEventListener('click', () => { showClassroomSubSection(chatSection); if (navChat) navChat.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); loadChatHistory(); });
-    if (navWhiteboard) navWhiteboard.addEventListener('click', () => { showClassroomSubSection(whiteboardArea); if (navWhiteboard) navWhiteboard.classList.add('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); setupWhiteboardControls(); renderCurrentWhiteboardPage(); });
-    if (navLibrary) navLibrary.addEventListener('click', () => { showClassroomSubSection(librarySection); if (navLibrary) navLibrary.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); loadLibraryFiles(); });
-    if (navAssessments) navAssessments.addEventListener('click', () => { showClassroomSubSection(assessmentsSection); if (navAssessments) navAssessments.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); loadAssessments(); });
+    if (navChat) navChat.addEventListener('click', () => { console.log("Nav Chat clicked."); showClassroomSubSection(chatSection); if (navChat) navChat.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); loadChatHistory(); });
+    if (navWhiteboard) navWhiteboard.addEventListener('click', () => { console.log("Nav Whiteboard clicked."); showClassroomSubSection(whiteboardArea); if (navWhiteboard) navWhiteboard.classList.add('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); setupWhiteboardControls(); renderCurrentWhiteboardPage(); });
+    if (navLibrary) navLibrary.addEventListener('click', () => { console.log("Nav Library clicked."); showClassroomSubSection(librarySection); if (navLibrary) navLibrary.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navAssessments) navAssessments.classList.remove('active-nav'); loadLibraryFiles(); });
+    if (navAssessments) navAssessments.addEventListener('click', () => { console.log("Nav Assessments clicked."); showClassroomSubSection(assessmentsSection); if (navAssessments) navAssessments.classList.add('active-nav'); if (navWhiteboard) navWhiteboard.classList.remove('active-nav'); if (navChat) navChat.classList.remove('active-nav'); if (navLibrary) navLibrary.classList.remove('active-nav'); loadAssessments(); });
 
 
     // Settings Section
     if (updateProfileForm) {
         updateProfileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            console.log("Update Profile form submitted.");
             const username = settingsUsernameInput ? settingsUsernameInput.value.trim() : '';
             if (!username) { showNotification('Username cannot be empty.', 'error'); return; }
             try {
@@ -2365,8 +2411,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.setItem('currentUser', JSON.stringify(currentUser));
                         if (currentUsernameDisplay) currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
                     }
+                    console.log("Profile updated successfully.");
                 } else {
                     showNotification('Error updating profile: ' + (result.error || 'Unknown error'), 'error');
+                    console.error("Profile update failed:", result.error);
                 }
             } catch (error) {
                 console.error('Error updating profile:', error);
@@ -2376,34 +2424,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Share Link
-    if (shareLinkInput && copyShareLinkBtn) {
-        // The share button is now on the whiteboard section (if you added one, otherwise this won't fire)
-        const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn');
-        if (shareWhiteboardBtn) {
-            shareWhiteboardBtn.addEventListener('click', async () => {
-                const classroomId = currentClassroom ? currentClassroom.id : null;
-                if (classroomId) {
-                    try {
-                        const response = await fetch(`/api/generate-share-link/${classroomId}`);
-                        const data = await response.json();
-                        if (response.ok) {
-                            if (shareLinkInput) shareLinkInput.value = data.share_link;
-                            if (shareLinkDisplay) shareLinkDisplay.classList.remove('hidden');
-                            if (shareLinkInput) shareLinkInput.select(); // Select the text for easy copying
-                            showNotification("Share link generated. Click 'Copy Link' to copy.", 'info');
-                        } else {
-                            showNotification('Error generating share link: ' + (data.error || 'Unknown error'), 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error generating share link:', error);
-                        showNotification('An error occurred while generating the share link.', 'error');
+    if (shareWhiteboardBtn) {
+        shareWhiteboardBtn.addEventListener('click', async () => {
+            console.log("Share Whiteboard button clicked.");
+            const classroomId = currentClassroom ? currentClassroom.id : null;
+            if (classroomId) {
+                try {
+                    const response = await fetch(`/api/generate-share-link/${classroomId}`);
+                    const data = await response.json();
+                    if (response.ok) {
+                        if (shareLinkInput) shareLinkInput.value = data.share_link;
+                        if (shareLinkDisplay) shareLinkDisplay.classList.remove('hidden');
+                        if (shareLinkInput) shareLinkInput.select(); // Select the text for easy copying
+                        showNotification("Share link generated. Click 'Copy Link' to copy.", 'info');
+                        console.log("Share link generated:", data.share_link);
+                    } else {
+                        showNotification('Error generating share link: ' + (data.error || 'Unknown error'), 'error');
+                        console.error("Share link generation failed:", data.error);
                     }
-                } else {
-                    showNotification('Please create or join a classroom first to get a shareable link.', 'error');
+                } catch (error) {
+                    console.error('Error generating share link:', error);
+                    showNotification('An error occurred while generating the share link.', 'error');
                 }
-            });
-        }
+            } else {
+                showNotification('Please create or join a classroom first to get a shareable link.', 'error');
+            }
+        });
+    }
+    if (copyShareLinkBtn) {
         copyShareLinkBtn.addEventListener('click', () => {
+            console.log("Copy Share Link button clicked.");
             if (shareLinkInput) {
                 shareLinkInput.select();
                 document.execCommand('copy');
@@ -2417,6 +2467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (endBroadcastBtn) endBroadcastBtn.addEventListener('click', endBroadcast);
     broadcastTypeRadios.forEach(radio => {
         radio.addEventListener('change', () => {
+            console.log("Broadcast type changed.");
             // If broadcast is active and type changes, restart it
             if (localStream && localStream.active) {
                 showNotification("Broadcast type changed. Restarting broadcast...", 'info');
@@ -2430,10 +2481,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
     if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
     if (submitAnswersBtn) submitAnswersBtn.addEventListener('click', submitAnswers);
-    if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
-    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
+    if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { console.log("Back to Assessment List button clicked."); currentAssessmentToTake = null; loadAssessments(); });
+    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { console.log("Back to Assessment List from Submissions button clicked."); loadAssessments(); });
 
     // Initial Load
+    console.log("Calling checkLoginStatus on initial load.");
     checkLoginStatus();
     if (whiteboardCanvas) resizeCanvas(); // Initial canvas setup
 });
