@@ -112,6 +112,7 @@ def login():
     session['username'] = user['username'] # Store username in session
     session['role'] = user['role'] # Store role in session
     session.permanent = True # Make session permanent
+    print(f"User {user['username']} ({user['role']}) logged in. Session set.")
 
     return jsonify({
         "message": "Login successful",
@@ -125,10 +126,32 @@ def login():
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
+    user_id = session.get('user_id')
+    if user_id:
+        print(f"User {session.get('username')} logging out. Clearing session.")
     session.pop('user_id', None)
     session.pop('username', None)
     session.pop('role', None) # Clear role from session
     return jsonify({"message": "Logged out successfully"}), 200
+
+# NEW: Endpoint to check current user session
+@app.route('/api/@me', methods=['GET'])
+def get_current_user():
+    user_id = session.get('user_id')
+    if user_id:
+        user = users_collection.find_one({"id": user_id}, {"_id": 0, "password": 0}) # Exclude _id and password
+        if user:
+            print(f"Current user session check: {user.get('username')} ({user.get('role')})")
+            return jsonify(user), 200
+        else:
+            print(f"User ID {user_id} found in session but not in DB. Clearing session.")
+            session.pop('user_id', None)
+            session.pop('username', None)
+            session.pop('role', None)
+            return jsonify({"error": "User not found"}), 404
+    print("No user ID in session. Unauthorized.")
+    return jsonify({"error": "Unauthorized"}), 401
+
 
 @app.route('/api/update-profile', methods=['POST'])
 def update_profile():
@@ -153,6 +176,7 @@ def update_profile():
         return jsonify({"message": "No changes made"}), 200 # No error if same username
     
     session['username'] = new_username # Update username in session
+    print(f"Profile for {user_id} updated to username: {new_username}")
     return jsonify({"message": "Profile updated successfully"}), 200
 
 @app.route('/api/upload-library-files', methods=['POST'])
@@ -201,6 +225,7 @@ def upload_library_files():
         'message': f"Admin {session.get('username')} uploaded new file(s) to the library."
     }, room=class_room_id)
 
+    print(f"Files uploaded to classroom {class_room_id} by {session.get('username')}")
     return jsonify({"message": "Files uploaded successfully", "files": uploaded_file_info}), 201
 
 @app.route('/api/library-files/<classroomId>', methods=['GET'])
@@ -214,6 +239,7 @@ def get_library_files(classroomId):
     for file in files:
         if 'original_filename' in file: # Handle older entries
             file['filename'] = file.pop('original_filename')
+    print(f"Fetched {len(files)} library files for classroom {classroomId}")
     return jsonify(files), 200
 
 @app.route('/api/library-files/<fileId>', methods=['DELETE'])
@@ -242,11 +268,13 @@ def delete_library_file(fileId):
             'classroomId': file_data.get('classroomId'),
             'message': f"Admin {session.get('username')} deleted file '{file_data.get('original_filename', file_data.get('filename'))}' from the library."
         }, room=file_data.get('classroomId'))
+        print(f"File {fileId} deleted by {session.get('username')}")
         return jsonify({"message": "File deleted successfully"}), 200
+    print(f"Attempted to delete file {fileId} but not found in DB.")
     return jsonify({"error": "File not found"}), 404
 
 
-@app.route('/api/create-assessment', methods=['POST'])
+@app.route('/api/assessments', methods=['POST'])
 def create_assessment():
     user_id = session.get('user_id')
     username = session.get('username')
@@ -288,8 +316,8 @@ def create_assessment():
             "id": question_id,
             "assessmentId": assessment_id,
             "classroomId": class_room_id, # Redundant but kept for consistency
-            "question_text": q_data.get('text'), # Changed from question_text to text
-            "question_type": q_data.get('type'), # Changed from question_type to type
+            "question_text": q_data.get('question_text') or q_data.get('text'), # Ensure both keys are checked
+            "question_type": q_data.get('question_type') or q_data.get('type'), # Ensure both keys are checked
             "options": q_data.get('options'), # List of strings for MCQ
             "correct_answer": q_data.get('correct_answer') # For MCQ, e.g., "A", "B"; for text, can be null or example answer
         })
@@ -300,6 +328,7 @@ def create_assessment():
         'message': f"Admin {session.get('username')} created a new assessment: '{title}'."
     }, room=class_room_id)
 
+    print(f"Assessment '{title}' created by {username} in classroom {class_room_id}")
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<classroomId>', methods=['GET'])
@@ -312,6 +341,7 @@ def get_assessments(classroomId):
     # Fetch questions for each assessment
     for assessment in assessments:
         assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessment['id']}, {"_id": 0}))
+    print(f"Fetched {len(assessments)} assessments for classroom {classroomId}")
     return jsonify(assessments), 200
 
 @app.route('/api/assessments/<assessmentId>', methods=['GET'])
@@ -322,9 +352,11 @@ def get_assessment_details(assessmentId):
     
     assessment = assessments_collection.find_one({"id": assessmentId}, {"_id": 0})
     if not assessment:
+        print(f"Assessment {assessmentId} not found.")
         return jsonify({"error": "Assessment not found"}), 404
     
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
+    print(f"Fetched details for assessment {assessmentId}")
     return jsonify(assessment), 200
 
 
@@ -397,6 +429,7 @@ def submit_assessment():
         'message': f"User {username} submitted an assessment for '{assessments_collection.find_one({'id': assessment_id}).get('title')}'."
     }, room=class_room_id)
 
+    print(f"Assessment {assessment_id} submitted by {username}. Score: {score}/{total_questions}")
     return jsonify({"message": "Assessment submitted successfully", "submission_id": submission_id, "score": score, "total_questions": total_questions}), 201
 
 @app.route('/api/assessments/<assessmentId>/submissions', methods=['GET'])
@@ -414,6 +447,7 @@ def get_assessment_submissions(assessmentId):
         query["student_id"] = user_id
 
     submissions = list(assessment_submissions_collection.find(query, {"_id": 0}).sort("submitted_at", -1))
+    print(f"Fetched {len(submissions)} submissions for assessment {assessmentId}")
     return jsonify(submissions), 200
 
 @app.route('/api/assessments/<assessmentId>', methods=['DELETE'])
@@ -438,7 +472,9 @@ def delete_assessment(assessmentId):
             'classroomId': assessment.get('classroomId'),
             'message': f"Admin {session.get('username')} deleted assessment '{assessment.get('title')}'."
         }, room=assessment.get('classroomId'))
+        print(f"Assessment {assessmentId} and related data deleted by {session.get('username')}")
         return jsonify({"message": "Assessment and its related data deleted successfully"}), 200
+    print(f"Attempted to delete assessment {assessmentId} but not found in DB.")
     return jsonify({"error": "Assessment not found"}), 404
 
 @app.route('/api/classrooms', methods=['POST'])
@@ -470,6 +506,7 @@ def create_classroom():
         'classroomId': classroom_id, # Use new classroom ID
         'message': f"Admin {username} created a new classroom: '{classroom_name}'."
     })
+    print(f"Classroom '{classroom_name}' created by {username}. ID: {classroom_id}")
     return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
 
 @app.route('/api/classrooms', methods=['GET'])
@@ -480,6 +517,7 @@ def get_classrooms():
 
     # MODIFIED: Return ALL classrooms for an authenticated user to discover
     all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
+    print(f"Fetched {len(all_classrooms)} classrooms for display.")
     return jsonify(all_classrooms), 200
 
 @app.route('/api/join-classroom', methods=['POST'])
@@ -519,9 +557,10 @@ def join_classroom():
             'classroomId': classroom_id,
             'message': f"User {session.get('username')} joined classroom '{classroom.get('name')}'."
         }, room=class_room_id)
-
+        print(f"User {session.get('username')} joined classroom {classroom_id}.")
         return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
     else:
+        print(f"User {session.get('username')} already a participant in classroom {classroom_id}.")
         return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
 
 @app.route('/api/generate-share-link/<classroomId>', methods=['GET'])
@@ -541,7 +580,7 @@ def generate_share_link(classroomId):
     # Construct the shareable URL for the classroom
     # This URL should lead to your single-page app which then handles routing
     share_link = f"{base_url}/classroom/{classroomId}"
-
+    print(f"Generated share link for classroom {classroomId}: {share_link}")
     return jsonify({"share_link": share_link}), 200
 
 # --- Socket.IO Event Handlers ---
@@ -566,11 +605,12 @@ def disconnect():
 
     # Find which classroom the user was in to emit user_left and webrtc_peer_disconnected
     classroomId_to_leave = None
+    # Iterate through all rooms the sid is in
     for room_id in socketio.rooms(sid):
         # Exclude the user's own SID room and the default Flask-SocketIO app room
-        if room_id != sid and room_id != request.sid: # Check if it's a classroom room
-            # A simple check: assume classroom IDs are UUIDs (or specific prefix)
-            # This is a basic heuristic; a more robust way would be to store room_id in session on join
+        # A simple check: assume classroom IDs are UUIDs (or specific prefix)
+        if room_id != sid and room_id != request.sid:
+            # Check if it's a classroom room (assuming UUID format for classroom IDs)
             if len(room_id) == 36 and '-' in room_id: # Rough check for UUID format
                 classroomId_to_leave = room_id
                 break
@@ -622,7 +662,9 @@ def on_join(data):
         whiteboard_history_pages[page_index].extend(drawings)
     
     # Convert dict to ordered list of lists
-    ordered_history = [whiteboard_history_pages[i] for i in sorted(whiteboard_history_pages.keys())]
+    # Ensure all pages up to the max index are included, even if empty
+    max_page_index = max(whiteboard_history_pages.keys()) if whiteboard_history_pages else 0
+    ordered_history = [whiteboard_history_pages.get(i, []) for i in range(max_page_index + 1)]
     
     emit('whiteboard_data', {'action': 'history', 'history': ordered_history}, room=sid)
     print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
@@ -709,17 +751,18 @@ def handle_whiteboard_data(data):
 
     if action == 'draw':
         # Store drawing action in MongoDB for the specific page
+        # Ensure 'drawings' array exists and push to it
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": page_index},
             {"$push": {"drawings": {
-                "prevX": drawing_data['startX'], # Renamed to match client's startX/Y
-                "prevY": drawing_data['startY'], # Renamed to match client's startX/Y
-                "currX": drawing_data['endX'],   # Renamed to match client's endX/Y
-                "currY": drawing_data['endY'],   # Renamed to match client's endX/Y
+                "startX": drawing_data['startX'],
+                "startY": drawing_data['startY'],
+                "endX": drawing_data['endX'],
+                "endY": drawing_data['endY'],
                 "color": drawing_data['color'],
                 "width": drawing_data['width'],
-                "tool": drawing_data['tool'],    # Store tool type
-                "text": drawing_data.get('text', '') # Store text if present
+                "tool": drawing_data['tool'],
+                "text": drawing_data.get('text', '')
             }}},
             upsert=True # Create the document if it doesn't exist
         )
@@ -850,4 +893,3 @@ def handle_admin_action_update(data):
 if __name__ == '__main__':
     print("Server running on http://localhost:5000 (with Socket.IO)")
     socketio.run(app, debug=True, port=5000, host='0.0.0.0')
-
