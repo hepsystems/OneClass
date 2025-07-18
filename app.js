@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const libraryFileInput = document.getElementById('library-file-input');
     const uploadLibraryFilesBtn = document.getElementById('upload-library-files-btn');
     const libraryRoleMessage = document.getElementById('library-role-message');
+    const libraryFilesList = document.getElementById('library-files-list'); // Ensure this element is referenced
 
     // Assessment Elements
     const assessmentCreationForm = document.getElementById('assessment-creation-form');
@@ -126,11 +127,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let whiteboardCtx;
     let isDrawing = false;
     let startX, startY;
-    let lastX, lastY;
+    let lastX, lastY; // Used for live drawing of pen/eraser segments
     let currentColor = colorPicker ? colorPicker.value : '#FFFFFF';
     let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
     let currentTool = 'pen';
     let snapshot; // For temporary drawing of shapes
+
+    // For advanced pen/eraser drawing (stroke smoothing, line interpolation)
+    let currentStrokePoints = []; // Stores all points for a single pen/eraser stroke
 
     // Whiteboard History (Multi-page)
     let whiteboardPages = [[]]; // Array of arrays, each sub-array is a page of drawing commands
@@ -616,17 +620,18 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             if (data.action === 'draw') {
-                const { startX, startY, endX, endY, color, width, tool, text, pageIndex } = data.data;
+                const { tool, color, width, pageIndex } = data.data;
                 // Ensure page exists locally
                 if (!whiteboardPages[pageIndex]) {
                     whiteboardPages[pageIndex] = [];
                 }
-                whiteboardPages[pageIndex].push({ action: 'draw', data: { startX, startY, endX, endY, color, width, tool, text } });
+                whiteboardPages[pageIndex].push(data); // Push the entire data object for re-rendering
 
                 if (pageIndex === currentPageIndex) {
                     whiteboardCtx.save();
                     applyDrawingProperties(tool, color, width);
-                    drawWhiteboardItem(tool, startX, startY, endX, endY, text);
+                    // Pass the full data object to drawWhiteboardItem for proper re-rendering
+                    drawWhiteboardItem(data.data);
                     whiteboardCtx.restore();
                 }
             } else if (data.action === 'clear') {
@@ -933,6 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
         whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
         whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
 
+        // Touch/Stylus Optimization: Use passive: false for touchmove to allow preventDefault
         whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
         whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
         whiteboardCanvas.addEventListener('touchend', handleMouseUp);
@@ -1001,6 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startX = coords.x;
         startY = coords.y;
         lastX = coords.x;
+        lastY = coords.y; // Initialize lastY as well
 
         // Save snapshot for temporary drawing of shapes
         if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
@@ -1008,6 +1015,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
+            currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
             whiteboardCtx.beginPath(); // Start a new path for pen/eraser
             whiteboardCtx.moveTo(startX, startY);
         } else if (currentTool === 'text') {
@@ -1020,23 +1028,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 whiteboardCtx.restore();
 
                 saveState(); // Save the state after drawing text
+                const textData = {
+                    startX: startX,
+                    startY: startY,
+                    endX: startX, // For text, endX/Y are same as start
+                    endY: startY,
+                    text: textInput,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: 'text',
+                    pageIndex: currentPageIndex
+                };
                 socket.emit('whiteboard_data', {
                     action: 'draw',
                     classroomId: currentClassroom.id,
-                    data: {
-                        startX: startX,
-                        startY: startY,
-                        endX: startX, // For text, endX/Y are same as start
-                        endY: startY,
-                        text: textInput,
-                        color: currentColor,
-                        width: currentBrushSize,
-                        tool: 'text',
-                        pageIndex: currentPageIndex
-                    }
+                    data: textData
                 });
                 // Add to local page data
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: startX, endY: startY, text: textInput, color: currentColor, width: currentBrushSize, tool: 'text' } });
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
             }
             isDrawing = false; // Text drawing is a single click action
         }
@@ -1044,10 +1053,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Handles the movement during a drawing action (mousemove or touchmove).
+     * Includes stroke smoothing and line interpolation for pen/eraser.
      */
     function handleMouseMove(e) {
         if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
-        e.preventDefault();
+        e.preventDefault(); // Prevent scrolling on touch devices during drawing
 
         const coords = getCoords(e);
         const currentX = coords.x;
@@ -1063,29 +1073,23 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 whiteboardCtx.globalCompositeOperation = 'source-over';
             }
-            whiteboardCtx.lineTo(currentX, currentY);
-            whiteboardCtx.stroke();
-            whiteboardCtx.beginPath(); // Start new path for next segment
-            whiteboardCtx.moveTo(currentX, currentY); // Move to current point
 
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: {
-                    startX: lastX,
-                    startY: lastY,
-                    endX: currentX,
-                    endY: currentY,
-                    color: currentColor,
-                    width: currentBrushSize,
-                    tool: currentTool,
-                    pageIndex: currentPageIndex
-                }
-            });
-            // Add to local page data
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX: lastX, startY: lastY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
+            // Add current point to the stroke points array
+            currentStrokePoints.push({ x: currentX, y: currentY });
+
+            // Stroke Smoothing and Line Interpolation using Quadratic Bezier Curve
+            // Draw a segment from the last point to the current point,
+            // using the last point as the control point for a smoother curve.
+            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
+            whiteboardCtx.stroke();
+            
+            // Move to the midpoint for the start of the next segment
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
+
             lastX = currentX;
             lastY = currentY;
+            
         } else {
             // For shapes, restore snapshot and redraw preview
             if (snapshot) {
@@ -1094,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Fallback if snapshot is somehow missing (shouldn't happen)
                 renderCurrentWhiteboardPage();
             }
-            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY);
+            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
         }
         whiteboardCtx.restore();
     }
@@ -1107,7 +1111,28 @@ document.addEventListener('DOMContentLoaded', () => {
         isDrawing = false;
 
         if (currentTool === 'pen' || currentTool === 'eraser') {
+            // Finish the last segment of the stroke
+            whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
+            whiteboardCtx.stroke();
             whiteboardCtx.closePath(); // Close the current path for pen/eraser
+
+            // Emit the complete stroke data
+            const strokeData = {
+                points: currentStrokePoints, // Array of all points in the stroke
+                color: currentColor,
+                width: currentBrushSize,
+                tool: currentTool,
+                pageIndex: currentPageIndex
+            };
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: strokeData
+            });
+            // Add to local page data
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
+            currentStrokePoints = []; // Clear points for the next stroke
+
         } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
             // For shapes, draw the final shape and emit data
             const finalCoords = getCoords(e);
@@ -1115,32 +1140,25 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentY = finalCoords.y;
 
             // Redraw the entire page to ensure the final shape is persisted correctly
-            // This is important because `putImageData` only works on the current canvas state.
-            // By redrawing the whole page, we ensure the new shape is part of the page's history.
             renderCurrentWhiteboardPage(); // Clear and redraw existing commands
             
             whiteboardCtx.save();
             whiteboardCtx.strokeStyle = currentColor;
             whiteboardCtx.lineWidth = currentBrushSize;
-            drawWhiteboardItem(currentTool, startX, startY, currentX, currentY); // Draw the final shape
+            const shapeData = {
+                startX, startY, endX: currentX, endY: currentY,
+                color: currentColor, width: currentBrushSize, tool: currentTool
+            };
+            drawWhiteboardItem(shapeData); // Draw the final shape
             whiteboardCtx.restore();
 
             socket.emit('whiteboard_data', {
                 action: 'draw',
                 classroomId: currentClassroom.id,
-                data: {
-                    startX: startX,
-                    startY: startY,
-                    endX: currentX,
-                    endY: currentY,
-                    color: currentColor,
-                    width: currentBrushSize,
-                    tool: currentTool,
-                    pageIndex: currentPageIndex
-                }
+                data: { ...shapeData, pageIndex: currentPageIndex }
             });
-            // Add to local page data (already done in handleMouseMove for pen/eraser, but for shapes, it's done here)
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: { startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool } });
+            // Add to local page data
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
         }
 
         if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
@@ -1150,50 +1168,84 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Draws a specific whiteboard item (line, rectangle, circle, text).
-     * @param {string} tool - The drawing tool.
-     * @param {number} x1 - Start X coordinate.
-     * @param {number} y1 - Start Y coordinate.
-     * @param {number} x2 - End X coordinate.
-     * @param {number} y2 - End Y coordinate.
-     * @param {string} [text=''] - Text content for the 'text' tool.
+     * Draws a specific whiteboard item (line, rectangle, circle, text, or smoothed pen/eraser stroke).
+     * @param {object} commandData - The data object for the drawing command.
+     * @param {string} commandData.tool - The drawing tool.
+     * @param {number} [commandData.startX] - Start X coordinate (for shapes/text).
+     * @param {number} [commandData.startY] - Start Y coordinate (for shapes/text).
+     * @param {number} [commandData.endX] - End X coordinate (for shapes).
+     * @param {number} [commandData.endY] - End Y coordinate (for shapes).
+     * @param {string} [commandData.text] - Text content for the 'text' tool.
+     * @param {Array<object>} [commandData.points] - Array of {x, y} points for 'pen'/'eraser' strokes.
+     * @param {string} commandData.color - Stroke/fill color.
+     * @param {number} commandData.width - Stroke width.
      */
-    function drawWhiteboardItem(tool, x1, y1, x2, y2, text = '') {
+    function drawWhiteboardItem(commandData) {
+        const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
+
+        // Apply properties before drawing
+        whiteboardCtx.strokeStyle = color;
+        whiteboardCtx.lineWidth = width;
+        whiteboardCtx.fillStyle = color;
+
+        if (tool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'destination-out';
+        } else {
+            whiteboardCtx.globalCompositeOperation = 'source-over';
+        }
+
         switch (tool) {
             case 'pen':
             case 'eraser':
-                // For pen/eraser, the path is already managed by handleMouseMove
-                // This function is primarily for re-rendering history.
-                whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(x1, y1);
-                whiteboardCtx.lineTo(x2, y2);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
+                // Re-render smoothed stroke from points
+                if (points && points.length > 1) {
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(points[0].x, points[0].y);
+
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const p0 = points[i - 1];
+                        const p1 = points[i];
+                        const p2 = points[i + 1];
+
+                        // Calculate control point for quadratic bezier curve
+                        // Simple midpoint average for smoothing
+                        const controlX = (p0.x + p1.x) / 2;
+                        const controlY = (p0.y + p1.y) / 2;
+                        const endX_segment = (p1.x + p2.x) / 2;
+                        const endY_segment = (p1.y + p2.y) / 2;
+
+                        whiteboardCtx.quadraticCurveTo(p1.x, p1.y, endX_segment, endY_segment);
+                    }
+                    // Draw the last segment
+                    whiteboardCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+                    whiteboardCtx.stroke();
+                    whiteboardCtx.closePath();
+                }
                 break;
             case 'line':
                 whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(x1, y1);
-                whiteboardCtx.lineTo(x2, y2);
+                whiteboardCtx.moveTo(startX, startY);
+                whiteboardCtx.lineTo(endX, endY);
                 whiteboardCtx.stroke();
                 whiteboardCtx.closePath();
                 break;
             case 'rectangle':
                 whiteboardCtx.beginPath();
-                whiteboardCtx.rect(x1, y1, x2 - x1, y2 - y1);
+                whiteboardCtx.rect(startX, startY, endX - startX, endY - startY);
                 whiteboardCtx.stroke();
                 whiteboardCtx.closePath();
                 break;
             case 'circle':
-                // For circles, x1, y1 is center, x2, y2 defines radius
-                const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+                // For circles, startX, startY is center, endX, endY defines radius
+                const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
                 whiteboardCtx.beginPath();
-                whiteboardCtx.arc(x1, y1, radius, 0, Math.PI * 2);
+                whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
                 whiteboardCtx.stroke();
                 whiteboardCtx.closePath();
                 break;
             case 'text':
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillText(text, x1, y1);
+                whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Use 'width' as brush size for text scaling
+                whiteboardCtx.fillText(text, startX, startY);
                 break;
         }
     }
@@ -1415,6 +1467,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentPage) {
             currentPage.forEach(command => {
                 whiteboardCtx.save();
+                // Apply properties based on the command data
                 whiteboardCtx.strokeStyle = command.data.color;
                 whiteboardCtx.lineWidth = command.data.width;
                 whiteboardCtx.fillStyle = command.data.color;
@@ -1423,7 +1476,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     whiteboardCtx.globalCompositeOperation = 'source-over';
                 }
-                drawWhiteboardItem(command.data.tool, command.data.startX, command.data.startY, command.data.endX, command.data.endY, command.data.text);
+                // Pass the entire data object to drawWhiteboardItem
+                drawWhiteboardItem(command.data);
                 whiteboardCtx.restore();
             });
         }
@@ -1523,17 +1577,17 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     async function loadLibraryFiles() {
         if (!currentClassroom || !currentClassroom.id) {
-            libraryFilesList.innerHTML = '<p>Select a classroom to view library files.</p>';
+            if (libraryFilesList) libraryFilesList.innerHTML = '<p>Select a classroom to view library files.</p>';
             return;
         }
 
         try {
             const response = await fetch(`/api/library-files/${currentClassroom.id}`);
             const files = await response.json();
-            libraryFilesList.innerHTML = '';
+            if (libraryFilesList) libraryFilesList.innerHTML = '';
 
             if (files.length === 0) {
-                libraryFilesList.innerHTML = '<p>No files in this library yet.</p>';
+                if (libraryFilesList) libraryFilesList.innerHTML = '<p>No files in this library yet.</p>';
             } else {
                 files.forEach(file => {
                     const fileDiv = document.createElement('div');
@@ -1541,13 +1595,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span><a href="${file.url}" target="_blank">${file.original_filename || file.filename}</a></span>
                         ${currentUser && currentUser.role === 'admin' ? `<button class="delete-file-btn" data-file-id="${file.id}">Delete</button>` : ''}
                     `;
-                    libraryFilesList.appendChild(fileDiv);
+                    if (libraryFilesList) libraryFilesList.appendChild(fileDiv);
                 });
                 if (currentUser && currentUser.role === 'admin') {
                     document.querySelectorAll('.delete-file-btn').forEach(button => {
                         button.addEventListener('click', async (e) => {
                             const fileId = e.target.dataset.fileId;
-                            if (confirm("Are you sure you want to delete this file?")) {
+                            // Using a custom modal/notification instead of confirm()
+                            showNotification("Are you sure you want to delete this file? (Click again to confirm)", false);
+                            // Simple double-click confirmation for now, or implement a proper modal
+                            e.target.dataset.confirmDelete = 'true';
+                            setTimeout(() => {
+                                delete e.target.dataset.confirmDelete; // Reset after a short delay
+                            }, 3000); // 3 seconds to confirm
+                            
+                            if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') { // Check for double click and confirmation flag
                                 try {
                                     const response = await fetch(`/api/library-files/${fileId}`, {
                                         method: 'DELETE'
@@ -1570,7 +1632,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error('Error loading library files:', error);
-            libraryFilesList.innerHTML = '<p>Failed to load library files.</p>';
+            if (libraryFilesList) libraryFilesList.innerHTML = '<p>Failed to load library files.</p>';
         }
     }
 
@@ -1613,6 +1675,91 @@ document.addEventListener('DOMContentLoaded', () => {
                 mcqOptionsDiv.classList.add('hidden');
             }
         });
+    }
+
+    /**
+     * Submits a new assessment created by an admin.
+     */
+    async function submitAssessment() {
+        if (!currentUser || currentUser.role !== 'admin') {
+            showNotification("Only administrators can create assessments.", true);
+            return;
+        }
+        if (!currentClassroom || !currentClassroom.id) {
+            showNotification("Please select a classroom first.", true);
+            return;
+        }
+
+        const title = assessmentTitleInput.value.trim();
+        const description = assessmentDescriptionTextarea.value.trim();
+        const questions = [];
+
+        if (!title) {
+            displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
+            return;
+        }
+
+        const questionItems = questionsContainer.querySelectorAll('.question-item');
+        questionItems.forEach((item, index) => {
+            const questionText = item.querySelector('.question-text').value.trim();
+            const questionType = item.querySelector('.question-type').value;
+            let options = [];
+            let correctAnswer = '';
+
+            if (questionType === 'mcq') {
+                item.querySelectorAll('.mcq-option').forEach(input => {
+                    if (input.value.trim() !== '') {
+                        options.push(input.value.trim());
+                    }
+                });
+                correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
+            }
+
+            if (questionText) {
+                questions.push({
+                    id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
+                    question_text: questionText,
+                    question_type: questionType,
+                    options: options.length > 0 ? options : undefined, // Only include if options exist
+                    correct_answer: correctAnswer || undefined // Only include if correct answer exists
+                });
+            }
+        });
+
+        if (questions.length === 0) {
+            displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/assessments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    classroomId: currentClassroom.id,
+                    title,
+                    description,
+                    questions
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                displayMessage(assessmentCreationMessage, result.message, false);
+                assessmentCreationForm.reset();
+                questionsContainer.innerHTML = ''; // Clear questions
+                questionCounter = 0; // Reset counter
+                addQuestionField(); // Add one empty question field back
+                loadAssessments(); // Reload the list of assessments
+                showNotification("Assessment created successfully!");
+            } else {
+                displayMessage(assessmentCreationMessage, result.error, true);
+                showNotification(`Error creating assessment: ${result.error}`, true);
+            }
+        } catch (error) {
+            console.error('Error submitting assessment:', error);
+            displayMessage(assessmentCreationMessage, 'An error occurred during submission.', true);
+            showNotification('An error occurred during assessment creation.', true);
+        }
     }
 
     /**
@@ -1687,7 +1834,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.querySelectorAll('.delete-assessment-btn').forEach(button => {
                     button.addEventListener('click', async (e) => {
                         const assessmentId = e.target.dataset.assessmentId;
-                        if (confirm("Are you sure you want to delete this assessment and all its submissions?")) {
+                        // Using a custom modal/notification instead of confirm()
+                        showNotification("Are you sure you want to delete this assessment? (Click again to confirm)", false);
+                        e.target.dataset.confirmDelete = 'true';
+                        setTimeout(() => {
+                            delete e.target.dataset.confirmDelete;
+                        }, 3000);
+
+                        if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') {
                             try {
                                 const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
                                 const result = await response.json();
