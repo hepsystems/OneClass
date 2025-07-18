@@ -736,7 +736,7 @@ def handle_chat_message(data):
 def handle_whiteboard_data(data):
     classroomId = data.get('classroomId')
     action = data.get('action')
-    drawing_data = data.get('data') # This now contains pageIndex and drawing coordinates/styles
+    drawing_action = data.get('drawing') or data.get('data')
     sender_id = request.sid
     user_role = session.get('role')
 
