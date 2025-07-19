@@ -1,4 +1,4 @@
-/* General Body and App Layout (No changes needed, looks good) */
+/* General Body and App Layout */
 body {
     font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
@@ -38,7 +38,7 @@ section {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
-/* Visibility Classes (No changes needed, looks good) */
+/* Visibility Classes */
 .hidden {
     display: none !important;
 }
@@ -47,10 +47,10 @@ section {
     display: block !important;
 }
 
-/* Role-specific highlights (No changes needed, looks good) */
+/* Role-specific highlights */
 .admin-feature-highlight {
     border: 1px solid #007bff;
-    background-color: #e6f7ff;
+    background-color: #e6f7ff; /* Lighter blue */
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 15px;
@@ -68,14 +68,14 @@ section {
     font-weight: 500;
 }
 
-/* Auth Section (No changes needed, looks good) */
+/* Auth Section */
 #auth-section, #settings-section {
     max-width: 550px;
     margin: 40px auto;
     text-align: center;
     background-color: #ffffff;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    border: none;
+    border: none; /* Remove default section border */
 }
 
 #auth-section h2, #auth-section h3 {
@@ -146,14 +146,14 @@ section {
 #auth-message {
     margin-top: 20px;
     font-weight: bold;
-    color: #dc3545;
+    color: #dc3545; /* Red for error messages */
     background-color: #f8d7da;
     border: 1px solid #f5c6cb;
     padding: 10px;
     border-radius: 5px;
 }
 
-/* Dashboard Section (No changes needed, looks good) */
+/* Dashboard Section */
 #dashboard-section h2 {
     color: #333;
     margin-bottom: 20px;
@@ -172,7 +172,7 @@ section {
 }
 
 .main-nav button {
-    background-color: #e9ecef;
+    background-color: #e9ecef; /* Light gray for non-active */
     color: #555;
     padding: 10px 20px;
     border: none;
@@ -291,7 +291,7 @@ section {
     background-color: #5a6268;
 }
 
-/* Classroom Section (No changes needed here, good structure) */
+/* Classroom Section */
 #classroom-section {
     display: flex;
     flex-direction: column;
@@ -303,13 +303,13 @@ section {
 
 .classroom-header {
     display: flex;
-    align-items: center; /* Ensures vertical alignment of items in header */
+    align-items: center;
     padding: 15px 25px;
     background-color: #f8f9fa;
     border-bottom: 1px solid #e9ecef;
     gap: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    border-radius: 8px 8px 0 0;
+    border-radius: 8px 8px 0 0; /* Match app border radius */
 }
 
 .classroom-header h2 {
@@ -330,7 +330,7 @@ section {
     color: #007bff;
 }
 
-/* Hamburger Menu Icon (No changes needed, looks good) */
+/* Hamburger Menu Icon */
 .hamburger-menu {
     background: none;
     border: none;
@@ -344,19 +344,17 @@ section {
 .hamburger-menu:hover {
     color: #007bff;
 }
-
-/* Sidebar - UPDATED */
 .sidebar {
-    height: 100vh; /* Occupy full viewport height */
-    width: 260px;
+    height: 65vh; /* 👈 Only part of the screen vertically */
+    width: 260px; /* 👈 Enough space for menu items */
     position: fixed;
-    top: 0; /* Aligns to the very top of the viewport */
+    top: 60px; /* 👈 Start slightly below the header (adjust as needed) */
     left: 0;
-    z-index: 100; /* Higher z-index to appear above content */
+    z-index: 50;
     background-color: #2c3e50;
     overflow-x: hidden;
     transition: transform 0.4s ease;
-    padding-top: 70px; /* Sufficient padding to clear a typical header */
+    padding-top: 20px;
     color: #ecf0f1;
     box-shadow: 4px 0 15px rgba(0,0,0,0.3);
     display: flex;
@@ -365,27 +363,11 @@ section {
     border-radius: 0 8px 8px 0; /* Slight rounding for modern look */
 }
 
+
+
+
 .sidebar.active {
     transform: translateX(0);
-}
-
-/* Optional: Overlay for when sidebar is active to dim content and allow click-to-close */
-.sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 99; /* Below sidebar */
-    display: none; /* Hidden by default */
-    transition: opacity 0.4s ease;
-    opacity: 0;
-}
-
-.sidebar-overlay.active {
-    display: block;
-    opacity: 1;
 }
 
 .sidebar button {
@@ -399,7 +381,7 @@ section {
     width: 100%;
     text-align: left;
     cursor: pointer;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid rgba(255,255,255,0.08); /* Subtle separator */
 }
 
 .sidebar button:last-child {
@@ -407,15 +389,15 @@ section {
 }
 
 .sidebar button:hover {
-    background-color: #34495e;
+    background-color: #34495e; /* Slightly lighter on hover */
     color: #ffffff;
 }
 
 .sidebar button.active-nav {
-    background-color: #007bff;
+    background-color: #007bff; /* Highlight active nav item */
     color: white;
     font-weight: 600;
-    box-shadow: inset 5px 0 0 #28a745;
+    box-shadow: inset 5px 0 0 #28a745; /* Green active bar */
 }
 
 .sidebar .close-btn {
@@ -427,46 +409,46 @@ section {
     background: none;
     border: none;
     cursor: pointer;
-    line-height: 1;
+    line-height: 1; /* Align 'x' properly */
     padding: 0;
     margin: 0;
 }
 
-/* Classroom Content Wrapper (No changes needed, looks good) */
+/* Classroom Content Wrapper */
 .classroom-content-wrapper {
     display: flex;
     flex-grow: 1;
     position: relative;
-    height: calc(100vh - 180px);
-    padding-top: 20px;
+    height: calc(100vh - 180px); /* Adjusted for header and app padding */
+    padding-top: 20px; /* Space from header */
 }
 
 .classroom-sub-section {
-    border: 1px solid #e0e6ed;
+    border: 1px solid #e0e6ed; /* Subtle border for subsections */
     border-radius: 8px;
-    margin: 0 15px 15px 15px;
-    padding: 20px;
+    margin: 0 15px 15px 15px; /* Margin around sub-sections */
+    padding: 20px; /* Internal padding */
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    height: auto;
+    height: auto; /* Let content determine height, but flex-grow manages overall */
     background-color: #ffffff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    overflow: auto;
+    overflow: auto; /* Allow scrolling for content that exceeds height */
 }
 
-/* Whiteboard specific styles (No changes needed, looks good) */
+/* Whiteboard specific styles */
 #whiteboard-area {
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+    align-items: center; /* Center canvas horizontally */
+    justify-content: center; /* Center canvas vertically */
+    padding: 0; /* Remove padding from this specific sub-section */
     border: none;
     box-shadow: none;
     margin: 0;
-    background-color: #fdfdfd;
+    background-color: #fdfdfd; /* A very light background for whiteboard */
 }
 
 #whiteboard-canvas {
@@ -474,10 +456,10 @@ section {
     background-color: #ffffff;
     cursor: crosshair;
     display: block;
-    width: 98%;
+    width: 98%; /* Slightly smaller to show border */
     max-width: 100%;
-    height: auto;
-    min-height: 400px;
+    height: auto; /* Maintain aspect ratio */
+    min-height: 400px; /* Minimum height for canvas */
     box-shadow: 0 4px 10px rgba(0,0,0,0.07);
     border-radius: 8px;
 }
@@ -490,21 +472,21 @@ section {
     border-radius: 5px;
     margin-bottom: 15px;
     width: fit-content;
-    align-self: flex-start;
+    align-self: flex-start; /* Align to the start of the flex container */
 }
 
-/* Toolbar inside sidebar (No changes needed, looks good) */
+/* Toolbar inside sidebar */
 #whiteboard-tools-container {
     display: flex;
     flex-direction: column;
     gap: 15px;
     padding: 20px;
-    background-color: #34495e;
+    background-color: #34495e; /* Match sidebar background */
     border-top: 1px solid rgba(255,255,255,0.1);
     border-bottom: 1px solid rgba(255,255,255,0.1);
     margin-top: 20px;
-    border-radius: 8px;
-    margin: 15px;
+    border-radius: 8px; /* Rounded corners for the container */
+    margin: 15px; /* Some margin inside the sidebar */
 }
 
 #whiteboard-tools-container h4 {
@@ -518,13 +500,13 @@ section {
 .sidebar .tool-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 8px; /* Slightly increased gap */
     justify-content: center;
 }
 
 .sidebar .tool-button,
 .sidebar .action-button {
-    background-color: #556c82;
+    background-color: #556c82; /* Slightly lighter than sidebar for buttons */
     color: white;
     padding: 10px 15px;
     border: none;
@@ -535,7 +517,7 @@ section {
     min-width: 90px;
     text-align: center;
     transition: background-color 0.3s ease, transform 0.2s ease;
-    display: flex;
+    display: flex; /* For icon and text alignment */
     align-items: center;
     justify-content: center;
     gap: 5px;
@@ -556,19 +538,19 @@ section {
     color: #ecf0f1;
     font-weight: 500;
     margin-top: 10px;
-    display: block;
+    display: block; /* Make label take full width */
     text-align: center;
 }
 
 .sidebar input[type="color"] {
     width: 40px;
     height: 40px;
-    border: 2px solid #ecf0f1;
-    border-radius: 50%;
+    border: 2px solid #ecf0f1; /* White border for color picker */
+    border-radius: 50%; /* Circle shape */
     display: block;
-    margin: 10px auto 15px auto;
+    margin: 10px auto 15px auto; /* Center with space */
     padding: 0;
-    overflow: hidden;
+    overflow: hidden; /* Hide default input styles */
 }
 
 .sidebar input[type="color"]::-webkit-color-swatch-wrapper {
@@ -617,7 +599,7 @@ section {
 }
 
 #share-whiteboard-btn {
-    background-color: #17a2b8;
+    background-color: #17a2b8; /* Info blue */
     margin-top: 15px;
     width: 100%;
 }
@@ -631,11 +613,11 @@ section {
     justify-content: center;
     align-items: center;
     padding: 15px;
-    background-color: #f0f4f7;
+    background-color: #f0f4f7; /* Light background for navigation */
     border-top: 1px solid #e0e6ed;
     flex-shrink: 0;
-    width: 98%;
-    border-radius: 0 0 8px 8px;
+    width: 98%; /* Match canvas width */
+    border-radius: 0 0 8px 8px; /* Rounded bottom corners */
     margin-top: 10px;
     box-shadow: 0 -2px 5px rgba(0,0,0,0.03);
 }
@@ -706,14 +688,15 @@ section {
     background-color: #218838;
 }
 
-/* Video Broadcast controls inside sidebar (No changes needed, looks good) */
+
+/* Video Broadcast controls inside sidebar */
 #video-broadcast-section {
     padding: 20px;
     border-top: 1px solid rgba(255,255,255,0.1);
     text-align: center;
-    background-color: #34495e;
+    background-color: #34495e; /* Match sidebar background */
     border-radius: 8px;
-    margin: 15px;
+    margin: 15px; /* Some margin inside the sidebar */
 }
 
 #video-broadcast-section h4 {
@@ -738,11 +721,11 @@ section {
 
 .broadcast-options input[type="radio"] {
     margin-right: 8px;
-    accent-color: #007bff;
+    accent-color: #007bff; /* Color for radio button */
 }
 
 #start-broadcast, #end-broadcast {
-    background-color: #dc3545;
+    background-color: #dc3545; /* Red for broadcast buttons */
     color: white;
     padding: 10px 18px;
     border: none;
@@ -751,7 +734,7 @@ section {
     font-size: 15px;
     margin: 5px;
     width: auto;
-    display: inline-flex;
+    display: inline-flex; /* For icon alignment */
     align-items: center;
     gap: 5px;
     transition: background-color 0.3s ease, transform 0.2s ease;
@@ -780,19 +763,20 @@ section {
     text-align: center;
 }
 
-/* Local and Remote Video Display (No changes needed, looks good) */
+
+/* Local and Remote Video Display */
 #local-video {
-    width: 160px;
+    width: 160px; /* Slightly larger */
     height: 120px;
     background-color: #333;
-    border: 2px solid #007bff;
+    border: 2px solid #007bff; /* Blue border */
     position: absolute;
     bottom: 20px;
     left: 20px;
     z-index: 10;
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    object-fit: cover;
+    object-fit: cover; /* Ensure video fills the frame */
 }
 
 #remote-video-container {
@@ -801,21 +785,21 @@ section {
     left: 20px;
     display: flex;
     flex-wrap: wrap;
-    gap: 15px;
+    gap: 15px; /* Increased gap */
     z-index: 5;
 }
 
 #remote-video-container video {
-    width: 180px;
+    width: 180px; /* Larger remote videos */
     height: 135px;
     background-color: #333;
-    border: 2px solid #28a745;
+    border: 2px solid #28a745; /* Green border for remote */
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     object-fit: cover;
 }
 
-/* Notifications within whiteboard area (No changes needed, looks good) */
+/* Notifications within whiteboard area */
 #notifications-container {
     position: absolute;
     top: 20px;
@@ -828,7 +812,7 @@ section {
 }
 
 .notification-message {
-    background-color: rgba(44, 62, 80, 0.9);
+    background-color: rgba(44, 62, 80, 0.9); /* Darker, slightly transparent */
     color: white;
     padding: 12px 18px;
     border-radius: 8px;
@@ -837,7 +821,7 @@ section {
     min-width: 220px;
     text-align: center;
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    transform: translateY(-10px);
+    transform: translateY(-10px); /* Start slightly up */
 }
 
 .notification-message.show {
@@ -845,14 +829,14 @@ section {
     transform: translateY(0);
 }
 
-/* Chat Section (No changes needed, looks good) */
+/* Chat Section */
 #chat-section {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     height: 100%;
-    border: none;
-    padding: 0;
+    border: none; /* Already handled by classroom-sub-section */
+    padding: 0; /* Already handled by classroom-sub-section */
     box-shadow: none;
     background-color: #ffffff;
 }
@@ -875,14 +859,14 @@ section {
     margin-bottom: 15px;
     background-color: #fdfdfd;
     display: flex;
-    flex-direction: column;
+    flex-direction: column; /* Stack messages */
     gap: 10px;
 }
 
 .chat-message-item {
     padding: 8px 12px;
     border-radius: 8px;
-    word-wrap: break-word;
+    word-wrap: break-word; /* Ensure long words wrap */
     max-width: 90%;
 }
 
@@ -936,7 +920,7 @@ section {
     transform: translateY(-2px);
 }
 
-/* Library Section (No changes needed, looks good) */
+/* Library Section */
 #library-section {
     border: none;
     padding: 0;
@@ -1038,7 +1022,7 @@ section {
     background-color: #c82333;
 }
 
-/* Assessments Section (No changes needed, looks good) */
+/* Assessments Section */
 #assessments-section {
     border: none;
     padding: 0;
@@ -1075,7 +1059,7 @@ section {
 #assessment-creation-form textarea,
 #assessment-creation-form select {
     display: block;
-    width: calc(100% - 24px);
+    width: calc(100% - 24px); /* Account for padding */
     padding: 12px;
     margin-bottom: 15px;
     border: 1px solid #dcdfe6;
@@ -1128,7 +1112,7 @@ section {
 }
 
 .mcq-options input[type="text"] {
-    width: calc(100% - 24px - 26px);
+    width: calc(100% - 24px - 26px); /* Adjust for radio and padding */
     display: inline-block;
     vertical-align: middle;
     margin-bottom: 0;
@@ -1311,7 +1295,7 @@ section {
     color: #555;
 }
 
-/* Settings Section (No changes needed, looks good) */
+/* Settings Section */
 #settings-section {
     max-width: 600px;
     margin: 40px auto;
@@ -1397,7 +1381,7 @@ section {
 }
 
 
-/* Responsive Adjustments - UPDATED sidebar padding */
+/* Responsive Adjustments */
 @media (max-width: 1024px) {
     #app {
         padding: 20px;
@@ -1413,22 +1397,22 @@ section {
     }
 
     .classroom-header {
-        flex-wrap: wrap;
+        flex-wrap: wrap; /* Allow wrapping */
         padding: 15px;
     }
 
     .classroom-content-wrapper {
-        height: auto;
-        flex-direction: column;
+        height: auto; /* Adjust height dynamically */
+        flex-direction: column; /* Stack subsections vertically */
     }
 
     .classroom-sub-section {
-        margin: 10px 0;
-        min-height: 400px;
+        margin: 10px 0; /* Adjust margin for stacked layout */
+        min-height: 400px; /* Ensure content is visible */
     }
 
     #whiteboard-canvas {
-        min-height: 300px;
+        min-height: 300px; /* Smaller min-height for canvas */
     }
 
     #local-video {
@@ -1444,8 +1428,8 @@ section {
     }
 
     .sidebar {
-        width: 260px;
-        padding-top: 70px; /* Adjusted to match full height scenario */
+        width: 260px; /* Slightly smaller sidebar */
+        padding-top: 70px;
     }
 
     .sidebar button {
@@ -1509,9 +1493,9 @@ section {
     }
 
     .sidebar {
-        width: 100%;
+        width: 100%; /* Full width sidebar on very small screens */
         padding-top: 60px;
-        transform: translateX(-100%);
+        transform: translateX(-100%); /* Still off-screen by default */
     }
 
     .sidebar.active {
