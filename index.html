@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OneClass</title>
+    <title>One Class</title>
     <link rel="stylesheet" href="/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -42,159 +42,157 @@
         <section id="dashboard-section" class="hidden">
             <nav class="main-nav">
                 <button id="nav-dashboard" class="active-nav">Dashboard</button>
-                <button id="nav-classroom" class="hidden">Classroom</button>
+                <button id="nav-classroom">Classroom</button>
                 <button id="nav-settings">Settings</button>
                 <button id="logout-btn">Logout</button>
             </nav>
-            <h2>Welcome, <span id="current-username-display"></span>!</h2>
-            <p>Your current Classroom ID: <span id="classroom-id-display">N/A</span></p>
+            <h2>Dashboard</h2>
+            <p>Welcome, <span id="current-username-display"></span>!</p>
+            <p>Current Classroom ID: <span id="classroom-id-display">N/A</span></p>
 
             <div id="create-join-classroom">
-                <h3>Create a New Classroom</h3>
                 <div id="create-classroom-section" data-admin-only>
-                    <input type="text" id="new-classroom-name" placeholder="New Classroom Name" required>
+                    <h3>Create New Classroom</h3>
+                    <input type="text" id="new-classroom-name" placeholder="Classroom Name" required>
                     <button id="create-classroom-btn">Create Classroom</button>
                     <p id="classroom-message"></p>
                 </div>
 
-                <h3>Your Classrooms / Available Classrooms</h3>
+                <h3>Available Classrooms</h3>
                 <ul id="classroom-list">
-                    </ul>
+                    <li>Loading classrooms...</li>
+                </ul>
             </div>
         </section>
 
         <section id="classroom-section" class="hidden">
-            <div class="classroom-header">
-                <button id="hamburger-menu-btn" class="sidebar-toggle-btn"><i class="fas fa-bars"></i></button>
-                <h2>Classroom: <span id="class-name-value"></span></h2>
-                <p>Code: <span id="class-code"></span></p>
-                <button id="share-link-btn" class="share-btn"><i class="fas fa-share-alt"></i> Share</button>
+            <header class="classroom-header">
+                <button id="hamburger-menu-btn" class="hamburger-menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <h2 id="class-name-value"></h2>
+                <p>Class Code: <span id="class-code"></span></p>
+            </header>
+
+            <div id="classroom-sidebar" class="sidebar hidden">
+                <button id="close-sidebar-btn" class="close-btn">&times;</button>
                 <button id="back-to-dashboard">Back to Dashboard</button>
+                <button id="nav-whiteboard" class="active-nav">Whiteboard</button>
+                <button id="nav-chat">Chat</button>
+                <button id="nav-library">Library</button>
+                <button id="nav-assessments">Assessments</button>
+
+                <div id="whiteboard-tools-container" class="toolbar" data-admin-only>
+                    <h4>Whiteboard Tools</h4>
+                    <div class="tool-group">
+                        <button class="tool-button active" id="toolPen" data-tool="pen" title="Pen"><i class="fas fa-pencil-alt"></i> Pen</button>
+                        <button class="tool-button" id="toolEraser" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i> Eraser</button>
+                        <button class="tool-button" id="toolLine" data-tool="line" title="Line"><i class="fas fa-minus"></i> Line</button>
+                        <button class="tool-button" id="toolRectangle" data-tool="rectangle" title="Rectangle"><i class="far fa-square"></i> Rectangle</button>
+                        <button class="tool-button" id="toolCircle" data-tool="circle" title="Circle"><i class="far fa-circle"></i> Circle</button>
+                        <button class="tool-button" id="toolText" data-tool="text" title="Text"><i class="fas fa-font"></i> Text</button>
+                    </div>
+                    <div class="tool-group">
+                        <label for="colorPicker" class="text-gray-700 font-medium">Color:</label>
+                        <input type="color" id="colorPicker" value="#000000" title="Select Color">
+
+                        <label for="brushSize" class="text-gray-700 font-medium">Size:</label>
+                        <input type="range" id="brushSize" min="1" max="50" value="5" class="brush-size-slider" title="Brush Size">
+                    </div>
+                    <div class="tool-group">
+                        <button class="action-button undo-button" id="undoButton" title="Undo"><i class="fas fa-undo"></i> Undo</button>
+                        <button class="action-button redo-button" id="redoButton" title="Redo"><i class="fas fa-redo"></i> Redo</button>
+                        <button class="action-button clear-button" id="clearButton" title="Clear All"><i class="fas fa-trash-alt"></i> Clear Page</button>
+                        <button class="action-button save-button" id="saveButton" title="Save Image"><i class="fas fa-save"></i> Save Page</button>
+                    </div>
+                    <button id="share-whiteboard-btn" class="action-button">Share Whiteboard Link</button>
+                </div>
+
+                <div id="video-broadcast-section" data-admin-only>
+                    <h4>Video Broadcast</h4>
+                    <div class="broadcast-options">
+                        <label><input type="radio" name="broadcastType" value="video_audio" checked> Video & Audio</label>
+                        <label><input type="radio" name="broadcastType" value="audio_only"> Audio Only</label>
+                    </div>
+                    <button id="start-broadcast">Start Broadcast</button>
+                    <button id="end-broadcast" disabled>End Broadcast</button>
+                    <p id="broadcast-role-message" class="role-message"></p>
+                </div>
             </div>
 
-            <div id="share-link-display" class="hidden">
-                <input type="text" id="share-link-input" readonly>
-                <button id="copy-share-link-btn"><i class="fas fa-copy"></i> Copy Link</button>
-            </div>
-
-            <div class="classroom-content">
-                <aside id="classroom-sidebar" class="hidden">
-                    <button id="close-sidebar-btn" class="close-sidebar-btn"><i class="fas fa-times"></i></button>
-                    <nav class="classroom-nav">
-                        <button id="nav-chat" class="active-nav"><i class="fas fa-comments"></i> Chat</button>
-                        <button id="nav-whiteboard"><i class="fas fa-chalkboard"></i> Whiteboard</button>
-                        <button id="nav-library"><i class="fas fa-book"></i> Library</button>
-                        <button id="nav-assessments"><i class="fas fa-clipboard-check"></i> Assessments</button>
-                    </nav>
-                    <div class="video-broadcast-controls">
-                        <h4>Video Broadcast</h4>
-                        <div class="broadcast-type-selection" data-admin-only>
-                            <label><input type="radio" name="broadcastType" value="webcam" checked> Webcam</label>
-                            <label><input type="radio" name="broadcastType" value="screen"> Screen Share</label>
-                        </div>
-                        <button id="start-broadcast" class="broadcast-btn start-btn" data-admin-only>Start Broadcast</button>
-                        <button id="end-broadcast" class="broadcast-btn end-btn" data-admin-only disabled>End Broadcast</button>
-                        <p id="broadcast-role-message" class="user-view-subtle"></p>
+            <div class="classroom-content-wrapper">
+                <div id="whiteboard-area" class="classroom-sub-section active">
+                    <p id="whiteboard-role-message" class="role-message"></p>
+                    <canvas id="whiteboard-canvas"></canvas>
+                    <div id="whiteboard-navigation"> <button id="prev-whiteboard-page-btn"><i class="fas fa-chevron-left"></i> Previous Page</button>
+                        <span id="whiteboard-page-display">Page 1/1</span>
+                        <button id="next-whiteboard-page-btn">Next Page <i class="fas fa-chevron-right"></i></button>
                     </div>
-                </aside>
-
-                <main class="main-content-area">
-                    <div id="chat-section" class="active">
-                        <div id="chat-messages">
-                            </div>
-                        <div class="chat-input-area">
-                            <input type="text" id="chat-input" placeholder="Type a message...">
-                            <button id="send-chat-button"><i class="fas fa-paper-plane"></i> Send</button>
-                        </div>
+                    <div id="share-link-display" class="hidden">
+                        <input type="text" id="share-link-input" readonly>
+                        <button id="copy-share-link-btn">Copy Link</button>
                     </div>
+                    <div id="notifications-container"></div> <video id="local-video" autoplay muted playsinline class="hidden"></video>
+                    <div id="remote-video-container"></div>
+                </div>
 
-                    <div id="whiteboard-area" class="hidden">
-                        <div class="whiteboard-controls">
-                            <div class="tool-group">
-                                <button class="tool-button active-tool" data-tool="pen" title="Pen"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="tool-button" data-tool="eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
-                                <button class="tool-button" data-tool="line" title="Line"><i class="fas fa-slash"></i></button>
-                                <button class="tool-button" data-tool="rectangle" title="Rectangle"><i class="fas fa-square"></i></button>
-                                <button class="tool-button" data-tool="circle" title="Circle"><i class="fas fa-circle"></i></button>
-                                <input type="color" id="colorPicker" value="#000000" title="Select Color">
-                                <input type="range" id="brushSize" min="1" max="20" value="5" title="Brush Size">
+                <div id="chat-section" class="classroom-sub-section hidden">
+                    <h3>Class Chat</h3>
+                    <div id="chat-messages">
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chat-input" placeholder="Type your message...">
+                        <button id="send-chat-button">Send</button>
+                    </div>
+                </div>
+
+                <div id="library-section" class="classroom-sub-section hidden">
+                    <h3>Class Library</h3>
+                    <div data-admin-only>
+                        <input type="file" id="library-file-input" multiple>
+                        <button id="upload-library-files-btn">Upload Files</button>
+                    </div>
+                    <p id="library-role-message" class="role-message"></p>
+                    <div id="library-files-list"></div>
+                </div>
+
+                <div id="assessments-section" class="classroom-sub-section hidden">
+                    <h3>Assessments</h3>
+                    <div id="assessment-creation-form" class="hidden" data-admin-only>
+                        <h4>Create New Assessment</h4>
+                        <input type="text" id="assessment-title" placeholder="Assessment Title" required>
+                        <textarea id="assessment-description" placeholder="Description"></textarea>
+
+                        <div id="questions-container">
+                            <h5>Questions</h5>
                             </div>
-                            <div class="tool-group">
-                                <button id="undoButton" title="Undo"><i class="fas fa-undo"></i></button>
-                                <button id="redoButton" title="Redo"><i class="fas fa-redo"></i></button>
-                                <button id="clearButton" title="Clear Whiteboard"><i class="fas fa-trash-alt"></i></button>
-                                <button id="saveButton" title="Save Whiteboard"><i class="fas fa-save"></i></button>
-                            </div>
-                            <div class="pagination-controls">
-                                <button id="prev-whiteboard-page-btn" title="Previous Page"><i class="fas fa-chevron-left"></i></button>
-                                <span id="whiteboard-page-display">1 / 1</span>
-                                <button id="next-whiteboard-page-btn" title="Next Page"><i class="fas fa-chevron-right"></i></button>
-                                <button id="add-whiteboard-page-btn" title="Add Page" data-admin-only><i class="fas fa-plus"></i> Add Page</button>
-                            </div>
-                        </div>
-                        <canvas id="whiteboard-canvas" width="1200" height="700"></canvas>
-                        <p id="whiteboard-role-message" class="user-view-subtle"></p>
+                        <button id="add-question-btn">Add Question</button>
+                        <button id="submit-assessment-btn">Create Assessment</button>
+                        <p id="assessment-creation-message"></p>
                     </div>
 
-                    <div id="library-section" class="hidden">
-                        <div data-admin-only>
-                            <p id="library-role-message" class="user-view-subtle hidden"></p>
-                            <input type="file" id="library-file-input" multiple>
-                            <button id="upload-library-files-btn">Upload Files</button>
-                        </div>
-                        <ul id="library-files-list">
-                            </ul>
+                    <div id="assessment-list-container">
+                        <h4>Available Assessments</h4>
+                        <div id="assessment-list"></div>
                     </div>
 
-                    <div id="assessments-section" class="hidden">
-                        <h3>Assessments</h3>
-
-                        <div id="assessment-creation-container" data-admin-only>
-                            <h4>Create New Assessment</h4>
-                            <form id="assessment-creation-form">
-                                <input type="text" id="assessment-title" placeholder="Assessment Title" required>
-                                <textarea id="assessment-description" placeholder="Assessment Description"></textarea>
-                                <label for="assessment-duration-minutes">Duration (minutes, optional):</label>
-                                <input type="number" id="assessment-duration-minutes" min="1" placeholder="e.g., 60">
-                                <label for="assessment-start-time">Start Time (optional):</label>
-                                <input type="datetime-local" id="assessment-start-time">
-                                <label for="assessment-end-time">End Time (optional):</label>
-                                <input type="datetime-local" id="assessment-end-time">
-                                <div id="questions-container">
-                                    </div>
-                                <button type="button" id="add-question-btn">Add Question</button>
-                                <button type="submit" id="submit-assessment-btn">Create Assessment</button>
+                    <div id="take-assessment-container" class="hidden" data-user-only>
+                        <h4 id="take-assessment-title"></h4>
+                        <p id="take-assessment-description"></p>
+                        <form id="take-assessment-form">
                             </form>
-                            <p id="assessment-creation-message"></p>
-                        </div>
-
-                        <div id="assessment-list-container">
-                            <h4>Available Assessments</h4>
-                            <ul id="assessment-list">
-                                </ul>
-                        </div>
-
-                        <div id="take-assessment-container" class="hidden">
-                            <h3 id="take-assessment-title"></h3>
-                            <p id="take-assessment-description"></p>
-                            <p id="assessment-timer-display" class="hidden"></p> <form id="take-assessment-form">
-                                </form>
-                            <button id="submit-answers-btn">Submit Answers</button>
-                            <p id="assessment-submission-message"></p>
-                            <button id="back-to-assessment-list-btn">Back to Assessments</button>
-                        </div>
-
-                        <div id="view-submissions-container" class="hidden" data-admin-only>
-                            <h4 id="submissions-assessment-title"></h4>
-                            <div id="submissions-list"></div>
-                            <button id="back-to-assessment-list-from-submissions-btn">Back to Assessments</button>
-                        </div>
+                        <button id="submit-answers-btn">Submit Answers</button>
+                        <p id="assessment-submission-message"></p>
+                        <button id="back-to-assessment-list-btn">Back to Assessments</button>
                     </div>
-                </main>
-                <div id="remote-video-container">
+
+                    <div id="view-submissions-container" class="hidden" data-admin-only>
+                        <h4 id="submissions-assessment-title"></h4>
+                        <div id="submissions-list"></div>
+                        <button id="back-to-assessment-list-from-submissions-btn">Back to Assessments</button>
                     </div>
+                </div>
             </div>
-            <video id="local-video" autoplay muted></video>
         </section>
 
         <section id="settings-section" class="hidden">
@@ -210,7 +208,6 @@
         </section>
     </div>
 
-    <div id="notifications-container" class="notification-message"></div>
     <script src="app.js"></script>
 </body>
 </html>
