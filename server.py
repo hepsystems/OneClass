@@ -12,7 +12,6 @@ import os
 import uuid
 from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
-# ADDED 'rooms' to the import list
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
 
@@ -288,40 +287,36 @@ def create_assessment():
     class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    questions = data.get('questions') # List of question objects
+    scheduled_at_str = data.get('scheduled_at') # New: "YYYY-MM-DDTHH:MM"
+    duration_minutes = data.get('duration_minutes') # New: integer
 
-    if not all([class_room_id, title, questions]):
-        return jsonify({"error": "Missing required fields: classroomId, title, or questions"}), 400
+    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None]):
+        return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, or duration_minutes"}), 400
     
-    if not isinstance(questions, list) or not questions:
-        return jsonify({"error": "Questions must be a non-empty list"}), 400
+    try:
+        # Parse the scheduled_at string into a datetime object
+        scheduled_at = datetime.fromisoformat(scheduled_at_str)
+    except ValueError:
+        return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM"}), 400
+
+    if not isinstance(duration_minutes, int) or duration_minutes <= 0:
+        return jsonify({"error": "Duration must be a positive integer"}), 400
 
     assessment_id = str(uuid.uuid4())
     
-    # Insert assessment details
+    # Insert assessment details (without questions initially)
     assessments_collection.insert_one({
         "id": assessment_id,
         "classroomId": class_room_id,
         "title": title,
         "description": description,
+        "scheduled_at": scheduled_at, # Store as datetime object
+        "duration_minutes": duration_minutes, # Store as integer
         "creator_id": user_id,
         "creator_username": username,
         "creator_role": user_role, # Store creator's role
         "created_at": datetime.utcnow()
     })
-
-    # Insert each question linked to the assessment
-    for q_data in questions:
-        question_id = str(uuid.uuid4())
-        assessment_questions_collection.insert_one({
-            "id": question_id,
-            "assessmentId": assessment_id,
-            "classroomId": class_room_id, # Redundant but kept for consistency
-            "question_text": q_data.get('question_text') or q_data.get('text'), # Ensure both keys are checked
-            "question_type": q_data.get('question_type') or q_data.get('type'), # Ensure both keys are checked
-            "options": q_data.get('options'), # List of strings for MCQ
-            "correct_answer": q_data.get('correct_answer') # For MCQ, e.g., "A", "B"; for text, can be null or example answer
-        })
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
@@ -332,17 +327,65 @@ def create_assessment():
     print(f"Assessment '{title}' created by {username} in classroom {class_room_id}")
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
+@app.route('/api/assessments/<assessmentId>/questions', methods=['POST'])
+def add_questions_to_assessment(assessmentId):
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+
+    if not user_id or user_role != 'admin':
+        return jsonify({"error": "Unauthorized: Only administrators can add questions."}), 401
+
+    assessment = assessments_collection.find_one({"id": assessmentId})
+    if not assessment:
+        return jsonify({"error": "Assessment not found"}), 404
+
+    data = request.json
+    questions = data.get('questions') # List of question objects
+
+    if not isinstance(questions, list) or not questions:
+        return jsonify({"error": "Questions must be a non-empty list"}), 400
+
+    inserted_question_ids = []
+    for q_data in questions:
+        question_id = str(uuid.uuid4())
+        assessment_questions_collection.insert_one({
+            "id": question_id,
+            "assessmentId": assessmentId,
+            "classroomId": assessment['classroomId'], # Link to classroom
+            "question_text": q_data.get('question_text') or q_data.get('text'),
+            "question_type": q_data.get('question_type') or q_data.get('type'),
+            "options": q_data.get('options'),
+            "correct_answer": q_data.get('correct_answer')
+        })
+        inserted_question_ids.append(question_id)
+
+    # Emit admin action update
+    socketio.emit('admin_action_update', {
+        'classroomId': assessment.get('classroomId'),
+        'message': f"Admin {session.get('username')} added {len(questions)} questions to assessment '{assessment.get('title')}'."
+    }, room=assessment.get('classroomId'))
+
+    print(f"Added {len(questions)} questions to assessment {assessmentId}")
+    return jsonify({"message": "Questions added successfully", "question_ids": inserted_question_ids}), 201
+
+
 @app.route('/api/assessments/<classroomId>', methods=['GET'])
 def get_assessments(classroomId):
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
+    # Fetch assessments without their questions for the list view
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
-    # Fetch questions for each assessment
+    
+    # Convert datetime objects to ISO format strings for client-side
     for assessment in assessments:
-        assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessment['id']}, {"_id": 0}))
-    print(f"Fetched {len(assessments)} assessments for classroom {classroomId}")
+        if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
+            assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
+        if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
+            assessment['created_at'] = assessment['created_at'].isoformat()
+
+    print(f"Fetched {len(assessments)} assessments (list view) for classroom {classroomId}")
     return jsonify(assessments), 200
 
 @app.route('/api/assessments/<assessmentId>', methods=['GET'])
@@ -356,8 +399,16 @@ def get_assessment_details(assessmentId):
         print(f"Assessment {assessmentId} not found.")
         return jsonify({"error": "Assessment not found"}), 404
     
+    # Fetch questions for this specific assessment
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
-    print(f"Fetched details for assessment {assessmentId}")
+    
+    # Convert datetime objects to ISO format strings for client-side
+    if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
+        assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
+    if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
+        assessment['created_at'] = assessment['created_at'].isoformat()
+
+    print(f"Fetched details for assessment {assessmentId} including questions.")
     return jsonify(assessment), 200
 
 
@@ -736,7 +787,7 @@ def handle_chat_message(data):
 def handle_whiteboard_data(data):
     classroomId = data.get('classroomId')
     action = data.get('action')
-    drawing_action = data.get('drawing') or data.get('data')
+    drawing_data = data.get('drawing') or data.get('data') # Use drawing_data consistently
     sender_id = request.sid
     user_role = session.get('role')
 
@@ -758,18 +809,15 @@ def handle_whiteboard_data(data):
 
     if action == 'draw':
         # Safely get drawing coordinates and properties using .get()
-        start_x = drawing_data.get('startX')
-        start_y = drawing_data.get('startY')
-        end_x = drawing_data.get('endX')
-        end_y = drawing_data.get('endY')
+        prev_x = drawing_data.get('prevX')
+        prev_y = drawing_data.get('prevY')
+        curr_x = drawing_data.get('currX')
+        curr_y = drawing_data.get('currY')
         color = drawing_data.get('color')
-        # Assuming 'width' is the key used for line thickness
-        line_thickness = drawing_data.get('width')
-        tool = drawing_data.get('tool')
-        text = drawing_data.get('text', '')
+        line_thickness = drawing_data.get('width') # Assuming 'width' is the key used for line thickness
 
         # ADDED: Basic validation for essential drawing data
-        if None in [start_x, start_y, end_x, end_y, color, line_thickness, tool]:
+        if None in [prev_x, prev_y, curr_x, curr_y, color, line_thickness]:
             print(f"Missing essential drawing data for 'draw' action: {drawing_data}")
             return
 
@@ -777,14 +825,13 @@ def handle_whiteboard_data(data):
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": page_index},
             {"$push": {"drawings": {
-                "startX": start_x, # MODIFIED: Using variables from .get()
-                "startY": start_y, # MODIFIED: Using variables from .get()
-                "endX": end_x,     # MODIFIED: Using variables from .get()
-                "endY": end_y,     # MODIFIED: Using variables from .get()
-                "color": color,    # MODIFIED: Using variables from .get()
-                "width": line_thickness, # MODIFIED: Using variable from .get()
-                "tool": tool,      # MODIFIED: Using variables from .get()
-                "text": text       # MODIFIED: Using variables from .get()
+                "prevX": prev_x,
+                "prevY": prev_y,
+                "currX": curr_x,
+                "currY": curr_y,
+                "color": color,
+                "width": line_thickness,
+                "timestamp": datetime.utcnow() # Add timestamp for ordering/history
             }}},
             upsert=True # Create the document if it doesn't exist
         )
