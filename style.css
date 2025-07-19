@@ -346,7 +346,7 @@ section {
 }
 .sidebar {
     height: 65vh; /* 👈 Only part of the screen vertically */
-    width: 260px; /* 👈 Enough space for menu items */
+    width: 200px; /* 👈 Enough space for menu items */
     position: fixed;
     top: 60px; /* 👈 Start slightly below the header (adjust as needed) */
     left: 0;
