@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDrawing = false;
     let startX, startY;
     let lastX, lastY; // Used for live drawing of pen/eraser segments
-    let currentColor = colorPicker ? colorPicker.value : '#FFFFFF';
+    let currentColor = colorPicker ? colorPicker.value : '#FFF800';
     let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
     let currentTool = 'pen';
     let snapshot; // For temporary drawing of shapes
