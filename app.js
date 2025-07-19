@@ -985,8 +985,8 @@ document.addEventListener('DOMContentLoaded', () => {
             newWidth = newHeight * aspectRatio;
         }
 
-        whiteboardCanvas.width = Math.max(newWidth, 500); // Minimum width
-        whiteboardCanvas.height = Math.max(newHeight, 200); // Minimum height
+        whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
+        whiteboardCanvas.height = Math.max(newHeight, 500); // Minimum height
 
         // Reapply styles as context state can be reset on dimension change
         whiteboardCtx.lineJoin = 'round';
