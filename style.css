@@ -224,11 +224,32 @@ h3 {
 #auth-section input[type="password"],
 #auth-section input[type="text"],
 #auth-section select {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+#auth-section input[type="email"]:focus,
+#auth-section input[type="password"]:focus,
+#auth-section input[type="text"]:focus,
+#auth-section select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
 }
 
 #auth-section button {
-    @extend .btn-base; /* Apply base button styles */
+    /* Apply base button styles */
+    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
     background-color: var(--primary-color);
     color: white;
     padding: 12px 20px;
@@ -237,6 +258,7 @@ h3 {
 }
 #auth-section button:hover {
     background-color: var(--primary-dark-color);
+    transform: translateY(-2px);
 }
 
 #auth-section p {
@@ -279,7 +301,13 @@ h3 {
 }
 
 .main-nav button {
-    @extend .btn-base; /* Apply base button styles */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
     background-color: #e9ecef;
     color: var(--light-text-color);
     padding: var(--spacing-sm) var(--spacing-lg);
@@ -289,6 +317,7 @@ h3 {
 .main-nav button:hover:not(.active-nav) {
     background-color: #dcdfe6;
     color: var(--text-color);
+    transform: translateY(-2px);
 }
 
 .main-nav button.active-nav {
@@ -325,18 +354,39 @@ h3 {
 }
 
 #new-classroom-name {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     width: calc(100% - 22px);
     margin-bottom: var(--spacing-md);
 }
+#new-classroom-name:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
+}
 
 #create-classroom-btn {
-    @extend .btn-success; /* Use success button variant */
+    /* Use success button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--success-color);
+    color: white;
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 16px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #create-classroom-btn:hover {
+    background-color: var(--success-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -372,12 +422,22 @@ h3 {
 }
 
 #classroom-list button {
-    @extend .btn-secondary; /* Use secondary button variant */
+    /* Use primary button variant to give it "more feel" */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color); /* Changed from secondary to primary */
+    color: white;
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 15px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #classroom-list button:hover {
+    background-color: var(--primary-dark-color); /* Darken primary color on hover */
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -457,7 +517,13 @@ h3 {
 }
 
 .sidebar button {
-    @extend .btn-base; /* Apply base button styles */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
     padding: 18px 25px;
     font-size: 17px;
     color: var(--sidebar-text);
@@ -591,7 +657,13 @@ h3 {
 
 .sidebar .tool-button,
 .sidebar .action-button {
-    @extend .btn-base; /* Apply base button styles */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
     background-color: #556c82;
     color: white;
     padding: var(--spacing-sm) var(--spacing-md);
@@ -682,12 +754,22 @@ h3 {
 }
 
 #share-whiteboard-btn {
-    @extend .btn-info; /* Use info button variant */
+    /* Use info button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--info-color);
+    color: white;
     margin-top: var(--spacing-md);
     width: 100%;
     transform: none; /* Override base hover transform if not desired here */
 }
 #share-whiteboard-btn:hover {
+    background-color: var(--info-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -706,7 +788,16 @@ h3 {
 }
 
 #whiteboard-navigation button {
-    @extend .btn-primary; /* Use primary button variant */
+    /* Use primary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color);
+    color: white;
     padding: var(--spacing-sm) 18px;
     font-size: 15px;
     margin: 0 8px;
@@ -716,6 +807,7 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #whiteboard-navigation button:hover {
+    background-color: var(--primary-dark-color);
     transform: translateY(-1px); /* Re-apply if needed */
 }
 
@@ -751,12 +843,22 @@ h3 {
 }
 
 #copy-share-link-btn {
-    @extend .btn-success; /* Use success button variant */
+    /* Use success button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--success-color);
+    color: white;
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 14px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #copy-share-link-btn:hover {
+    background-color: var(--success-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -795,7 +897,16 @@ h3 {
 }
 
 #start-broadcast, #end-broadcast {
-    @extend .btn-danger; /* Use danger button variant */
+    /* Use danger button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--danger-color);
+    color: white;
     padding: var(--spacing-sm) 18px;
     font-size: 15px;
     margin: var(--spacing-xs);
@@ -806,6 +917,7 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #start-broadcast:hover, #end-broadcast:hover:not(:disabled) {
+    background-color: var(--danger-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -957,18 +1069,39 @@ h3 {
 }
 
 #chat-input {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     flex-grow: 1;
+}
+#chat-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
 }
 
 #send-chat-button {
-    @extend .btn-primary; /* Use primary button variant */
+    /* Use primary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color);
+    color: white;
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 16px;
     font-weight: 500;
     transform: none; /* Override base hover transform if not desired here */
 }
 #send-chat-button:hover {
+    background-color: var(--primary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -985,18 +1118,39 @@ h3 {
 }
 
 #library-file-input {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     flex-grow: 1;
     padding: 8px;
 }
+#library-file-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
+}
 
 #upload-library-files-btn {
-    @extend .btn-success; /* Use success button variant */
+    /* Use success button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--success-color);
+    color: white;
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 16px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #upload-library-files-btn:hover {
+    background-color: var(--success-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1038,12 +1192,22 @@ h3 {
 }
 
 #library-files-list button {
-    @extend .btn-danger; /* Use danger button variant */
+    /* Use danger button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--danger-color);
+    color: white;
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 15px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #library-files-list button:hover {
+    background-color: var(--danger-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1066,10 +1230,23 @@ h3 {
 #assessment-creation-form input[type="text"],
 #assessment-creation-form textarea,
 #assessment-creation-form select {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     display: block;
     width: calc(100% - 24px);
     margin-bottom: var(--spacing-md);
+}
+#assessment-creation-form input[type="text"]:focus,
+#assessment-creation-form textarea:focus,
+#assessment-creation-form select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
 }
 
 #questions-container {
@@ -1108,7 +1285,13 @@ h3 {
 }
 
 .mcq-options input[type="text"] {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     width: calc(100% - 24px - 26px);
     display: inline-block;
     vertical-align: middle;
@@ -1117,9 +1300,23 @@ h3 {
     padding: 8px;
     font-size: 15px;
 }
+.mcq-options input[type="text"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
+}
 
 #add-question-btn, #submit-assessment-btn {
-    @extend .btn-primary; /* Use primary button variant */
+    /* Use primary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color);
+    color: white;
     padding: 12px 25px;
     font-size: 17px;
     font-weight: 600;
@@ -1127,6 +1324,7 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #add-question-btn:hover, #submit-assessment-btn:hover {
+    background-color: var(--primary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1157,12 +1355,22 @@ h3 {
 }
 
 #assessment-list button {
-    @extend .btn-primary; /* Use primary button variant */
+    /* Use primary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color);
+    color: white;
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 15px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #assessment-list button:hover {
+    background-color: var(--primary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1197,11 +1405,23 @@ h3 {
 
 #take-assessment-form input[type="text"],
 #take-assessment-form textarea {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
     width: calc(100% - 24px);
     padding: var(--spacing-sm);
     margin-top: 8px;
     margin-bottom: var(--spacing-md);
+}
+#take-assessment-form input[type="text"]:focus,
+#take-assessment-form textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
 }
 
 #take-assessment-form input[type="radio"] {
@@ -1210,7 +1430,16 @@ h3 {
 }
 
 #submit-answers-btn {
-    @extend .btn-success; /* Use success button variant */
+    /* Use success button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--success-color);
+    color: white;
     padding: 12px 25px;
     font-size: 17px;
     font-weight: 600;
@@ -1218,6 +1447,7 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #submit-answers-btn:hover {
+    background-color: var(--success-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1242,7 +1472,16 @@ h3 {
 }
 
 #back-to-assessment-list-btn, #back-to-assessment-list-from-submissions-btn {
-    @extend .btn-secondary; /* Use secondary button variant */
+    /* Use secondary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--secondary-color);
+    color: white;
     padding: 12px 25px;
     font-size: 17px;
     font-weight: 600;
@@ -1251,6 +1490,7 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #back-to-assessment-list-btn:hover, #back-to-assessment-list-from-submissions-btn:hover {
+    background-color: var(--secondary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1295,7 +1535,18 @@ h3 {
 
 #update-profile-form input[type="text"],
 #update-profile-form input[type="email"] {
-    @extend .input-base; /* Apply base input styles */
+    /* Apply base input styles */
+    padding: 12px 15px;
+    border: 1px solid #dcdfe6;
+    border-radius: var(--border-radius-md);
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+#update-profile-form input[type="text"]:focus,
+#update-profile-form input[type="email"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    outline: none;
 }
 
 #update-profile-form input[type="email"]:disabled {
@@ -1305,7 +1556,16 @@ h3 {
 }
 
 #update-profile-form button {
-    @extend .btn-primary; /* Use primary button variant */
+    /* Use primary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--primary-color);
+    color: white;
     padding: 12px 20px;
     font-size: 18px;
     font-weight: 600;
@@ -1313,17 +1573,28 @@ h3 {
     transform: none; /* Override base hover transform if not desired here */
 }
 #update-profile-form button:hover {
+    background-color: var(--primary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
 #back-to-dashboard-from-settings {
-    @extend .btn-secondary; /* Use secondary button variant */
+    /* Use secondary button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--secondary-color);
+    color: white;
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 16px;
     margin-top: var(--spacing-lg);
     transform: none; /* Override base hover transform if not desired here */
 }
 #back-to-dashboard-from-settings:hover {
+    background-color: var(--secondary-dark-color);
     transform: translateY(-2px); /* Re-apply if needed */
 }
 
@@ -1536,13 +1807,11 @@ h3 {
         width: 100%;
     }
 
-    #assessment-creation-form input[type="text"],
-    #assessment-creation-form textarea,
-    #assessment-creation-form select {
+    #assessment-creation-form input[type=\"text\"],\n    #assessment-creation-form textarea,\n    #assessment-creation-form select {
         width: calc(100% - 20px);
     }
 
-    .mcq-options input[type="text"] {
+    .mcq-options input[type=\"text\"] {
         width: calc(100% - 20px - 26px);
     }
 
@@ -1568,4 +1837,3 @@ h3 {
     #update-profile-form button, #back-to-dashboard-from-settings {
         width: 100%;
     }
-}
