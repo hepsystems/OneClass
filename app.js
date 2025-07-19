@@ -601,59 +601,63 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        socket.on('whiteboard_data', (data) => {
-            if (!whiteboardCtx) {
-                console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
-                return;
-            }
+        // app.js (Excerpt from socket.on('whiteboard_data', ...))
 
-            const applyDrawingProperties = (tool, color, width) => {
-                whiteboardCtx.strokeStyle = color;
-                whiteboardCtx.lineWidth = width;
-                whiteboardCtx.fillStyle = color;
+socket.on('whiteboard_data', (data) => {
+    if (!whiteboardCtx) {
+        console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
+        return;
+    }
+    const applyDrawingProperties = (tool, color, width) => {
+        whiteboardCtx.strokeStyle = color;
+        whiteboardCtx.lineWidth = width;
+        whiteboardCtx.fillStyle = color;
+        if (tool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'destination-out';
+        } else {
+            whiteboardCtx.globalCompositeOperation = 'source-over';
+        }
+    };
 
-                if (tool === 'eraser') {
-                    whiteboardCtx.globalCompositeOperation = 'destination-out';
-                } else {
-                    whiteboardCtx.globalCompositeOperation = 'source-over';
-                }
-            };
+    if (data.action === 'draw') {
+        const drawingItem = data.data; // This is the actual drawing object sent from the server
+        const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
 
-            if (data.action === 'draw') {
-                const { tool, color, width, pageIndex } = data.data;
-                // Ensure page exists locally
-                if (!whiteboardPages[pageIndex]) {
-                    whiteboardPages[pageIndex] = [];
-                }
-                whiteboardPages[pageIndex].push(data); // Push the entire data object for re-rendering
+        // Ensure page exists locally. If not, create it.
+        if (!whiteboardPages[pageIndex]) {
+            whiteboardPages[pageIndex] = [];
+        }
+        // Store the actual drawing item for re-rendering purposes
+        whiteboardPages[pageIndex].push(drawingItem);
 
-                if (pageIndex === currentPageIndex) {
-                    whiteboardCtx.save();
-                    applyDrawingProperties(tool, color, width);
-                    // Pass the full data object to drawWhiteboardItem for proper re-rendering
-                    drawWhiteboardItem(data.data);
-                    whiteboardCtx.restore();
-                }
-            } else if (data.action === 'clear') {
-                const { pageIndex } = data.data;
-                if (whiteboardPages[pageIndex]) {
-                    whiteboardPages[pageIndex] = []; // Clear data for that specific page
-                }
-                if (pageIndex === currentPageIndex) {
-                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                    whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
-                    whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                }
-            } else if (data.action === 'history' && data.history) {
-                whiteboardPages = data.history;
-                if (whiteboardPages.length === 0) {
-                    whiteboardPages = [[]]; // Ensure at least one page
-                }
-                currentPageIndex = 0; // Reset to first page
-                renderCurrentWhiteboardPage();
-                updateWhiteboardPageDisplay();
-            }
-        });
+        // Only draw if it's the current active page
+        if (pageIndex === currentPageIndex) {
+            whiteboardCtx.save();
+            // applyDrawingProperties expects tool, color, width from the drawing item
+            applyDrawingProperties(drawingItem.tool, drawingItem.color, drawingItem.width);
+            drawWhiteboardItem(drawingItem); // drawWhiteboardItem expects the full drawing item
+            whiteboardCtx.restore();
+        }
+    } else if (data.action === 'clear') {
+        const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
+        if (whiteboardPages[pageIndex]) {
+            whiteboardPages[pageIndex] = []; // Clear data for that specific page
+        }
+        if (pageIndex === currentPageIndex) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
+            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        }
+    } else if (data.action === 'history' && data.history) {
+        whiteboardPages = data.history;
+        if (whiteboardPages.length === 0) {
+            whiteboardPages = [[]]; // Ensure at least one page
+        }
+        currentPageIndex = 0; // Reset to first page
+        renderCurrentWhiteboardPage();
+        updateWhiteboardPageDisplay();
+    }
+});
 
         socket.on('whiteboard_page_change', (data) => {
             const { newPageIndex } = data;
