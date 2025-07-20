@@ -105,6 +105,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const submissionsAssessmentTitle = document.getElementById('submissions-assessment-title');
     const submissionsList = document.getElementById('submissions-list');
     const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    
 
     const notificationsContainer = document.getElementById('notifications-container');
 
