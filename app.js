@@ -1693,90 +1693,110 @@ function handleMouseUp(e) {
         });
     }
 
-    /**
-     * Submits a new assessment created by an admin.
-     */
-    async function submitAssessment() {
-        if (!currentUser || currentUser.role !== 'admin') {
-            showNotification("Only administrators can create assessments.", true);
-            return;
-        }
-        if (!currentClassroom || !currentClassroom.id) {
-            showNotification("Please select a classroom first.", true);
-            return;
-        }
-
-        const title = assessmentTitleInput.value.trim();
-        const description = assessmentDescriptionTextarea.value.trim();
-        const questions = [];
-
-        if (!title) {
-            displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
-            return;
-        }
-
-        const questionItems = questionsContainer.querySelectorAll('.question-item');
-        questionItems.forEach((item, index) => {
-            const questionText = item.querySelector('.question-text').value.trim();
-            const questionType = item.querySelector('.question-type').value;
-            let options = [];
-            let correctAnswer = '';
-
-            if (questionType === 'mcq') {
-                item.querySelectorAll('.mcq-option').forEach(input => {
-                    if (input.value.trim() !== '') {
-                        options.push(input.value.trim());
-                    }
-                });
-                correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
-            }
-
-            if (questionText) {
-                questions.push({
-                    id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
-                    question_text: questionText,
-                    question_type: questionType,
-                    options: options.length > 0 ? options : undefined, // Only include if options exist
-                    correct_answer: correctAnswer || undefined // Only include if correct answer exists
-                });
-            }
-        });
-
-        if (questions.length === 0) {
-            displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/assessments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    classroomId: currentClassroom.id,
-                    title,
-                    description,
-                    questions
-                })
-            });
-            const result = await response.json();
-            if (response.ok) {
-                displayMessage(assessmentCreationMessage, result.message, false);
-                assessmentCreationForm.reset();
-                questionsContainer.innerHTML = ''; // Clear questions
-                questionCounter = 0; // Reset counter
-                addQuestionField(); // Add one empty question field back
-                loadAssessments(); // Reload the list of assessments
-                showNotification("Assessment created successfully!");
-            } else {
-                displayMessage(assessmentCreationMessage, result.error, true);
-                showNotification(`Error creating assessment: ${result.error}`, true);
-            }
-        } catch (error) {
-            console.error('Error submitting assessment:', error);
-            displayMessage(assessmentCreationMessage, 'An error occurred during submission.', true);
-            showNotification('An error occurred during assessment creation.', true);
-        }
+   /**
+ * Submits a new assessment created by an admin.
+ */
+async function submitAssessment() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification("Only administrators can create assessments.", true);
+        return;
     }
+    if (!currentClassroom || !currentClassroom.id) {
+        showNotification("Please select a classroom first.", true);
+        return;
+    }
+
+    const title = assessmentTitleInput.value.trim();
+    const description = assessmentDescriptionTextarea.value.trim();
+    // Get the new input values
+    const scheduledAtInput = document.getElementById('assessment-scheduled-at'); // Get the element
+    const durationMinutesInput = document.getElementById('assessment-duration-minutes'); // Get the element
+
+    const scheduledAt = scheduledAtInput ? scheduledAtInput.value : ''; // Get its value
+    const durationMinutes = durationMinutesInput ? parseInt(durationMinutesInput.value, 10) : 0; // Get its value and parse as int
+
+
+    const questions = [];
+
+    if (!title) {
+        displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
+        return;
+    }
+    // Add validation for scheduled_at and duration_minutes
+    if (!scheduledAt) {
+        displayMessage(assessmentCreationMessage, 'Please set a scheduled date and time.', true);
+        return;
+    }
+    if (isNaN(durationMinutes) || durationMinutes <= 0) {
+        displayMessage(assessmentCreationMessage, 'Please enter a valid duration in minutes (a positive number).', true);
+        return;
+    }
+
+
+    const questionItems = questionsContainer.querySelectorAll('.question-item');
+    questionItems.forEach((item, index) => {
+        const questionText = item.querySelector('.question-text').value.trim();
+        const questionType = item.querySelector('.question-type').value;
+        let options = [];
+        let correctAnswer = '';
+
+        if (questionType === 'mcq') {
+            item.querySelectorAll('.mcq-option').forEach(input => {
+                if (input.value.trim() !== '') {
+                    options.push(input.value.trim());
+                }
+            });
+            correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
+        }
+
+        if (questionText) {
+            questions.push({
+                id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
+                question_text: questionText,
+                question_type: questionType,
+                options: options.length > 0 ? options : undefined, // Only include if options exist
+                correct_answer: correctAnswer || undefined // Only include if correct answer exists
+            });
+        }
+    });
+
+    if (questions.length === 0) {
+        displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/assessments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                classroomId: currentClassroom.id,
+                title,
+                description,
+                scheduled_at: scheduledAt,         
+                duration_minutes: durationMinutes,
+                questions
+            })
+        });
+        const result = await response.json();
+        if (response.ok) {
+            displayMessage(assessmentCreationMessage, result.message, false);
+            assessmentCreationForm.reset();
+            questionsContainer.innerHTML = ''; // Clear questions
+            questionCounter = 0; // Reset counter
+            addQuestionField(); // Add one empty question field back
+            loadAssessments(); // Reload the list of assessments
+            showNotification("Assessment created successfully!");
+        } else {
+            displayMessage(assessmentCreationMessage, result.error, true);
+            showNotification(`Error creating assessment: ${result.error}`, true);
+        }
+    } catch (error) {
+        console.error('Error submitting assessment:', error);
+        displayMessage(assessmentCreationMessage, 'An error occurred during submission.', true);
+        showNotification('An error occurred during assessment creation.', true);
+    }
+} 
 
     /**
      * Loads and displays available assessments for the current classroom.
