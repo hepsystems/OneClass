@@ -1043,24 +1043,66 @@ h3 {
     gap: var(--spacing-sm);
 }
 
+/* Base chat message item */
 .chat-message-item {
-    padding: 8px 12px;
+    padding: 10px 15px; /* Slightly more padding */
     border-radius: var(--border-radius-lg);
     word-wrap: break-word;
-    max-width: 90%;
+    max-width: 85%; /* Slightly smaller max-width */
+    font-size: 0.95em; /* Slightly smaller font size */
+    line-height: 1.4;
+    position: relative; /* For timestamp absolute positioning */
+    display: flex; /* To align timestamp */
+    flex-direction: column; /* To stack sender and message content */
 }
 
-.chat-message-item strong {
-    color: var(--primary-color);
+/* Incoming messages (from others) */
+.chat-message-item.incoming {
+    background-color: #e9ecef; /* Light grey background */
+    align-self: flex-start; /* Align to the left */
+    border-bottom-left-radius: var(--border-radius-sm); /* Pointed corner */
+    color: var(--text-color);
+    box-shadow: 0 1px 3px var(--subtle-shadow);
+}
+
+.chat-message-item.incoming strong {
+    color: var(--primary-dark-color); /* Darker primary for emphasis */
     font-weight: 600;
+    margin-bottom: 3px; /* Space between name and message */
+    display: block; /* Ensures name is on its own line */
 }
 
+/* Outgoing messages (from current user) */
+.chat-message-item.outgoing {
+    background-color: var(--primary-color); /* Primary color background */
+    color: white; /* White text for contrast */
+    align-self: flex-end; /* Align to the right */
+    border-bottom-right-radius: var(--border-radius-sm); /* Pointed corner */
+    box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2); /* Subtle blue shadow */
+}
+
+.chat-message-item.outgoing strong {
+    color: rgba(255, 255, 255, 0.9); /* Slightly muted white for name */
+    font-weight: 600;
+    margin-bottom: 3px;
+    display: block;
+}
+
+/* Timestamp styling */
 .chat-message-item .timestamp {
-    font-size: 0.8em;
+    font-size: 0.7em; /* Smaller timestamp */
     color: #888;
-    margin-left: var(--spacing-sm);
+    margin-top: 5px; /* Space above timestamp */
+    text-align: right; /* Align timestamp to the right within the bubble */
+    align-self: flex-end; /* Ensure timestamp stays at the end of the flex column */
+    opacity: 0.8;
 }
 
+.chat-message-item.outgoing .timestamp {
+    color: rgba(255, 255, 255, 0.7); /* Lighter timestamp for outgoing messages */
+}
+
+/* Chat input area */
 .chat-input-area {
     display: flex;
     gap: var(--spacing-sm);
@@ -1786,16 +1828,24 @@ h3 {
     }
 
     #chat-messages {
-        padding: var(--spacing-lg);
+        padding: var(--spacing-sm); /* Reduce padding on smaller screens */
+    }
+
+    .chat-message-item {
+        max-width: 95%; /* Adjust max-width for smaller screens */
+        padding: 8px 12px; /* Adjust padding */
+        font-size: 0.9em; /* Adjust font size */
     }
 
     .chat-input-area {
         flex-direction: column;
-        gap: var(--spacing-lg);
+        gap: var(--spacing-sm); /* Reduce gap */
     }
 
     #send-chat-button {
         width: 100%;
+        padding: var(--spacing-sm); /* Adjust padding */
+        font-size: 15px; /* Adjust font size */
     }
 
     #library-section div[data-admin-only] {
@@ -1807,11 +1857,13 @@ h3 {
         width: 100%;
     }
 
-    #assessment-creation-form input[type=\"text\"],\n    #assessment-creation-form textarea,\n    #assessment-creation-form select {
+    #assessment-creation-form input[type="text"],
+    #assessment-creation-form textarea,
+    #assessment-creation-form select {
         width: calc(100% - 20px);
     }
 
-    .mcq-options input[type=\"text\"] {
+    .mcq-options input[type="text"] {
         width: calc(100% - 20px - 26px);
     }
 
@@ -1837,3 +1889,4 @@ h3 {
     #update-profile-form button, #back-to-dashboard-from-settings {
         width: 100%;
     }
+}
