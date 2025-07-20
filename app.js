@@ -1,4 +1,4 @@
-// app.js (Updated with Text Input Functionality)
+// app.js (Updated with Text Input Functionality and Fixed Login Flow)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerContainer = document.getElementById('register-container');
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
+    const loginEmail = document.getElementById('login-email'); // Ensure this is defined
+    const loginPassword = document.getElementById('login-password'); // Ensure this is defined
     const authMessage = document.getElementById('auth-message');
     const showRegisterLink = document.getElementById('show-register-link');
     const showLoginLink = document.getElementById('show-login-link');
@@ -49,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificationsContainer = document.getElementById('notifications-container');
 
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    const whiteboardCtx = whiteboardCanvas ? whiteboardCtx = whiteboardCanvas.getContext('2d') : null; // Initialize only if canvas exists
+    const whiteboardCtx = whiteboardCanvas ? whiteboardCanvas.getContext('2d') : null; // Initialize only if canvas exists
     const whiteboardControls = document.getElementById('whiteboard-controls');
     const toolButtons = document.querySelectorAll('#whiteboard-tools button');
     const colorPicker = document.getElementById('color-picker');
@@ -106,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Global Variables ---
     let socket;
-    let currentUser = null;
+    let currentUser = null; // This will be fetched or set after login
     let currentClassroom = null;
     let currentTool = 'pen';
     let currentColor = '#FFFFFF'; // Default color (white for dark canvas)
@@ -596,6 +598,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Connected to Socket.IO server');
             createNotification('Connected to server.', 'success');
             if (currentUser && currentUser.classroom_id && currentClassroom) {
+                // If currentUser is already associated with a classroom from checkLoginStatus, join it.
+                // Otherwise, the join_classroom API call will handle it.
                 socket.emit('join_classroom', {
                     classroomId: currentClassroom.id
                 });
@@ -1412,15 +1416,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await response.json();
             if (response.ok) {
                 localStorage.setItem('token', data.token);
-                currentUser = data.user;
+                currentUser = data.user; // Set global currentUser variable
                 createNotification('Login successful!', 'success');
-                currentUsernameDisplay.textContent = currentUser.username;
+                currentUsernameDisplay.textContent = currentUser.username; // Update UI immediately
                 if (currentUser.classroom_id) {
-                    fetchClassroomDetailsAndJoin(currentUser.classroom_id);
+                    fetchClassroomDetailsAndJoin(currentUser.classroom_id); // Go to classroom if assigned
                 } else {
-                    showSection('dashboard-section');
-                    loadUserClassrooms();
+                    showSection('dashboard-section'); // Go to dashboard
+                    loadUserClassrooms(); // Load classrooms for the dashboard
                 }
+                // Clear any previous auth messages
+                authMessage.textContent = '';
+                loginEmail.value = ''; // Clear input fields
+                loginPassword.value = '';
             } else {
                 authMessage.textContent = data.error;
                 authMessage.style.color = 'red';
@@ -1859,8 +1867,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Assessment Management
     createAssessmentBtn.addEventListener('click', () => {
         showSection('assessment-section');
-        assessmentListContainer.classList.add('hidden');
-        createAssessmentContainer.classList.remove('hidden');
+        createAssessmentContainer.classList.add('hidden');
+        assessmentListContainer.classList.remove('hidden');
         assessmentCreationForm.reset();
         questionsContainer.innerHTML = '';
         questionCount = 0;
@@ -2011,6 +2019,15 @@ document.addEventListener('DOMContentLoaded', () => {
         submitAssessmentAnswers(currentAssessmentToTake._id, answers);
     });
 
+    // Back buttons for assessments
+    if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => {
+        currentAssessmentToTake = null;
+        loadAssessments();
+    });
+    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => {
+        loadAssessments();
+    });
+
     // Check for join parameter in URL on initial load
     const urlParams = new URLSearchParams(window.location.search);
     const joinClassroomId = urlParams.get('join');
@@ -2025,7 +2042,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // it should attempt to join this `joinClassroomId`.
     }
 
-    checkLoginStatus();
+    checkLoginStatus(); // Initial check on page load
 
     // ✅ Sidebar toggle logic — moved here from bottom
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
