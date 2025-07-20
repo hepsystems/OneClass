@@ -105,8 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const submissionsAssessmentTitle = document.getElementById('submissions-assessment-title');
     const submissionsList = document.getElementById('submissions-list');
     const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
-    const addQuestionBtn = document.getElementById('add-question-btn');
-    
 
     const notificationsContainer = document.getElementById('notifications-container');
 
@@ -2288,16 +2286,13 @@ async function submitAssessment() {
         });
     });
 
-    // Assessment related button listeners
+    // Assessment Controls
+    if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
+    if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
+    if (submitAnswersBtn) submitAnswersBtn.addEventListener('click', submitAnswers);
+    if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
+    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
 
-if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
-if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment); // Ensure this calls the updated submitAssessment
-
-if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
-if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
-
-// Periodically update assessment status and re-render list (NEW)
-setInterval(loadAssessments, 60 * 1000);
         checkLoginStatus();
 
     // ✅ Sidebar toggle logic — moved here from bottom
