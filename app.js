@@ -1108,68 +1108,80 @@ socket.on('whiteboard_data', (data) => {
     }
 
     /**
-     * Handles the end of a drawing action (mouseup or touchend).
-     */
-    function handleMouseUp(e) {
-        if (!isDrawing || currentUser.role !== 'admin') return;
-        isDrawing = false;
+ * Handles the end of a drawing action (mouseup or touchend).
+ */
+function handleMouseUp(e) {
+    if (!isDrawing || currentUser.role !== 'admin') return;
+    isDrawing = false;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            // Finish the last segment of the stroke
-            whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
-            whiteboardCtx.stroke();
-            whiteboardCtx.closePath(); // Close the current path for pen/eraser
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        // Finish the last segment of the stroke
+        whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
+        whiteboardCtx.stroke();
+        whiteboardCtx.closePath(); // Close the current path for pen/eraser
 
-            // Emit the complete stroke data
-            const strokeData = {
-                points: currentStrokePoints, // Array of all points in the stroke
-                color: currentColor,
-                width: currentBrushSize,
-                tool: currentTool,
-                pageIndex: currentPageIndex
-            };
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: strokeData
-            });
-            // Add to local page data
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
-            currentStrokePoints = []; // Clear points for the next stroke
+        // Create stroke object
+        const strokeData = {
+            points: currentStrokePoints, // Array of all points in the stroke
+            color: currentColor,
+            width: currentBrushSize,
+            tool: currentTool
+        };
 
-        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            // For shapes, draw the final shape and emit data
-            const finalCoords = getCoords(e);
-            const currentX = finalCoords.x;
-            const currentY = finalCoords.y;
+        // Emit to others
+        socket.emit('whiteboard_data', {
+            action: 'draw',
+            classroomId: currentClassroom.id,
+            data: strokeData,
+            pageIndex: currentPageIndex
+        });
 
-            // Redraw the entire page to ensure the final shape is persisted correctly
-            renderCurrentWhiteboardPage(); // Clear and redraw existing commands
-            
-            whiteboardCtx.save();
-            whiteboardCtx.strokeStyle = currentColor;
-            whiteboardCtx.lineWidth = currentBrushSize;
-            const shapeData = {
-                startX, startY, endX: currentX, endY: currentY,
-                color: currentColor, width: currentBrushSize, tool: currentTool
-            };
-            drawWhiteboardItem(shapeData); // Draw the final shape
-            whiteboardCtx.restore();
+        // Save locally
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
+        currentStrokePoints = []; // Clear for next stroke
 
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: { ...shapeData, pageIndex: currentPageIndex }
-            });
-            // Add to local page data
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
-        }
+    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        const finalCoords = getCoords(e);
+        const currentX = finalCoords.x;
+        const currentY = finalCoords.y;
 
-        if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-        saveState(); // Save the canvas state for undo/redo after each completed action
+        // Redraw existing to reset canvas state
+        renderCurrentWhiteboardPage();
+        
+        whiteboardCtx.save();
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.lineWidth = currentBrushSize;
+
+        const shapeData = {
+            startX, startY,
+            endX: currentX,
+            endY: currentY,
+            color: currentColor,
+            width: currentBrushSize,
+            tool: currentTool
+        };
+
+        drawWhiteboardItem(shapeData);
+        whiteboardCtx.restore();
+
+        socket.emit('whiteboard_data', {
+            action: 'draw',
+            classroomId: currentClassroom.id,
+            data: shapeData,
+            pageIndex: currentPageIndex
+        });
+
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
     }
+
+    // Reset eraser mode if it was active
+    if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
+        whiteboardCtx.globalCompositeOperation = 'source-over';
+    }
+
+    saveState(); // Save for undo/redo
+}
+
 
     /**
      * Draws a specific whiteboard item (line, rectangle, circle, text, or smoothed pen/eraser stroke).
