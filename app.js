@@ -2287,10 +2287,6 @@ async function submitAssessment() {
     });
 
     // Assessment related button listeners
-const addQuestionBtn = document.getElementById('add-question-btn');
-const submitAssessmentBtn = document.getElementById('submit-assessment-btn');
-const backToAssessmentListBtn = document.getElementById('back-to-assessment-list-btn');
-const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
 
 if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
 if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment); // Ensure this calls the updated submitAssessment
