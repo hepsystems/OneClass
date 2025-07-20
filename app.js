@@ -1,7 +1,4 @@
-// app.js (Complete Rewrite with Notifications, Whiteboard Pages, and Selective Broadcast)
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Element References ---
     const app = document.getElementById('app');
     const authSection = document.getElementById('auth-section');
     const loginContainer = document.getElementById('login-container');
@@ -11,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const authMessage = document.getElementById('auth-message');
     const showRegisterLink = document.getElementById('show-register-link');
     const showLoginLink = document.getElementById('show-login-link');
-
     const dashboardSection = document.getElementById('dashboard-section');
     const classroomIdDisplay = document.getElementById('classroom-id-display');
     const currentUsernameDisplay = document.getElementById('current-username-display');
@@ -19,1504 +15,928 @@ document.addEventListener('DOMContentLoaded', () => {
     const navClassroom = document.getElementById('nav-classroom');
     const navSettings = document.getElementById('nav-settings');
     const logoutBtn = document.getElementById('logout-btn');
-
     const createClassroomSection = document.getElementById('create-classroom-section');
     const newClassroomNameInput = document.getElementById('new-classroom-name');
     const createClassroomBtn = document.getElementById('create-classroom-btn');
-    const joinClassroomSection = document.getElementById('join-classroom-section');
-    const joinClassroomIdInput = document.getElementById('join-classroom-id');
-    const joinClassroomBtn = document.getElementById('join-classroom-btn');
-    const backToDashboardFromCreateBtn = document.getElementById('back-to-dashboard-from-create-btn');
-    const backToDashboardFromJoinBtn = document.getElementById('back-to-dashboard-from-join-btn');
-    const createClassroomLink = document.getElementById('create-classroom-link');
-    const joinClassroomLink = document.getElementById('join-classroom-link');
-    const userClassroomsList = document.getElementById('user-classrooms-list');
-
+    const classroomMessage = document.getElementById('classroom-message');
+    const classroomList = document.getElementById('classroom-list');
     const classroomSection = document.getElementById('classroom-section');
-    const classroomNameDisplay = document.getElementById('classroom-name-display');
-    const classroomIdDetailDisplay = document.getElementById('classroom-id-detail-display');
-    const classroomCodeDisplay = document.getElementById('classroom-code-display');
-    const leaveClassroomBtn = document.getElementById('leave-classroom-btn');
-    const classroomNavChat = document.getElementById('classroom-nav-chat');
-    const classroomNavWhiteboard = document.getElementById('classroom-nav-whiteboard');
-    const classroomNavMembers = document.getElementById('classroom-nav-members');
-    const classroomNavResources = document.getElementById('classroom-nav-resources');
-    const classroomNavAssessments = document.getElementById('classroom-nav-assessments');
-    const chatTab = document.getElementById('chat-tab');
-    const whiteboardTab = document.getElementById('whiteboard-tab');
-    const membersTab = document.getElementById('members-tab');
-    const resourcesTab = document.getElementById('resources-tab');
-    const assessmentsTab = document.getElementById('assessments-tab');
-
-    // Chat Elements
+    const classNameValue = document.getElementById('class-name-value');
+    const classCodeSpan = document.getElementById('class-code');
+    const backToDashboardBtn = document.getElementById('back-to-dashboard');
+    const navChat = document.getElementById('nav-chat');
+    const navWhiteboard = document.getElementById('nav-whiteboard');
+    const navLibrary = document.getElementById('nav-library');
+    const navAssessments = document.getElementById('nav-assessments');
+    const chatSection = document.getElementById('chat-section');
+    const whiteboardArea = document.getElementById('whiteboard-area');
+    const librarySection = document.getElementById('library-section');
+    const assessmentsSection = document.getElementById('assessments-section');
+    const settingsSection = document.getElementById('settings-section');
+    const updateProfileForm = document.getElementById('update-profile-form');
+    const settingsUsernameInput = document.getElementById('settings-username');
+    const settingsEmailInput = document.getElementById('settings-email');
+    const backToDashboardFromSettingsBtn = document.getElementById('back-to-dashboard-from-settings');
+    const shareLinkDisplay = document.getElementById('share-link-display');
+    const shareLinkInput = document.getElementById('share-link-input');
+    const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
+    const chatInput = document.getElementById('chat-input');
+    const sendMessageBtn = document.getElementById('send-chat-button');
     const chatMessages = document.getElementById('chat-messages');
-    const messageInput = document.getElementById('message-input');
-    const sendMessageBtn = document.getElementById('send-message-btn');
-
-    // Whiteboard Elements
-    const whiteboardContainer = document.getElementById('whiteboard-container');
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    const ctx = whiteboardCanvas.getContext('2d');
-    const clearWhiteboardBtn = document.getElementById('clear-whiteboard-btn');
-    const colorPicker = document.getElementById('color-picker');
-    const brushSize = document.getElementById('brush-size');
-    const whiteboardPagesContainer = document.getElementById('whiteboard-pages');
-    const addWhiteboardPageBtn = document.getElementById('add-whiteboard-page-btn');
-
-    // Members Elements
-    const membersList = document.getElementById('members-list');
-
-    // Resources Elements
-    const resourcesList = document.getElementById('resources-list');
-    const resourceNameInput = document.getElementById('resource-name');
-    const resourceFileInput = document.getElementById('resource-file');
-    const uploadResourceBtn = document.getElementById('upload-resource-btn');
-
-    // Assessments Elements
-    const assessmentsList = document.getElementById('assessments-list');
-    const createAssessmentBtn = document.getElementById('create-assessment-btn');
-    const createAssessmentSection = document.getElementById('create-assessment-section');
+    const toolButtons = document.querySelectorAll('.tool-button');
+    const colorPicker = document.getElementById('colorPicker');
+    const brushSizeSlider = document.getElementById('brushSize');
+    const undoButton = document.getElementById('undoButton');
+    const redoButton = document.getElementById('redoButton');
+    const clearButton = document.getElementById('clearButton');
+    const saveButton = document.getElementById('saveButton');
+    const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
+    const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
+    const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
+    const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
+    const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
+    const startBroadcastBtn = document.getElementById('start-broadcast');
+    const endBroadcastBtn = document.getElementById('end-broadcast');
+    const localVideo = document.getElementById('local-video');
+    const remoteVideoContainer = document.getElementById('remote-video-container');
+    const broadcastRoleMessage = document.getElementById('broadcast-role-message');
+    const libraryFileInput = document.getElementById('library-file-input');
+    const uploadLibraryFilesBtn = document.getElementById('upload-library-files-btn');
+    const libraryRoleMessage = document.getElementById('library-role-message');
+    const libraryFilesList = document.getElementById('library-files-list');
+    const assessmentCreationForm = document.getElementById('assessment-creation-form');
     const assessmentTitleInput = document.getElementById('assessment-title');
-    const assessmentDescriptionInput = document.getElementById('assessment-description');
-    const assessmentDeadlineInput = document.getElementById('assessment-deadline');
-    const addQuestionBtn = document.getElementById('add-question-btn');
+    const assessmentDescriptionTextarea = document.getElementById('assessment-description');
     const questionsContainer = document.getElementById('questions-container');
-    const saveAssessmentBtn = document.getElementById('save-assessment-btn');
-    const backToAssessmentListFromCreateBtn = document.getElementById('back-to-assessment-list-from-create-btn');
-    const viewAssessmentSection = document.getElementById('view-assessment-section');
-    const viewAssessmentTitle = document.getElementById('view-assessment-title');
-    const viewAssessmentDescription = document.getElementById('view-assessment-description');
-    const viewAssessmentDeadline = document.getElementById('view-assessment-deadline');
-    const viewAssessmentQuestionsContainer = document.getElementById('view-assessment-questions-container');
-    const takeAssessmentBtn = document.getElementById('take-assessment-btn');
-    const editAssessmentBtn = document.getElementById('edit-assessment-btn'); // For editing existing assessments
-    const deleteAssessmentBtn = document.getElementById('delete-assessment-btn');
-    const backToAssessmentListFromViewBtn = document.getElementById('back-to-assessment-list-from-view-btn');
-    const takeAssessmentSection = document.getElementById('take-assessment-section');
-    const takeAssessmentTitle = document.getElementById('take-assessment-title');
-    const takeAssessmentQuestionsContainer = document.getElementById('take-assessment-questions-container');
+    const addQuestionBtn = document.getElementById('add-question-btn');
     const submitAssessmentBtn = document.getElementById('submit-assessment-btn');
-    const backToViewAssessmentFromTakeBtn = document.getElementById('back-to-view-assessment-from-take-btn');
-    const viewSubmissionsBtn = document.getElementById('view-submissions-btn');
-    const submissionsSection = document.getElementById('submissions-section');
+    const assessmentCreationMessage = document.getElementById('assessment-creation-message');
+    const assessmentListContainer = document.getElementById('assessment-list-container');
+    const assessmentListDiv = document.getElementById('assessment-list');
+    const takeAssessmentContainer = document.getElementById('take-assessment-container');
+    const takeAssessmentTitle = document.getElementById('take-assessment-title');
+    const takeAssessmentDescription = document.getElementById('take-assessment-description');
+    const takeAssessmentForm = document.getElementById('take-assessment-form');
+    const submitAnswersBtn = document.getElementById('submit-answers-btn');
+    const assessmentSubmissionMessage = document.getElementById('assessment-submission-message');
+    const backToAssessmentListBtn = document.getElementById('back-to-assessment-list-btn');
+    const viewSubmissionsContainer = document.getElementById('view-submissions-container');
+    const submissionsAssessmentTitle = document.getElementById('submissions-assessment-title');
     const submissionsList = document.getElementById('submissions-list');
     const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
-
-
-    // Settings Elements
-    const settingsSection = document.getElementById('settings-section');
-    const backToDashboardFromSettingsBtn = document.getElementById('back-to-dashboard-from-settings-btn');
-    const usernameSettingsInput = document.getElementById('username-settings-input');
-    const emailSettingsInput = document.getElementById('email-settings-input');
-    const passwordSettingsInput = document.getElementById('password-settings-input');
-    const saveProfileSettingsBtn = document.getElementById('save-profile-settings-btn');
-    const notificationSettingsToggle = document.getElementById('notification-settings-toggle');
-
-    // Notification Elements
-    const notificationsList = document.getElementById('notifications-list');
-    const notificationCenterBtn = document.getElementById('notification-center-btn');
-    const closeNotificationsBtn = document.getElementById('close-notifications-btn');
-    const notificationCountSpan = document.getElementById('notification-count');
-    const notificationCenter = document.getElementById('notification-center');
-
-    // --- Global Variables ---
+    const notificationsContainer = document.getElementById('notifications-container');
     let socket;
-    let currentClassroomId = null;
-    let currentUsername = null;
-    let currentUser = null; // Store full user object
-    let currentClassroomName = null;
-    let drawing = false;
-    let lastX = 0;
-    let lastY = 0;
-    let currentWhiteboardPage = 0;
-    let whiteboardPageData = []; // Stores image data for each page
-    let currentAssessmentToView = null;
+    let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+    let currentClassroom = JSON.parse(localStorage.getItem('currentClassroom')) || null;
     let currentAssessmentToTake = null;
-
-    // --- Utility Functions ---
-
-    /**
-     * Shows a specific section and hides others.
-     * @param {HTMLElement} sectionToShow - The section element to display.
-     */
-    function showSection(sectionToShow) {
-        [authSection, dashboardSection, createClassroomSection, joinClassroomSection, classroomSection,
-            settingsSection, createAssessmentSection, viewAssessmentSection, takeAssessmentSection,
-            submissionsSection
-        ].forEach(section => {
-            if (section) section.classList.add('hidden');
-        });
-        if (sectionToShow) sectionToShow.classList.remove('hidden');
-    }
-
-    /**
-     * Updates the active state of navigation links.
-     * @param {HTMLElement} activeNav - The navigation link to set as active.
-     */
-    function updateNavActiveState(activeNav) {
-        [navDashboard, navClassroom, navSettings].forEach(nav => {
-            if (nav) nav.classList.remove('active');
-        });
-        if (activeNav) activeNav.classList.add('active');
-    }
-
-    /**
-     * Displays a temporary message to the user.
-     * @param {HTMLElement} element - The element to display the message in.
-     * @param {string} message - The message content.
-     * @param {string} type - 'success' or 'error' for styling.
-     */
-    function displayMessage(element, message, type) {
-        element.textContent = message;
-        element.className = ''; // Clear previous classes
-        element.classList.add('message', type);
-        setTimeout(() => {
-            element.textContent = '';
-            element.classList.remove(type);
-        }, 3000);
-    }
-
-    /**
-     * Adds a chat message to the display.
-     * @param {string} senderUsername - The username of the sender.
-     * @param {string} messageContent - The content of the message.
-     * @param {string} timestamp - ISO string of when the message was sent.
-     * @param {boolean} isCurrentUser - True if the message is from the current user.
-     */
-    function addChatMessage(senderUsername, messageContent, timestamp, isCurrentUser) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('chat-message');
-        messageElement.classList.add(isCurrentUser ? 'my-message' : 'other-message');
-
-        const senderSpan = document.createElement('span');
-        senderSpan.classList.add('sender-name');
-        senderSpan.textContent = senderUsername;
-
-        const contentParagraph = document.createElement('p');
-        contentParagraph.classList.add('message-content');
-        contentParagraph.textContent = messageContent;
-
-        const timestampSpan = document.createElement('span');
-        timestampSpan.classList.add('message-timestamp');
-        // Format timestamp nicely, e.g., "HH:MM AM/PM"
-        const date = new Date(timestamp);
-        timestampSpan.textContent = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        messageElement.appendChild(senderSpan);
-        messageElement.appendChild(contentParagraph);
-        messageElement.appendChild(timestampSpan);
-        chatMessages.appendChild(messageElement);
-
-        // Auto-scroll to the latest message
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    /**
-     * Adds a notification to the display.
-     * @param {string} message - The notification message.
-     * @param {string} type - Type of notification (e.g., 'new_message', 'new_resource').
-     * @param {string} link - Optional link associated with the notification.
-     */
-    function addNotification(message, type, link = '#') {
-        const notificationItem = document.createElement('li');
-        notificationItem.classList.add('notification-item', type);
-        notificationItem.innerHTML = `
-            <span>${message}</span>
-            <a href="${link}" class="notification-link ${link === '#' ? 'hidden' : ''}">View</a>
-        `;
-        notificationsList.prepend(notificationItem); // Add to the top
-
-        // Update notification count
-        const currentCount = parseInt(notificationCountSpan.textContent);
-        notificationCountSpan.textContent = currentCount + 1;
-        notificationCountSpan.classList.add('has-notifications');
-    }
-
-    function clearNotifications() {
-        notificationsList.innerHTML = '';
-        notificationCountSpan.textContent = '0';
-        notificationCountSpan.classList.remove('has-notifications');
-    }
-
-    /**
-     * Displays a specific tab within the classroom section.
-     * @param {HTMLElement} tabToShow - The tab element to display.
-     */
-    function showClassroomTab(tabToShow) {
-        [chatTab, whiteboardTab, membersTab, resourcesTab, assessmentsTab].forEach(tab => {
-            if (tab) tab.classList.add('hidden');
-        });
-        if (tabToShow) tabToShow.classList.remove('hidden');
-
-        [classroomNavChat, classroomNavWhiteboard, classroomNavMembers, classroomNavResources, classroomNavAssessments].forEach(nav => {
-            if (nav) nav.classList.remove('active');
-        });
-        if (tabToShow === chatTab) classroomNavChat.classList.add('active');
-        else if (tabToShow === whiteboardTab) classroomNavWhiteboard.classList.add('active');
-        else if (tabToShow === membersTab) classroomNavMembers.classList.add('active');
-        else if (tabToShow === resourcesTab) classroomNavResources.classList.add('active');
-        else if (tabToShow === assessmentsTab) classroomNavAssessments.classList.add('active');
-    }
-
-    // --- Authentication ---
-
-    async function handleAuth(event, endpoint, form, messageElement) {
-        event.preventDefault();
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-            const result = await response.json();
-
-            if (response.ok) {
-                displayMessage(messageElement, result.message, 'success');
-                if (endpoint === '/api/login') {
-                    localStorage.setItem('token', result.token);
-                    localStorage.setItem('user', JSON.stringify(result.user)); // Store user data
-                    currentUser = result.user;
-                    currentUsername = result.user.username; // Update global username
-                    setupSocket();
-                    loadUserClassrooms();
-                    showSection(dashboardSection);
-                    updateNavActiveState(navDashboard);
-                    currentUsernameDisplay.textContent = currentUsername;
-                    authMessage.textContent = ''; // Clear auth message after successful login
-                } else {
-                    // For registration, clear form and switch to login
-                    form.reset();
-                    showSection(loginContainer);
-                    showLoginLink.click(); // Simulate click to show login
-                }
-            } else {
-                displayMessage(messageElement, result.message, 'error');
-            }
-        } catch (error) {
-            console.error('Auth error:', error);
-            displayMessage(messageElement, 'An error occurred. Please try again.', 'error');
+    let localStream;
+    const peerConnections = {};
+    const iceServers = {
+        'iceServers': [
+            { 'urls': 'stun:stun.l.google.com:19302' },
+        ]
+    };
+    let whiteboardCtx;
+    let isDrawing = false;
+    let startX, startY;
+    let lastX, lastY;
+    let currentColor = colorPicker ? colorPicker.value : '#FFF800';
+    let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
+    let currentTool = 'pen';
+    let snapshot;
+    let currentStrokePoints = [];
+    let whiteboardPages = [[]];
+    let currentPageIndex = 0;
+    const undoStack = [];
+    const redoStack = [];
+    const MAX_HISTORY_STEPS = 50;
+    function showNotification(message, isError = false) {
+        if (notificationsContainer) {
+            notificationsContainer.textContent = message;
+            notificationsContainer.className = isError ? 'error-notification' : 'success-notification';
+            notificationsContainer.classList.add('show');
+            setTimeout(() => {
+                notificationsContainer.classList.remove('show');
+                notificationsContainer.textContent = '';
+            }, 5000);
         }
     }
-
+    function displayMessage(element, message, isError) {
+        element.textContent = message;
+        element.className = isError ? 'error' : 'success';
+    }
+    function showSection(sectionToShow) {
+        [authSection, dashboardSection, classroomSection, settingsSection].forEach(section => {
+            if (section) {
+                section.classList.add('hidden');
+                section.classList.remove('active');
+            }
+        });
+        if (sectionToShow) {
+            sectionToShow.classList.remove('hidden');
+            sectionToShow.classList.add('active');
+        }
+    }
+    function showClassroomSubSection(subSectionToShow) {
+        [whiteboardArea, chatSection, librarySection, assessmentsSection].forEach(subSection => {
+            if (subSection) {
+                subSection.classList.add('hidden');
+                subSection.classList.remove('active');
+            }
+        });
+        if (subSectionToShow) {
+            subSectionToShow.classList.remove('hidden');
+            subSectionToShow.classList.add('active');
+        }
+    }
+    function updateNavActiveState(activeButton) {
+        [navDashboard, navClassroom, navSettings, navChat, navWhiteboard, navLibrary, navAssessments].forEach(btn => {
+            if (btn) btn.classList.remove('active-nav');
+        });
+        if (activeButton) {
+            activeButton.classList.add('active-nav');
+        }
+    }
+    function updateUIBasedOnRole() {
+        const isAdmin = currentUser && currentUser.role === 'admin';
+        const isUser = currentUser && currentUser.role === 'user';
+        document.querySelectorAll('[data-admin-only]').forEach(el => {
+            el.classList.toggle('hidden', !isAdmin);
+            el.classList.toggle('admin-feature-highlight', isAdmin);
+        });
+        document.querySelectorAll('[data-user-only]').forEach(el => {
+            el.classList.toggle('hidden', !isUser);
+            el.classList.toggle('user-view-subtle', isUser);
+        });
+        if (whiteboardRoleMessage) {
+            whiteboardRoleMessage.classList.toggle('hidden', isAdmin);
+            whiteboardRoleMessage.textContent = isAdmin ? '' : 'Only administrators can draw on the whiteboard. Your view is read-only.';
+        }
+        if (broadcastRoleMessage) {
+            broadcastRoleMessage.classList.toggle('hidden', isAdmin);
+            broadcastRoleMessage.textContent = isAdmin ? '' : 'Only administrators can start a video broadcast.';
+        }
+        if (libraryRoleMessage) {
+            libraryRoleMessage.classList.toggle('hidden', isAdmin);
+            libraryRoleMessage.textContent = isAdmin ? '' : 'Only administrators can upload files to the library.';
+        }
+        if (whiteboardCanvas) {
+            whiteboardCanvas.style.pointerEvents = isAdmin ? 'auto' : 'none';
+        }
+    }
+    function getDisplayName(username, role) {
+        return role === 'admin' ? `${username} (Admin)` : username;
+    }
     function checkLoginStatus() {
-        const token = localStorage.getItem('token');
-        const user = localStorage.getItem('user');
-
-        if (token && user) {
-            currentUser = JSON.parse(user);
-            currentUsername = currentUser.username;
-            currentUsernameDisplay.textContent = currentUsername;
-            setupSocket();
-            loadUserClassrooms();
+        if (currentUser) {
             showSection(dashboardSection);
+            currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
+            classroomIdDisplay.textContent = currentClassroom ? currentClassroom.id : 'N/A';
+            loadAvailableClassrooms();
             updateNavActiveState(navDashboard);
+            updateUIBasedOnRole();
+            const pathParts = window.location.pathname.split('/');
+            if (pathParts[1] === 'classroom' && pathParts.length > 2) {
+                const idFromUrl = pathParts[2];
+                fetch(`/api/classrooms`)
+                    .then(res => res.json())
+                    .then(classrooms => {
+                        const matched = classrooms.find(cls => cls.id === idFromUrl);
+                        if (matched) {
+                            enterClassroom(matched.id, matched.name);
+                        } else {
+                            localStorage.removeItem('currentClassroom');
+                            currentClassroom = null;
+                            showNotification("Classroom not found or not joined yet.", true);
+                            showSection(dashboardSection);
+                            loadAvailableClassrooms();
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error fetching classroom details:", err);
+                        showNotification("Could not load classroom.", true);
+                        showSection(dashboardSection);
+                        loadAvailableClassrooms();
+                    });
+            }
         } else {
             showSection(authSection);
-            showSection(loginContainer);
+            document.querySelectorAll('[data-admin-only], [data-user-only]').forEach(el => {
+                el.classList.add('hidden');
+            });
         }
     }
-
-    function logout() {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        currentUser = null;
-        currentUsername = null;
-        if (socket) {
-            socket.disconnect();
-            socket = null;
-        }
-        showSection(authSection);
-        showSection(loginContainer);
-        displayMessage(authMessage, 'You have been logged out.', 'success');
-        loginForm.reset(); // Clear any previous auth messages, assuming loginForm is the default shown
-    }
-
-    // --- Socket.IO Setup ---
-    function setupSocket() {
-        if (socket) {
-            socket.disconnect(); // Disconnect existing socket if any
-        }
-        const token = localStorage.getItem('token');
-        if (!token) {
-            console.error('No token found for socket connection.');
+    async function loadAvailableClassrooms() {
+        if (!currentUser || !currentUser.id) {
+            classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             return;
         }
-        socket = io({
-            auth: {
-                token: token
-            }
-        });
-
-        socket.on('connect', () => {
-            console.log('Connected to Socket.IO as:', currentUser.username);
-            // These will be requested upon joining a classroom, but good to have a fallback
-            // socket.emit('request_chat_history', currentClassroomId);
-            // socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
-        });
-
-        socket.on('disconnect', () => {
-            console.log('Disconnected from Socket.IO');
-        });
-
-        socket.on('error', (message) => {
-            console.error('Socket error:', message);
-            // Optionally display an error to the user
-        });
-
-        socket.on('classroom_joined', (data) => {
-            console.log(`Joined classroom: ${data.classroomName}`);
-            currentClassroomId = data.classroomId;
-            currentClassroomName = data.classroomName;
-            classroomNameDisplay.textContent = currentClassroomName;
-            classroomIdDetailDisplay.textContent = currentClassroomId;
-            classroomCodeDisplay.textContent = data.classroomCode; // Display the unique code
-            showSection(classroomSection);
-            showClassroomTab(chatTab); // Default to chat tab
-            updateNavActiveState(navClassroom);
-            chatMessages.innerHTML = ''; // Clear messages on joining new room
-            whiteboardPageData = []; // Clear whiteboard pages
-            currentWhiteboardPage = 0;
-            addWhiteboardPage(true); // Add initial blank page (initialLoad = true to prevent emit)
-            socket.emit('request_chat_history', currentClassroomId);
-            socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
-            socket.emit('request_members_list', currentClassroomId);
-            socket.emit('request_resources_list', currentClassroomId);
-            socket.emit('request_assessments_list', currentClassroomId);
-        });
-
-        socket.on('classroom_left', () => {
-            console.log('Left classroom');
-            currentClassroomId = null;
-            currentClassroomName = null;
-            showSection(dashboardSection);
-            updateNavActiveState(navDashboard);
-            loadUserClassrooms();
-            clearNotifications(); // Clear notifications related to a specific classroom
-        });
-
-        socket.on('classroom_list', (classrooms) => {
-            userClassroomsList.innerHTML = '';
-            if (classrooms.length === 0) {
-                userClassroomsList.innerHTML = '<p>No classrooms joined yet. Create or join one!</p>';
-                return;
-            }
-            classrooms.forEach(classroom => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${classroom.name} (ID: ${classroom.id}) - Code: ${classroom.code}</span>
-                    <button class="join-btn" data-id="${classroom.id}" data-name="${classroom.name}" data-code="${classroom.code}">Open</button>
-                    <button class="leave-btn" data-id="${classroom.id}">Leave</button>
-                `;
-                userClassroomsList.appendChild(li);
-            });
-        });
-
-        socket.on('new_classroom', (classroom) => {
-            console.log('New classroom created/joined:', classroom);
-            loadUserClassrooms(); // Refresh the list
-        });
-
-        socket.on('message', (data) => {
-            const isCurrentUser = data.userId === currentUser.id;
-            addChatMessage(data.username, data.message, data.timestamp, isCurrentUser);
-            if (!chatTab.classList.contains('active')) {
-                addNotification(`New message in ${currentClassroomName}: ${data.username}: ${data.message}`, 'new_message');
-            }
-        });
-
-        socket.on('chat_history', (history) => {
-            chatMessages.innerHTML = ''; // Clear existing messages
-            history.forEach(msg => {
-                const isCurrentUser = msg.userId === currentUser.id;
-                addChatMessage(msg.username, msg.message, msg.timestamp, isCurrentUser);
-            });
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
-
-
-        // Whiteboard events
-        socket.on('drawing', (data) => {
-            if (data.page === currentWhiteboardPage) {
-                drawLine(data.x0, data.y0, data.x1, data.y1, data.color, data.size, false);
-            }
-        });
-
-        socket.on('whiteboard_clear', (data) => {
-            if (data.page === currentWhiteboardPage) {
-                clearWhiteboard(false);
-            }
-        });
-
-        socket.on('whiteboard_state', (data) => {
-            whiteboardPageData = data.pages || [];
-            currentWhiteboardPage = data.currentPage || 0;
-            renderWhiteboardPages();
-            if (whiteboardPageData[currentWhiteboardPage]) {
-                const img = new Image();
-                img.onload = () => {
-                    ctx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                    ctx.drawImage(img, 0, 0);
-                };
-                img.src = whiteboardPageData[currentWhiteboardPage];
-            } else {
-                clearWhiteboard(false);
-            }
-        });
-
-        socket.on('new_whiteboard_page', (data) => {
-            whiteboardPageData = data.pages;
-            renderWhiteboardPages();
-            // If the new page is also the current selected page, clear the canvas
-            if (data.newPageId === currentWhiteboardPage) {
-                clearWhiteboard(false);
-            }
-        });
-
-        socket.on('members_list', (members) => {
-            membersList.innerHTML = '';
-            if (members.length === 0) {
-                membersList.innerHTML = '<p>No members in this classroom.</p>';
-                return;
-            }
-            members.forEach(member => {
-                const li = document.createElement('li');
-                li.textContent = member.username + (member.id === currentUser.id ? ' (You)' : '');
-                membersList.appendChild(li);
-            });
-        });
-
-        socket.on('new_member', (data) => {
-            addNotification(`${data.username} joined the classroom!`, 'new_member');
-            socket.emit('request_members_list', currentClassroomId); // Refresh list
-        });
-
-        socket.on('member_left', (data) => {
-            addNotification(`${data.username} left the classroom.`, 'member_left');
-            socket.emit('request_members_list', currentClassroomId); // Refresh list
-        });
-
-        socket.on('resource_uploaded', (data) => {
-            addNotification(`New resource uploaded: ${data.name}`, 'new_resource', data.url);
-            socket.emit('request_resources_list', currentClassroomId);
-        });
-
-        socket.on('resources_list', (resources) => {
-            resourcesList.innerHTML = '';
-            if (resources.length === 0) {
-                resourcesList.innerHTML = '<p>No resources uploaded yet.</p>';
-                return;
-            }
-            resources.forEach(resource => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${resource.name}</span>
-                    <a href="${resource.url}" target="_blank" download="${resource.name}">Download</a>
-                `;
-                resourcesList.appendChild(li);
-            });
-        });
-
-        socket.on('assessment_created', (data) => {
-            addNotification(`New assessment created: ${data.title}`, 'new_assessment');
-            socket.emit('request_assessments_list', currentClassroomId);
-        });
-
-        socket.on('assessments_list', (assessments) => {
-            assessmentsList.innerHTML = '';
-            if (assessments.length === 0) {
-                assessmentsList.innerHTML = '<p>No assessments created yet.</p>';
-                return;
-            }
-            assessments.forEach(assessment => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${assessment.title} (Deadline: ${new Date(assessment.deadline).toLocaleDateString()})</span>
-                    <button class="view-assessment-btn" data-id="${assessment.id}">View</button>
-                `;
-                assessmentsList.appendChild(li);
-            });
-        });
-
-        socket.on('assessment_details', (assessment) => {
-            currentAssessmentToView = assessment;
-            viewAssessmentTitle.textContent = assessment.title;
-            viewAssessmentDescription.textContent = assessment.description;
-            viewAssessmentDeadline.textContent = `Deadline: ${new Date(assessment.deadline).toLocaleString()}`;
-            viewAssessmentQuestionsContainer.innerHTML = '';
-            assessment.questions.forEach((q, index) => {
-                const qDiv = document.createElement('div');
-                qDiv.classList.add('question-display');
-                qDiv.innerHTML = `
-                    <p><strong>${index + 1}. ${q.questionText}</strong></p>
-                    ${q.options && q.options.length > 0 ?
-                        `<ul>${q.options.map(opt => `<li>${opt}</li>`).join('')}</ul>` : ''
-                    }
-                `;
-                viewAssessmentQuestionsContainer.appendChild(qDiv);
-            });
-            // Show/hide edit/delete/take buttons based on user role/ownership
-            // For now, assume all can view and take. Edit/Delete would require a check for isInstructor or isCreator
-            if (currentUser && currentUser.isInstructor) { // Example: assuming an 'isInstructor' flag from server
-                editAssessmentBtn.classList.remove('hidden');
-                deleteAssessmentBtn.classList.remove('hidden');
-                viewSubmissionsBtn.classList.remove('hidden'); // Instructor can always view submissions
-                takeAssessmentBtn.classList.add('hidden'); // Instructor doesn't take their own assessment
-            } else {
-                editAssessmentBtn.classList.add('hidden');
-                deleteAssessmentBtn.classList.add('hidden');
-                viewSubmissionsBtn.classList.add('hidden'); // Students only take, not view others' submissions
-                takeAssessmentBtn.classList.remove('hidden');
-                // Check if student has already submitted
-                fetch(`/api/assessments/${assessment.id}/submission_status`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.submitted) {
-                        takeAssessmentBtn.classList.add('hidden');
-                    } else {
-                        takeAssessmentBtn.classList.remove('hidden');
-                    }
-                })
-                .catch(error => console.error('Error fetching submission status:', error));
-            }
-
-
-            showSection(viewAssessmentSection);
-        });
-
-        socket.on('assessment_deleted', (data) => {
-            addNotification(`Assessment "${data.title}" deleted.`, 'info');
-            loadAssessments(); // Refresh list
-        });
-
-        socket.on('assessment_submitted', (data) => {
-            addNotification(`Your submission for "${data.title}" has been received.`, 'success');
-            // After submission, refresh assessment list or navigate back
-            loadAssessments();
-        });
-
-        socket.on('assessment_submissions_list', (submissions) => {
-            submissionsList.innerHTML = '';
-            if (submissions.length === 0) {
-                submissionsList.innerHTML = '<p>No submissions yet.</p>';
-                return;
-            }
-            submissions.forEach(submission => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <span>${submission.username} - Score: ${submission.score !== null ? submission.score : 'Pending'} / ${submission.totalMarks}</span>
-                    <button class="view-submission-details-btn" data-id="${submission.id}">View Details</button>
-                `;
-                submissionsList.appendChild(li);
-            });
-            showSection(submissionsSection);
-        });
-
-        // Universal notification listener
-        socket.on('notification', (data) => {
-            if (notificationSettingsToggle.checked) { // Check if notifications are enabled
-                addNotification(data.message, data.type, data.link);
-            }
-        });
-    }
-
-    // --- Classroom Management ---
-
-    async function loadUserClassrooms() {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
         try {
-            const response = await fetch('/api/classrooms', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            const result = await response.json();
-            if (response.ok) {
-                socket.emit('request_classroom_list', result); // Request current list from server for UI update
+            const response = await fetch('/api/classrooms');
+            const classrooms = await response.json();
+            classroomList.innerHTML = '';
+            if (classrooms.length === 0) {
+                classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
             } else {
-                console.error('Failed to load classrooms:', result.message);
-                displayMessage(authMessage, result.message, 'error'); // Use authMessage for general errors
+                const userJoinedClassrooms = classrooms.filter(cls =>
+                    cls.creator_id === currentUser.id || (cls.participants && cls.participants.includes(currentUser.id))
+                );
+                const otherClassrooms = classrooms.filter(cls =>
+                    cls.creator_id !== currentUser.id && (!cls.participants || !cls.participants.includes(currentUser.id))
+                );
+                if (userJoinedClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Your Classrooms';
+                    classroomList.appendChild(h3);
+                    userJoinedClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
+                if (otherClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Available Classrooms to Join';
+                    classroomList.appendChild(h3);
+                    otherClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="join-classroom-btn">Join Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
+                if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
+                    classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
+                }
+                document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.target.dataset.classroomId;
+                        const name = e.target.dataset.classroomName;
+                        enterClassroom(id, name);
+                    });
+                });
+                document.querySelectorAll('.join-classroom-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.classroomId;
+                        const name = e.target.dataset.classroomName;
+                        try {
+                            const response = await fetch('/api/join-classroom', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ classroomId: id })
+                            });
+                            const result = await response.json();
+                            if (response.ok) {
+                                showNotification(result.message);
+                                loadAvailableClassrooms();
+                                enterClassroom(id, name);
+                            } else {
+                                showNotification(result.error, true);
+                            }
+                        } catch (error) {
+                            console.error('Error joining classroom:', error);
+                            showNotification('An error occurred during joining.', true);
+                        }
+                    });
+                });
             }
         } catch (error) {
             console.error('Error loading classrooms:', error);
-            displayMessage(authMessage, 'Failed to connect to server.', 'error');
+            classroomList.innerHTML = '<li>Failed to load classrooms.</li>';
         }
     }
-
-    // --- Whiteboard Functions ---
-    function initializeWhiteboard() {
-        whiteboardCanvas.width = whiteboardContainer.clientWidth;
-        whiteboardCanvas.height = whiteboardContainer.clientHeight;
-
-        ctx.lineWidth = brushSize.value;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = colorPicker.value;
-    }
-
-    function startDrawing(e) {
-        drawing = true;
-        [lastX, lastY] = [e.offsetX, e.offsetY];
-    }
-
-    function draw(e) {
-        if (!drawing) return;
-        const [x, y] = [e.offsetX, e.offsetY];
-        drawLine(lastX, lastY, x, y, ctx.strokeStyle, ctx.lineWidth, true);
-        [lastX, lastY] = [x, y];
-    }
-
-    function stopDrawing() {
-        drawing = false;
-        saveWhiteboardState();
-    }
-
-    function drawLine(x0, y0, x1, y1, color, size, emit) {
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.strokeStyle = color;
-        ctx.lineWidth = size;
-        ctx.stroke();
-        ctx.closePath();
-
-        if (emit && socket && currentClassroomId) {
-            socket.emit('drawing', {
-                x0,
-                y0,
-                x1,
-                y1,
-                color,
-                size,
-                classroomId: currentClassroomId,
-                page: currentWhiteboardPage
-            });
-        }
-    }
-
-    function clearWhiteboard(emit) {
-        ctx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        if (emit && socket && currentClassroomId) {
-            socket.emit('clear_whiteboard', {
-                classroomId: currentClassroomId,
-                page: currentWhiteboardPage
-            });
-        }
-        saveWhiteboardState(); // Save cleared state
-    }
-
-    function saveWhiteboardState() {
-        whiteboardPageData[currentWhiteboardPage] = whiteboardCanvas.toDataURL();
-        if (socket && currentClassroomId) {
-            socket.emit('save_whiteboard_state', {
-                classroomId: currentClassroomId,
-                pages: whiteboardPageData,
-                currentPage: currentWhiteboardPage
-            });
-        }
-    }
-
-    function addWhiteboardPage(initialLoad = false) {
-        if (!initialLoad) {
-            saveWhiteboardState(); // Save current page before adding a new one
-        }
-
-        const newPageId = whiteboardPageData.length;
-        whiteboardPageData.push(''); // Add a blank page
-        currentWhiteboardPage = newPageId;
-        renderWhiteboardPages();
-        clearWhiteboard(false); // Clear canvas for new page
-
-        if (socket && currentClassroomId && !initialLoad) {
-            socket.emit('add_whiteboard_page', {
-                classroomId: currentClassroomId,
-                pages: whiteboardPageData,
-                newPageId: newPageId
-            });
-        }
-    }
-
-    function goToWhiteboardPage(pageId) {
-        if (pageId < 0 || pageId >= whiteboardPageData.length) return;
-        saveWhiteboardState(); // Save current page
-        currentWhiteboardPage = pageId;
-        renderWhiteboardPages();
-
-        if (whiteboardPageData[currentWhiteboardPage]) {
-            const img = new Image();
-            img.onload = () => {
-                ctx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-                ctx.drawImage(img, 0, 0);
-            };
-            img.src = whiteboardPageData[currentWhiteboardPage];
+    function enterClassroom(id, name) {
+        currentClassroom = { id: id, name: name };
+        localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
+        classroomIdDisplay.textContent = id;
+        classNameValue.textContent = name;
+        classCodeSpan.textContent = id;
+        showSection(classroomSection);
+        showClassroomSubSection(whiteboardArea);
+        updateNavActiveState(navWhiteboard);
+        updateUIBasedOnRole();
+        initializeSocketIO();
+        setupWhiteboardControls();
+        setupChatControls();
+        if (currentUser && currentUser.role === 'admin') {
+            startBroadcastBtn.disabled = false;
+            endBroadcastBtn.disabled = true;
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
         } else {
-            clearWhiteboard(false);
+            startBroadcastBtn.classList.add('hidden');
+            endBroadcastBtn.classList.add('hidden');
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
         }
-        if (socket && currentClassroomId) {
-            socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
-        }
-    }
-
-    function renderWhiteboardPages() {
-        whiteboardPagesContainer.innerHTML = '';
-        whiteboardPageData.forEach((data, index) => {
-            const pageButton = document.createElement('button');
-            pageButton.classList.add('whiteboard-page-btn');
-            if (index === currentWhiteboardPage) {
-                pageButton.classList.add('active');
-            }
-            pageButton.textContent = `Page ${index + 1}`;
-            pageButton.addEventListener('click', () => goToWhiteboardPage(index));
-            whiteboardPagesContainer.appendChild(pageButton);
-        });
-    }
-
-    // --- Assessment Functions ---
-
-    function addQuestionField(question = {}) {
-        const questionIndex = questionsContainer.children.length;
-        const questionDiv = document.createElement('div');
-        questionDiv.classList.add('assessment-question-item');
-        questionDiv.innerHTML = `
-            <label for="question-text-${questionIndex}">Question ${questionIndex + 1}:</label>
-            <input type="text" id="question-text-${questionIndex}" class="question-text" placeholder="Enter question text" value="${question.questionText || ''}" required>
-
-            <label for="question-type-${questionIndex}">Type:</label>
-            <select id="question-type-${questionIndex}" class="question-type">
-                <option value="text" ${question.type === 'text' ? 'selected' : ''}>Text Answer</option>
-                <option value="single-choice" ${question.type === 'single-choice' ? 'selected' : ''}>Single Choice</option>
-                <option value="multi-choice" ${question.type === 'multi-choice' ? 'selected' : ''}>Multiple Choice</option>
-            </select>
-
-            <div class="options-container ${question.type === 'text' || !question.type ? 'hidden' : ''}">
-                <label>Options:</label>
-                <div class="options-list">
-                    ${question.options && question.options.length > 0 ? question.options.map((opt, optIdx) => `
-                        <div class="option-item">
-                            <input type="text" class="option-text" value="${opt}" placeholder="Option ${optIdx + 1}" required>
-                            <input type="${question.type === 'single-choice' ? 'radio' : 'checkbox'}" name="correct-option-${questionIndex}" class="correct-option" ${question.correctAnswers && question.correctAnswers.includes(opt) ? 'checked' : ''}> Correct
-                            <button type="button" class="remove-option-btn">Remove</button>
-                        </div>
-                    `).join('') : ''}
-                </div>
-                <button type="button" class="add-option-btn">Add Option</button>
-            </div>
-            <button type="button" class="remove-question-btn">Remove Question</button>
-        `;
-        questionsContainer.appendChild(questionDiv);
-
-        const questionTypeSelect = questionDiv.querySelector('.question-type');
-        const optionsContainer = questionDiv.querySelector('.options-container');
-        const optionsList = questionDiv.querySelector('.options-list');
-        const addOptionBtn = questionDiv.querySelector('.add-option-btn');
-        const removeQuestionBtn = questionDiv.querySelector('.remove-question-btn');
-
-        // Initial state for options container
-        if (questionTypeSelect.value === 'text') {
-            optionsContainer.classList.add('hidden');
-        } else {
-            optionsContainer.classList.remove('hidden');
-        }
-
-
-        questionTypeSelect.addEventListener('change', () => {
-            if (questionTypeSelect.value === 'text') {
-                optionsContainer.classList.add('hidden');
-            } else {
-                optionsContainer.classList.remove('hidden');
-                // Ensure correct radio/checkbox type is set for existing options
-                optionsList.querySelectorAll('.correct-option').forEach(input => {
-                    input.type = questionTypeSelect.value === 'single-choice' ? 'radio' : 'checkbox';
-                    // For radio, uncheck others if one is checked
-                    if (questionTypeSelect.value === 'single-choice' && input.checked) {
-                        optionsList.querySelectorAll(`.correct-option[name="correct-option-${questionIndex}"]`).forEach(otherInput => {
-                            if (otherInput !== input) otherInput.checked = false;
-                        });
-                    }
-                });
-            }
-        });
-
-        addOptionBtn.addEventListener('click', () => {
-            addOptionField(optionsList, questionTypeSelect.value, questionIndex);
-        });
-
-        optionsList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('remove-option-btn')) {
-                e.target.closest('.option-item').remove();
-            } else if (e.target.classList.contains('correct-option') && e.target.type === 'radio') {
-                // Ensure only one radio is checked for single-choice
-                optionsList.querySelectorAll(`.correct-option[name="correct-option-${questionIndex}"]`).forEach(input => {
-                    if (input !== e.target) input.checked = false;
-                });
-            }
-        });
-
-        removeQuestionBtn.addEventListener('click', () => {
-            questionDiv.remove();
-        });
-    }
-
-    function addOptionField(optionsList, questionType, questionIndex) {
-        const optionDiv = document.createElement('div');
-        optionDiv.classList.add('option-item');
-        optionDiv.innerHTML = `
-            <input type="text" class="option-text" placeholder="Option Text" required>
-            <input type="${questionType === 'single-choice' ? 'radio' : 'checkbox'}" name="correct-option-${questionIndex}" class="correct-option"> Correct
-            <button type="button" class="remove-option-btn">Remove</button>
-        `;
-        optionsList.appendChild(optionDiv);
-    }
-
-    function getAssessmentDataFromForm() {
-        const questions = [];
-        questionsContainer.querySelectorAll('.assessment-question-item').forEach(qDiv => {
-            const questionText = qDiv.querySelector('.question-text').value;
-            const questionType = qDiv.querySelector('.question-type').value;
-            const options = [];
-            const correctAnswers = [];
-
-            if (questionType !== 'text') {
-                qDiv.querySelectorAll('.option-item').forEach(optDiv => {
-                    const optionText = optDiv.querySelector('.option-text').value;
-                    options.push(optionText);
-                    if (optDiv.querySelector('.correct-option').checked) {
-                        correctAnswers.push(optionText);
-                    }
-                });
-            }
-
-            questions.push({
-                questionText,
-                type: questionType,
-                options: options.length > 0 ? options : undefined,
-                correctAnswers: correctAnswers.length > 0 ? correctAnswers : undefined,
-            });
-        });
-
-        return {
-            title: assessmentTitleInput.value,
-            description: assessmentDescriptionInput.value,
-            deadline: assessmentDeadlineInput.value,
-            questions: questions,
-            classroomId: currentClassroomId,
-        };
-    }
-
-    async function loadAssessments() {
-        if (!currentClassroomId) return;
-        socket.emit('request_assessments_list', currentClassroomId);
-        showClassroomTab(assessmentsTab);
-    }
-
-    function loadTakeAssessment(assessment) {
-        currentAssessmentToTake = assessment;
-        takeAssessmentTitle.textContent = assessment.title;
-        takeAssessmentQuestionsContainer.innerHTML = '';
-
-        assessment.questions.forEach((q, index) => {
-            const qDiv = document.createElement('div');
-            qDiv.classList.add('take-assessment-question-item');
-            qDiv.innerHTML = `
-                <p><strong>${index + 1}. ${q.questionText}</strong></p>
-            `;
-
-            if (q.type === 'text') {
-                qDiv.innerHTML += `<textarea class="answer-text" rows="3" placeholder="Your answer"></textarea>`;
-            } else if (q.type === 'single-choice') {
-                q.options.forEach((opt, optIdx) => {
-                    qDiv.innerHTML += `
-                        <div>
-                            <input type="radio" name="question-${index}" value="${opt}" id="q${index}-opt${optIdx}">
-                            <label for="q${index}-opt${optIdx}">${opt}</label>
-                        </div>
-                    `;
-                });
-            } else if (q.type === 'multi-choice') {
-                q.options.forEach((opt, optIdx) => {
-                    qDiv.innerHTML += `
-                        <div>
-                            <input type="checkbox" name="question-${index}" value="${opt}" id="q${index}-opt${optIdx}">
-                            <label for="q${index}-opt${optIdx}">${opt}</label>
-                        </div>
-                    `;
-                });
-            }
-            takeAssessmentQuestionsContainer.appendChild(qDiv);
-        });
-        showSection(takeAssessmentSection);
-    }
-
-    async function submitAssessment() {
-        if (!currentAssessmentToTake) return;
-
-        const answers = [];
-        takeAssessmentQuestionsContainer.querySelectorAll('.take-assessment-question-item').forEach((qDiv, index) => {
-            const question = currentAssessmentToTake.questions[index];
-            let answer;
-
-            if (question.type === 'text') {
-                answer = qDiv.querySelector('.answer-text').value;
-            } else if (question.type === 'single-choice') {
-                const selectedRadio = qDiv.querySelector(`input[name="question-${index}"]:checked`);
-                answer = selectedRadio ? selectedRadio.value : null;
-            } else if (question.type === 'multi-choice') {
-                answer = Array.from(qDiv.querySelectorAll(`input[name="question-${index}"]:checked`)).map(input => input.value);
-            }
-            answers.push({ questionIndex: index, answer });
-        });
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`/api/assessments/${currentAssessmentToTake.id}/submit`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ answers })
-            });
-            const result = await response.json();
-
-            if (response.ok) {
-                console.log('Assessment submitted successfully:', result.submission);
-                socket.emit('assessment_submitted', {
-                    classroomId: currentClassroomId,
-                    title: currentAssessmentToTake.title,
-                    submission: result.submission
-                });
-                showSection(viewAssessmentSection); // Go back to assessment view
-                socket.emit('request_assessment_details', { assessmentId: currentAssessmentToTake.id, classroomId: currentClassroomId }); // Refresh view
-            } else {
-                console.error('Failed to submit assessment:', result.message);
-                alert('Failed to submit assessment: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error submitting assessment:', error);
-            alert('An error occurred while submitting the assessment.');
-        }
-    }
-
-
-    // --- Event Listeners ---
-
-    // Auth Section
-    if (loginForm) loginForm.addEventListener('submit', (e) => handleAuth(e, '/api/login', loginForm, authMessage));
-    if (registerForm) registerForm.addEventListener('submit', (e) => handleAuth(e, '/api/register', registerForm, authMessage));
-
-    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showSection(registerContainer);
-        displayMessage(authMessage, '', ''); // Clear messages
-    });
-    if (showLoginLink) showLoginLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showSection(loginContainer);
-        displayMessage(authMessage, '', ''); // Clear messages
-    });
-
-    // Dashboard Navigation
-    if (navDashboard) navDashboard.addEventListener('click', () => {
-        showSection(dashboardSection);
-        updateNavActiveState(navDashboard);
-        loadUserClassrooms();
-    });
-    if (navClassroom) navClassroom.addEventListener('click', () => {
-        if (currentClassroomId) {
-            showSection(classroomSection);
-            updateNavActiveState(navClassroom);
-            showClassroomTab(chatTab); // Default to chat
-        } else {
-            alert('Please join or create a classroom first.');
-        }
-    });
-    if (navSettings) navSettings.addEventListener('click', async () => {
-        showSection(settingsSection);
-        updateNavActiveState(navSettings);
-        // Load current user settings
-        if (currentUser) {
-            usernameSettingsInput.value = currentUser.username || '';
-            emailSettingsInput.value = currentUser.email || '';
-            // Password will not be pre-filled for security
-            // Notification toggle state
-            const notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true';
-            notificationSettingsToggle.checked = notificationsEnabled;
-        }
-    });
-    if (logoutBtn) logoutBtn.addEventListener('click', logout);
-
-    // Create Classroom
-    if (createClassroomLink) createClassroomLink.addEventListener('click', () => showSection(createClassroomSection));
-    if (backToDashboardFromCreateBtn) backToDashboardFromCreateBtn.addEventListener('click', () => showSection(dashboardSection));
-    if (createClassroomBtn) createClassroomBtn.addEventListener('click', async () => {
-        const classroomName = newClassroomNameInput.value.trim();
-        if (!classroomName) {
-            alert('Please enter a classroom name.');
-            return;
-        }
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/classrooms/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name: classroomName
-                })
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert(`Classroom "${result.name}" created! ID: ${result.id}, Code: ${result.code}`);
-                socket.emit('join_classroom', {
-                    classroomId: result.id,
-                    classroomName: result.name,
-                    classroomCode: result.code
-                });
-                newClassroomNameInput.value = '';
-            } else {
-                alert('Failed to create classroom: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error creating classroom:', error);
-            alert('An error occurred while creating the classroom.');
-        }
-    });
-
-    // Join Classroom
-    if (joinClassroomLink) joinClassroomLink.addEventListener('click', () => showSection(joinClassroomSection));
-    if (backToDashboardFromJoinBtn) backToDashboardFromJoinBtn.addEventListener('click', () => showSection(dashboardSection));
-    if (joinClassroomBtn) joinClassroomBtn.addEventListener('click', async () => {
-        const classroomIdOrCode = joinClassroomIdInput.value.trim();
-        if (!classroomIdOrCode) {
-            alert('Please enter a Classroom ID or Code.');
-            return;
-        }
-
-        try {
-            const token = localStorage.Item('token'); // Corrected from Item to getItem
-            const response = await fetch('/api/classrooms/join', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    identifier: classroomIdOrCode
-                }) // Can be ID or Code
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert(`Joined classroom: "${result.name}"`);
-                socket.emit('join_classroom', {
-                    classroomId: result.id,
-                    classroomName: result.name,
-                    classroomCode: result.code
-                });
-                joinClassroomIdInput.value = '';
-            } else {
-                alert('Failed to join classroom: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error joining classroom:', error);
-            alert('An error occurred while joining the classroom.');
-        }
-    });
-
-    // Dynamic Classroom List Actions (Join/Leave)
-    if (userClassroomsList) {
-        userClassroomsList.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('join-btn')) {
-                const id = e.target.dataset.id;
-                const name = e.target.dataset.name;
-                const code = e.target.dataset.code;
-                socket.emit('join_classroom', {
-                    classroomId: id,
-                    classroomName: name,
-                    classroomCode: code
-                });
-            } else if (e.target.classList.contains('leave-btn')) {
-                const id = e.target.dataset.id;
-                if (confirm('Are you sure you want to leave this classroom?')) {
-                    try {
-                        const token = localStorage.getItem('token');
-                        const response = await fetch(`/api/classrooms/${id}/leave`, {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-                        const result = await response.json();
-                        if (response.ok) {
-                            alert(result.message);
-                            if (currentClassroomId === id) {
-                                socket.emit('leave_classroom', currentClassroomId); // Explicitly tell server you're leaving
-                            }
-                            loadUserClassrooms(); // Refresh the list
-                        } else {
-                            alert('Failed to leave classroom: ' + result.message);
-                        }
-                    } catch (error) {
-                        console.error('Error leaving classroom:', error);
-                        alert('An error occurred while leaving the classroom.');
-                    }
-                }
-            }
-        });
-    }
-
-    // Classroom Section Navigation
-    if (leaveClassroomBtn) leaveClassroomBtn.addEventListener('click', () => {
-        if (currentClassroomId && confirm('Are you sure you want to leave this classroom?')) {
-            socket.emit('leave_classroom', currentClassroomId);
-        }
-    });
-
-    if (classroomNavChat) classroomNavChat.addEventListener('click', () => showClassroomTab(chatTab));
-    if (classroomNavWhiteboard) classroomNavWhiteboard.addEventListener('click', () => showClassroomTab(whiteboardTab));
-    if (classroomNavMembers) classroomNavMembers.addEventListener('click', () => {
-        showClassroomTab(membersTab);
-        if (currentClassroomId) {
-            socket.emit('request_members_list', currentClassroomId);
-        }
-    });
-    if (classroomNavResources) classroomNavResources.addEventListener('click', () => {
-        showClassroomTab(resourcesTab);
-        if (currentClassroomId) {
-            socket.emit('request_resources_list', currentClassroomId);
-        }
-    });
-    if (classroomNavAssessments) classroomNavAssessments.addEventListener('click', () => {
-        showClassroomTab(assessmentsTab);
-        loadAssessments(); // Load assessments when tab is clicked
-    });
-
-    // Chat
-    if (sendMessageBtn) sendMessageBtn.addEventListener('click', () => {
-        const message = messageInput.value.trim();
-        if (message && currentClassroomId) {
-            socket.emit('send_message', {
-                classroomId: currentClassroomId,
-                message: message
-            });
-            messageInput.value = '';
-        }
-    });
-    if (messageInput) messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessageBtn.click();
-        }
-    });
-
-    // Whiteboard
-    if (whiteboardCanvas) {
-        whiteboardCanvas.addEventListener('mousedown', startDrawing);
-        whiteboardCanvas.addEventListener('mousemove', draw);
-        whiteboardCanvas.addEventListener('mouseup', stopDrawing);
-        whiteboardCanvas.addEventListener('mouseout', stopDrawing); // Stop drawing if mouse leaves canvas
-
-        // Touch events for mobile
-        whiteboardCanvas.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Prevent scrolling
-            const touch = e.touches[0];
-            const rect = whiteboardCanvas.getBoundingClientRect();
-            startDrawing({
-                offsetX: touch.clientX - rect.left,
-                offsetY: touch.clientY - rect.top
-            });
-        });
-        whiteboardCanvas.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Prevent scrolling
-            const touch = e.touches[0];
-            const rect = whiteboardCanvas.getBoundingClientRect();
-            draw({
-                offsetX: touch.clientX - rect.left,
-                offsetY: touch.clientY - rect.top
-            });
-        });
-        whiteboardCanvas.addEventListener('touchend', stopDrawing);
-    }
-    if (clearWhiteboardBtn) clearWhiteboardBtn.addEventListener('click', () => clearWhiteboard(true));
-    if (colorPicker) colorPicker.addEventListener('change', (e) => ctx.strokeStyle = e.target.value);
-    if (brushSize) brushSize.addEventListener('change', (e) => ctx.lineWidth = e.target.value);
-    if (addWhiteboardPageBtn) addWhiteboardPageBtn.addEventListener('click', addWhiteboardPage);
-
-    // Resources
-    if (uploadResourceBtn) uploadResourceBtn.addEventListener('click', async () => {
-        const name = resourceNameInput.value.trim();
-        const file = resourceFileInput.files[0];
-
-        if (!name || !file) {
-            alert('Please provide a resource name and select a file.');
-            return;
-        }
-        if (!currentClassroomId) {
-            alert('Please join a classroom first.');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('name', name);
-        formData.append('file', file);
-        formData.append('classroomId', currentClassroomId);
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/resources/upload', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }, // No 'Content-Type' header when using FormData, browser sets it
-                body: formData,
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert('Resource uploaded successfully!');
-                resourceNameInput.value = '';
-                resourceFileInput.value = '';
-                // Socket.IO will handle updating the list via 'resource_uploaded' event
-            } else {
-                alert('Failed to upload resource: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error uploading resource:', error);
-            alert('An error occurred while uploading the resource.');
-        }
-    });
-
-    // Assessments
-    if (createAssessmentBtn) createAssessmentBtn.addEventListener('click', () => {
-        showSection(createAssessmentSection);
-        questionsContainer.innerHTML = ''; // Clear previous questions
-        assessmentTitleInput.value = '';
-        assessmentDescriptionInput.value = '';
-        assessmentDeadlineInput.value = '';
-        addQuestionField(); // Add first question by default
-    });
-    if (addQuestionBtn) addQuestionBtn.addEventListener('click', () => addQuestionField());
-    if (saveAssessmentBtn) saveAssessmentBtn.addEventListener('click', async () => {
-        const assessmentData = getAssessmentDataFromForm();
-
-        if (!assessmentData.title || !assessmentData.deadline || assessmentData.questions.length === 0) {
-            alert('Please fill in all assessment details and add at least one question.');
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/assessments/create', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(assessmentData),
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert('Assessment saved successfully!');
-                socket.emit('assessment_created', {
-                    classroomId: currentClassroomId,
-                    title: assessmentData.title
-                });
-                loadAssessments(); // Go back to assessments list
-            } else {
-                alert('Failed to save assessment: ' + result.message);
-            }
-        } catch (error) {
-            console.error('Error saving assessment:', error);
-            alert('An error occurred while saving the assessment.');
-        }
-    });
-
-    if (backToAssessmentListFromCreateBtn) backToAssessmentListFromCreateBtn.addEventListener('click', () => loadAssessments());
-    if (backToAssessmentListFromViewBtn) backToAssessmentListFromViewBtn.addEventListener('click', () => loadAssessments());
-    if (takeAssessmentBtn) takeAssessmentBtn.addEventListener('click', () => {
-        if (currentAssessmentToView) {
-            loadTakeAssessment(currentAssessmentToView);
-        }
-    });
-    if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
-    if (backToViewAssessmentFromTakeBtn) backToViewAssessmentFromTakeBtn.addEventListener('click', () => {
-        if (currentAssessmentToView) {
-            socket.emit('request_assessment_details', { assessmentId: currentAssessmentToView.id, classroomId: currentClassroomId });
-        }
-    });
-    if (deleteAssessmentBtn) deleteAssessmentBtn.addEventListener('click', async () => {
-        if (currentAssessmentToView && confirm(`Are you sure you want to delete "${currentAssessmentToView.title}"?`)) {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await fetch(`/api/assessments/${currentAssessmentToView.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    socket.emit('assessment_deleted', { classroomId: currentClassroomId, title: currentAssessmentToView.title });
-                    loadAssessments();
-                } else {
-                    alert('Failed to delete assessment: ' + result.message);
-                }
-            } catch (error) {
-                console.error('Error deleting assessment:', error);
-                alert('An error occurred while deleting the assessment.');
-            }
-        }
-    });
-    // Event listener for viewing individual assessments from the list
-    if (assessmentsList) {
-        assessmentsList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('view-assessment-btn')) {
-                const assessmentId = e.target.dataset.id;
-                if (currentClassroomId && assessmentId) {
-                    socket.emit('request_assessment_details', {
-                        assessmentId: assessmentId,
-                        classroomId: currentClassroomId
-                    });
-                }
-            }
-        });
-    }
-
-    if (viewSubmissionsBtn) viewSubmissionsBtn.addEventListener('click', async () => {
-        if (currentAssessmentToView && currentClassroomId) {
-            socket.emit('request_assessment_submissions', {
-                assessmentId: currentAssessmentToView.id,
-                classroomId: currentClassroomId
-            });
-        }
-    });
-
-    if (submissionsList) {
-        submissionsList.addEventListener('click', async (e) => {
-            if (e.target.classList.contains('view-submission-details-btn')) {
-                const submissionId = e.target.dataset.id;
-                // Implement logic to view individual submission details
-                // This would likely involve another Socket.IO event or API call
-                alert(`View details for submission ID: ${submissionId}`);
-                // Example: socket.emit('request_submission_details', { submissionId: submissionId, classroomId: currentClassroomId });
-            }
-        });
-    }
-
-    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => {
+        shareLinkDisplay.classList.add('hidden');
+        shareLinkInput.value = '';
         loadAssessments();
-    });
-
-    // Settings
-    if (saveProfileSettingsBtn) saveProfileSettingsBtn.addEventListener('click', async () => {
-        const newUsername = usernameSettingsInput.value.trim();
-        const newEmail = emailSettingsInput.value.trim();
-        const newPassword = passwordSettingsInput.value;
-
-        const updates = {};
-        if (newUsername && newUsername !== currentUser.username) updates.username = newUsername;
-        if (newEmail && newEmail !== currentUser.email) updates.email = newEmail;
-        if (newPassword) updates.password = newPassword;
-
-        if (Object.keys(updates).length === 0) {
-            alert('No changes to save.');
+        loadLibraryFiles();
+        fetchWhiteboardHistory();
+    }
+    function cleanupClassroomResources() {
+        if (socket && currentClassroom && currentClassroom.id) {
+            socket.emit('leave', { 'classroomId': currentClassroom.id });
+            socket.disconnect();
+            socket = null;
+        } else if (socket) {
+            socket.disconnect();
+            socket = null;
+        }
+        endBroadcast();
+        if (whiteboardCtx && whiteboardCanvas) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            whiteboardCtx.fillStyle = '#000000';
+            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        }
+        whiteboardPages = [[]];
+        currentPageIndex = 0;
+        undoStack.length = 0;
+        redoStack.length = 0;
+        updateUndoRedoButtons();
+        updateWhiteboardPageDisplay();
+        if (chatMessages) chatMessages.innerHTML = '';
+        if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
+        currentClassroom = null;
+        localStorage.removeItem('currentClassroom');
+    }
+    function initializeSocketIO() {
+        if (socket) {
+            socket.disconnect();
+        }
+        socket = io();
+        socket.on('connect', () => {
+            console.log('[Socket.IO] Connected. SID:', socket.id);
+            if (currentClassroom && currentClassroom.id) {
+                socket.emit('join', { 'classroomId': currentClassroom.id, 'role': currentUser.role });
+                showNotification("Connected to classroom: " + currentClassroom.name);
+            } else {
+                console.error('[Socket.IO] Cannot join classroom: currentClassroom.id is undefined.');
+                showNotification("Error: Could not join classroom.", true);
+            }
+        });
+        socket.on('disconnect', () => {
+            console.log('[Socket.IO] Disconnected');
+            showNotification("Disconnected from classroom.", true);
+            for (const peerId in peerConnections) {
+                if (peerConnections[peerId]) {
+                    peerConnections[peerId].close();
+                    delete peerConnections[peerId];
+                }
+            }
+            if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
+        });
+        socket.on('status', (data) => {
+            console.log('[Socket.IO] Server Status:', data.message);
+        });
+        socket.on('admin_action_update', (data) => {
+            console.log('[Admin Action] Received:', data.message);
+            showNotification(`Admin Action: ${data.message}`);
+            if (data.message.includes('library')) {
+                loadLibraryFiles();
+            }
+            if (data.message.includes('assessment')) {
+                loadAssessments();
+            }
+        });
+        socket.on('message', (data) => {
+            const messageElement = document.createElement('div');
+            const senderDisplayName = getDisplayName(data.username, data.role);
+            const date = new Date(data.timestamp);
+            const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${data.message}`;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+        socket.on('chat_history', (history) => {
+            chatMessages.innerHTML = '';
+            history.forEach(msg => {
+                const messageElement = document.createElement('div');
+                const senderDisplayName = getDisplayName(msg.username, msg.role);
+                const date = new Date(msg.timestamp);
+                const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${msg.message}`;
+                chatMessages.appendChild(messageElement);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+        socket.on('user_joined', (data) => {
+            console.log(`[Socket.IO] User joined: ${data.username} (${data.sid})`);
+            const statusMessage = document.createElement('div');
+            const joinedDisplayName = getDisplayName(data.username, data.role);
+            statusMessage.textContent = `${joinedDisplayName} has joined the classroom.`;
+            statusMessage.style.fontStyle = 'italic';
+            chatMessages.appendChild(statusMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            if (currentUser && currentUser.role === 'admin' && localStream && localStream.active && data.sid !== socket.id) {
+                console.log(`[WebRTC] Admin (${socket.id}) broadcasting. Creating offer for new peer: ${data.sid}`);
+                createPeerConnection(data.sid, true);
+            }
+        });
+        socket.on('user_left', (data) => {
+            console.log(`[Socket.IO] User left: ${data.username} (${data.sid})`);
+            const statusMessage = document.createElement('div');
+            statusMessage.textContent = `${data.username} has left the classroom.`;
+            statusMessage.style.fontStyle = 'italic';
+            chatMessages.appendChild(statusMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            const peerId = data.sid;
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        });
+        socket.on('whiteboard_data', (data) => {
+            if (!whiteboardCtx) {
+                console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
+                return;
+            }
+            const applyDrawingProperties = (tool, color, width) => {
+                whiteboardCtx.strokeStyle = color;
+                whiteboardCtx.lineWidth = width;
+                whiteboardCtx.fillStyle = color;
+                if (tool === 'eraser') {
+                    whiteboardCtx.globalCompositeOperation = 'destination-out';
+                } else {
+                    whiteboardCtx.globalCompositeOperation = 'source-over';
+                }
+            };
+            if (data.action === 'draw') {
+                const drawingItem = data.data;
+                const pageIndex = data.pageIndex;
+                if (!whiteboardPages[pageIndex]) {
+                    whiteboardPages[pageIndex] = [];
+                }
+                whiteboardPages[pageIndex].push(drawingItem);
+                if (pageIndex === currentPageIndex) {
+                    whiteboardCtx.save();
+                    applyDrawingProperties(drawingItem.tool, drawingItem.color, drawingItem.width);
+                    drawWhiteboardItem(drawingItem);
+                    whiteboardCtx.restore();
+                }
+            } else if (data.action === 'clear') {
+                const pageIndex = data.pageIndex;
+                if (whiteboardPages[pageIndex]) {
+                    whiteboardPages[pageIndex] = [];
+                }
+                if (pageIndex === currentPageIndex) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    whiteboardCtx.fillStyle = '#000000';
+                    whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                }
+            } else if (data.action === 'history' && data.history) {
+                whiteboardPages = data.history;
+                if (whiteboardPages.length === 0) {
+                    whiteboardPages = [[]];
+                }
+                currentPageIndex = 0;
+                renderCurrentWhiteboardPage();
+                updateWhiteboardPageDisplay();
+            }
+        });
+        socket.on('whiteboard_page_change', (data) => {
+            const { newPageIndex } = data;
+            if (newPageIndex >= 0 && newPageIndex < whiteboardPages.length) {
+                currentPageIndex = newPageIndex;
+                renderCurrentWhiteboardPage();
+                updateWhiteboardPageDisplay();
+                showNotification(`Whiteboard page changed to ${newPageIndex + 1}`);
+            }
+        });
+        socket.on('webrtc_offer', async (data) => {
+            if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received WebRTC Offer from: ${data.sender_id} to ${socket.id}`);
+            const peerId = data.sender_id;
+            if (!peerConnections[peerId]) {
+                createPeerConnection(peerId, false);
+            }
+            try {
+                await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnections[peerId].createAnswer();
+                await peerConnections[peerId].setLocalDescription(answer);
+                socket.emit('webrtc_answer', {
+                    classroomId: currentClassroom.id,
+                    recipient_id: peerId,
+                    answer: peerConnections[peerId].localDescription
+                });
+                console.log(`[WebRTC] Sent WebRTC Answer to: ${peerId} from ${socket.id}`);
+            } catch (error) {
+                console.error('[WebRTC] Error handling offer:', error);
+            }
+        });
+        socket.on('webrtc_answer', async (data) => {
+            if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received WebRTC Answer from: ${data.sender_id} to ${socket.id}`);
+            const peerId = data.sender_id;
+            if (peerConnections[peerId]) {
+                try {
+                    await peerConnections[peerId].setRemoteDescription(new RTCSessionDescription(data.answer));
+                } catch (error) {
+                    console.error('[WebRTC] Error handling answer:', error);
+                }
+            }
+        });
+        socket.on('webrtc_ice_candidate', async (data) => {
+            if (data.sender_id === socket.id) return;
+            console.log(`[WebRTC] Received ICE Candidate from: ${data.sender_id} to ${socket.id}`);
+            const peerId = data.sender_id;
+            if (peerConnections[peerId] && data.candidate) {
+                try {
+                    await peerConnections[peerId].addIceCandidate(new RTCIceCandidate(data.candidate));
+                } catch (error) {
+                    if (!error.message.includes('wrong state') && !error.message.includes('remote answer sdp')) {
+                        console.error('[WebRTC] Error adding ICE candidate:', error);
+                    }
+                }
+            }
+        });
+        socket.on('webrtc_peer_disconnected', (data) => {
+            console.log(`[WebRTC] Peer disconnected signal received for: ${data.peer_id}`);
+            const peerId = data.peer_id;
+            if (peerConnections[peerId]) {
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        });
+    }
+    async function startBroadcast() {
+        if (!currentClassroom || !currentClassroom.id || !socket || !currentUser || currentUser.role !== 'admin') {
+            showNotification("Only administrators can start a broadcast in a classroom.", true);
             return;
         }
-
+        if (localStream && localStream.active) {
+            showNotification("Broadcast already active. Stopping it first.", true);
+            endBroadcast();
+            setTimeout(() => startBroadcast(), 500);
+            return;
+        }
+        const selectedType = document.querySelector('input[name="broadcastType"]:checked').value;
+        const constraints = {
+            video: selectedType === 'video_audio',
+            audio: true
+        };
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch('/api/user/profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(updates)
+            localStream = await navigator.mediaDevices.getUserMedia(constraints);
+            localVideo.srcObject = localStream;
+            startBroadcastBtn.disabled = true;
+            endBroadcastBtn.disabled = false;
+            showNotification(`Broadcast started: ${selectedType === 'video_audio' ? 'Video & Audio' : 'Audio Only'}`);
+            socket.emit('admin_action_update', {
+                classroomId: currentClassroom.id,
+                message: `Admin ${currentUser.username} started a ${selectedType === 'video_audio' ? 'video and audio' : 'audio only'} broadcast.`
             });
-            const result = await response.json();
-            if (response.ok) {
-                alert('Profile updated successfully!');
-                // Update local currentUser and display
-                currentUser = { ...currentUser, ...updates
-                };
-                currentUsername = currentUser.username;
-                currentUsernameDisplay.textContent = currentUsername;
-                localStorage.setItem('user', JSON.stringify(currentUser));
-                passwordSettingsInput.value = ''; // Clear password field
+        } catch (err) {
+            console.error('[WebRTC] Error accessing media devices:', err);
+            showNotification(`Could not start broadcast. Error: ${err.message}. Please ensure camera and microphone access are granted.`, true);
+            localStream = null;
+            startBroadcastBtn.disabled = false;
+            endBroadcastBtn.disabled = true;
+        }
+    }
+    function endBroadcast() {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+            localVideo.srcObject = null;
+        }
+        for (const peerId in peerConnections) {
+            if (peerConnections[peerId]) {
+                socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: peerId });
+                peerConnections[peerId].close();
+                delete peerConnections[peerId];
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        }
+        showNotification('Broadcast ended.');
+        startBroadcastBtn.disabled = false;
+        endBroadcastBtn.disabled = true;
+        socket.emit('admin_action_update', {
+            classroomId: currentClassroom.id,
+            message: `Admin ${currentUser.username} ended the broadcast.`
+        });
+    }
+    async function createPeerConnection(peerId, isCaller) {
+        if (peerConnections[peerId]) {
+            console.log(`[WebRTC] Peer connection to ${peerId} already exists.`);
+            return;
+        }
+        const pc = new RTCPeerConnection(iceServers);
+        peerConnections[peerId] = pc;
+        console.log(`[WebRTC] Created RTCPeerConnection for peer: ${peerId}. Is caller: ${isCaller}`);
+        if (isCaller && localStream) {
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+                console.log(`[WebRTC] Added local track ${track.kind} to peer ${peerId}`);
+            });
+        } else if (!isCaller) {
+            console.log(`[WebRTC] This peer (${socket.id}) is a receiver. Not adding local tracks to ${peerId}.`);
+        }
+        pc.ontrack = (event) => {
+            console.log(`[WebRTC] Remote track received from: ${peerId}, kind: ${event.track.kind}`);
+            let remoteVideo = document.getElementById(`remote-video-${peerId}`);
+            if (!remoteVideo) {
+                remoteVideo = document.createElement('video');
+                remoteVideo.id = `remote-video-${peerId}`;
+                remoteVideo.autoplay = true;
+                remoteVideo.playsInline = true;
+                remoteVideo.controls = false;
+                remoteVideoContainer.appendChild(remoteVideo);
+                console.log(`[WebRTC] Created remote video element for: ${peerId}`);
+            }
+            if (event.streams && event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
             } else {
-                alert('Failed to update profile: ' + result.message);
+                const newStream = new MediaStream();
+                newStream.addTrack(event.track);
+                remoteVideo.srcObject = newStream;
             }
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            alert('An error occurred while updating profile.');
-        }
-    });
-
-    if (notificationSettingsToggle) notificationSettingsToggle.addEventListener('change', (e) => {
-        localStorage.setItem('notificationsEnabled', e.target.checked);
-        alert(`Notifications ${e.target.checked ? 'enabled' : 'disabled'}.`);
-    });
-
-    // Notification Center
-    if (notificationCenterBtn) notificationCenterBtn.addEventListener('click', () => {
-        notificationCenter.classList.toggle('active');
-        if (notificationCenter.classList.contains('active')) {
-            notificationCountSpan.textContent = '0';
-            notificationCountSpan.classList.remove('has-notifications');
-        }
-    });
-    if (closeNotificationsBtn) closeNotificationsBtn.addEventListener('click', () => {
-        notificationCenter.classList.remove('active');
-    });
-
-    // Initial setup calls
-    initializeWhiteboard(); // Setup whiteboard canvas initially
-    // addWhiteboardPage(true); // Add an initial blank whiteboard page on load, without emitting to server
-
-    if (backToDashboardFromSettingsBtn) backToDashboardFromSettingsBtn.addEventListener('click', () => {
-        showSection(dashboardSection);
-        updateNavActiveState(navDashboard);
-        loadUserClassrooms();
-    });
-
-
-    checkLoginStatus();
-
-    // Sidebar toggle logic
-    const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
-    const sidebar = document.getElementById('classroom-sidebar');
-    const closeSidebarBtn = document.getElementById('close-sidebar-btn');
-
-    if (hamburgerMenuBtn && sidebar && closeSidebarBtn) {
-        hamburgerMenuBtn.addEventListener('click', () => {
-            sidebar.classList.add('active');
-            sidebar.classList.remove('hidden');
-            document.body.classList.add('sidebar-open');
-        });
-
-        closeSidebarBtn.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            sidebar.classList.add('hidden');
-            document.body.classList.remove('sidebar-open');
-        });
-
-        document.addEventListener('click', (e) => {
-            // Check if sidebar is active and click is outside sidebar and hamburger button
-            if (
-                sidebar.classList.contains('active') &&
-                !sidebar.contains(e.target) &&
-                !hamburgerMenuBtn.contains(e.target)
-            ) {
-                sidebar.classList.remove('active');
-                sidebar.classList.add('hidden');
-                document.body.classList.remove('sidebar-open');
+        };
+        pc.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log(`[WebRTC] Sending ICE Candidate from ${socket.id} to: ${peerId}`);
+                socket.emit('webrtc_ice_candidate', {
+                    classroomId: currentClassroom.id,
+                    recipient_id: peerId,
+                    candidate: event.candidate
+                });
             }
+        };
+        pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state with ${peerId}: ${pc.connectionState}`);
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                console.log(`[WebRTC] Peer ${peerId} connection closed or failed. Cleaning up.`);
+                if (peerConnections[peerId]) {
+                    peerConnections[peerId].close();
+                    delete peerConnections[peerId];
+                }
+                const videoElement = document.getElementById(`remote-video-${peerId}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
+            }
+        };
+        if (isCaller) {
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log(`[WebRTC] Sending WebRTC Offer from ${socket.id} to: ${peerId}`);
+                socket.emit('webrtc_offer', {
+                    classroomId: currentClassroom.id,
+                    recipient_id: peerId,
+                    offer: pc.localDescription
+                });
+            } catch (error) {
+                console.error('[WebRTC] Error creating offer:', error);
+            }
+        }
+    }
+    function setupWhiteboardControls() {
+        if (!whiteboardCanvas) {
+             console.warn("[Whiteboard] Canvas element not found. Whiteboard controls not set up.");
+             return;
+        }
+        whiteboardCtx = whiteboardCanvas.getContext('2d');
+        if (!whiteboardCtx) {
+            console.error("[Whiteboard] 2D context failed to initialize. Whiteboard will not function.");
+            return;
+        }
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineWidth = currentBrushSize;
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.fillStyle = currentColor;
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
+        whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
+        whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
+        whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
+        whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
+        whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
+        whiteboardCanvas.addEventListener('touchend', handleMouseUp);
+        whiteboardCanvas.addEventListener('touchcancel', handleMouseUp);
+        toolButtons.forEach(button => {
+            button.addEventListener('click', () => selectTool(button.dataset.tool));
         });
+        if (colorPicker) colorPicker.addEventListener('input', updateColor);
+        if (brushSizeSlider) brushSizeSlider.addEventListener('input', updateBrushSize);
+        if (undoButton) undoButton.addEventListener('click', undo);
+        if (redoButton) redoButton.addEventListener('click', redo);
+        if (clearButton) clearButton.addEventListener('click', () => clearCanvas(true));
+        if (saveButton) saveButton.addEventListener('click', saveImage);
+        if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
+        if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
+        renderCurrentWhiteboardPage();
+        updateWhiteboardPageDisplay();
+        updateUndoRedoButtons();
+    }
+    function resizeCanvas() {
+        const container = whiteboardCanvas.parentElement;
+        const aspectRatio = 1200 / 800;
+        let newWidth = container.clientWidth - 40;
+        let newHeight = newWidth / aspectRatio;
+        if (newHeight > window.innerHeight * 0.9) {
+            newHeight = window.innerHeight * 0.9;
+            newWidth = newHeight * aspectRatio;
+        }
+        whiteboardCanvas.width = Math.max(newWidth, 300);
+        whiteboardCanvas.height = Math.max(newHeight, 700);
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineWidth = currentBrushSize;
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.fillStyle = currentColor;
+        renderCurrentWhiteboardPage();
+    }
+    function handleMouseDown(e) {
+        if (currentUser.role !== 'admin') return;
+        isDrawing = true;
+        const coords = getCoords(e);
+        startX = coords.x;
+        startY = coords.y;
+        lastX = coords.x;
+        lastY = coords.y;
+        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
+            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        }
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            currentStrokePoints = [{ x: startX, y: startY }];
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(startX, startY);
+        } else if (currentTool === 'text') {
+            const textInput = prompt("Enter text:");
+            if (textInput !== null && textInput.trim() !== '') {
+                whiteboardCtx.save();
+                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+                whiteboardCtx.fillStyle = currentColor;
+                whiteboardCtx.fillText(textInput, startX, startY);
+                whiteboardCtx.restore();
+                saveState();
+                const textData = {
+                    startX: startX,
+                    startY: startY,
+                    endX: startX,
+                    endY: startY,
+                    text: textInput,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: 'text',
+                    pageIndex: currentPageIndex
+                };
+                socket.emit('whiteboard_data', { action: 'draw', classroomId: currentClassroom.id, data: textData });
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
+            }
+            isDrawing = false;
+        }
+    }
+    function handleMouseMove(e) {
+        if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
+        e.preventDefault();
+        const coords = getCoords(e);
+        const currentX = coords.x;
+        const currentY = coords.y;
+        whiteboardCtx.save();
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.lineWidth = currentBrushSize;
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            if (currentTool === 'eraser') {
+                whiteboardCtx.globalCompositeOperation = 'destination-out';
+            } else {
+                whiteboardCtx.globalCompositeOperation = 'source-over';
+            }
+            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
+            whiteboardCtx.stroke();
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
+            if (socket && currentClassroom && currentClassroom.id) {
+                socket.emit('whiteboard_data', {
+                    action: 'draw',
+                    classroomId: currentClassroom.id,
+                    data: {
+                        prevX: lastX,
+                        prevY: lastY,
+                        currX: currentX,
+                        currY: currentY,
+                        color: currentColor,
+                        width: currentBrushSize,
+                        tool: currentTool,
+                        pageIndex: currentPageIndex
+                    }
+                });
+            }
+            lastX = currentX;
+            lastY = currentY;
+        } else {
+            if (snapshot) {
+                whiteboardCtx.putImageData(snapshot, 0, 0);
+            } else {
+                renderCurrentWhiteboardPage();
+            }
+            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
+        }
+        whiteboardCtx.restore();
+    }
+    function handleMouseUp(e) {
+        if (!isDrawing || currentUser.role !== 'admin') return;
+        isDrawing = false;
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            whiteboardCtx.lineTo(lastX, lastY);
+            whiteboardCtx.stroke();
+            whiteboardCtx.closePath();
+            const strokeData = {
+                points: currentStrokePoints,
+                color: currentColor,
+                width: currentBrushSize,
+                tool: currentTool
+            };
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: strokeData,
+                pageIndex: currentPageIndex
+            });
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
+            currentStrokePoints = [];
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            const finalCoords = getCoords(e);
+            const currentX = finalCoords.x;
+            const currentY = finalCoords.y;
+            renderCurrentWhiteboardPage();
+            whiteboardCtx.save();
+            whiteboardCtx.strokeStyle = currentColor;
+            whiteboardCtx.lineWidth = currentBrushSize;
+            const shapeData = { startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize, tool: currentTool };
+            drawWhiteboardItem(shapeData);
+            whiteboardCtx.restore();
+            socket.emit('whiteboard_data', { action: 'draw', classroomId: currentClassroom.id, data: shapeData, pageIndex: currentPageIndex });
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
+        }
+        if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
+            whiteboardCtx.globalCompositeOperation = 'source-over';
+        }
+        saveState();
+    }
+    function drawWhiteboardItem(commandData) {
+        const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
+        whiteboardCtx.strokeStyle = color;
+        whiteboardCtx.lineWidth = width;
+        whiteboardCtx.fillStyle = color;
+        if (tool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'destination-out';
+        } else {
+            whiteboardCtx.globalCompositeOperation = 'source-over';
+        }
+        switch (tool) {
+            case 'pen':
+            case 'eraser':
+                if (points && points.length > 1) {
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(points[0].x, points[0].y);
+                    for (let i = 1; i < points.length - 1; i++) {
+                        const p0 = points[i - 1];
+                        const p1 = points[i];
+                        const p2 = points[i + 1];
+                        const controlX = (p0.x + p1.x) / 2;
+                        const controlY = (p0.y + p1.y) / 2;
+                        const endX_segment = (p1.x + p2.x) / 2;
+                        const endY_segment = (p1.y + p2.y) / 2;
+                        whiteboardCtx.quadraticCurveTo(p1.x, p1.y, endX_segment, endY_segment);
+                    }
+                    whiteboardCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+                    whiteboardCtx.stroke();
+                    whiteboardCtx.closePath();
+                }
+                break;
+            case 'line':
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(startX, startY);
+                whiteboardCtx.lineTo(endX, endY);
+                whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
+                break;
+            case 'rectangle':
+                whiteboardCtx.beginPath();
+                whiteboardCtx.rect(startX, startY, endX - startX, endY - startY);
+                whiteboardCtx.stroke();
+                whiteboardCtx.closePath();
+                break;
+            case 'circle':
+        }
     }
 });
