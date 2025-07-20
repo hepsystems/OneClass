@@ -287,14 +287,17 @@ def create_assessment():
     class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    scheduled_at_str = data.get('scheduled_at') # New: "YYYY-MM-DDTHH:MM"
-    duration_minutes = data.get('duration_minutes') # New: integer
+    scheduled_at_str = data.get('scheduled_at')
+    duration_minutes = data.get('duration_minutes')
+    questions = data.get('questions') # Retrieve the questions array
 
-    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None]):
-        return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, or duration_minutes"}), 400
+    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None, questions is not None]):
+        return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, duration_minutes, or questions"}), 400
     
+    if not isinstance(questions, list) or not questions:
+        return jsonify({"error": "Questions must be a non-empty list"}), 400
+
     try:
-        # Parse the scheduled_at string into a datetime object
         scheduled_at = datetime.fromisoformat(scheduled_at_str)
     except ValueError:
         return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM"}), 400
@@ -304,27 +307,42 @@ def create_assessment():
 
     assessment_id = str(uuid.uuid4())
     
-    # Insert assessment details (without questions initially)
+    # Insert assessment details
     assessments_collection.insert_one({
         "id": assessment_id,
         "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "scheduled_at": scheduled_at, # Store as datetime object
-        "duration_minutes": duration_minutes, # Store as integer
+        "scheduled_at": scheduled_at,
+        "duration_minutes": duration_minutes,
         "creator_id": user_id,
         "creator_username": username,
-        "creator_role": user_role, # Store creator's role
+        "creator_role": user_role,
         "created_at": datetime.utcnow()
     })
+
+    # Insert each question into the assessment_questions_collection
+    inserted_question_ids = []
+    for q_data in questions:
+        question_id = str(uuid.uuid4())
+        assessment_questions_collection.insert_one({
+            "id": question_id,
+            "assessmentId": assessment_id,
+            "classroomId": class_room_id, # Link to classroom for easier queries
+            "question_text": q_data.get('question_text') or q_data.get('text'),
+            "question_type": q_data.get('question_type') or q_data.get('type'),
+            "options": q_data.get('options'),
+            "correct_answer": q_data.get('correct_answer')
+        })
+        inserted_question_ids.append(question_id)
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
-        'message': f"Admin {session.get('username')} created a new assessment: '{title}'."
+        'message': f"Admin {session.get('username')} created a new assessment: '{title}' with {len(questions)} questions."
     }, room=class_room_id)
 
-    print(f"Assessment '{title}' created by {username} in classroom {class_room_id}")
+    print(f"Assessment '{title}' created by {username} in classroom {class_room_id} with {len(questions)} questions.")
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<assessmentId>/questions', methods=['POST'])
