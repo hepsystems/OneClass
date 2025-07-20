@@ -1,4 +1,4 @@
-// app.js (Updated with Text Input Functionality and Fixed Login Flow)
+// app.js (Updated with Text Input Functionality, Fixed Login Flow, and Classroom Logic)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
     const loginEmail = document.getElementById('login-email'); // Ensure this is defined
     const loginPassword = document.getElementById('login-password'); // Ensure this is defined
+    const registerUsername = document.getElementById('register-username'); // Added for register form
+    const registerEmail = document.getElementById('register-email'); // Added for register form
+    const registerPassword = document.getElementById('register-password'); // Added for register form
     const authMessage = document.getElementById('auth-message');
     const showRegisterLink = document.getElementById('show-register-link');
     const showLoginLink = document.getElementById('show-login-link');
@@ -28,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const joinClassroomSection = document.getElementById('join-classroom-section');
     const joinClassroomInput = document.getElementById('join-classroom-input');
     const joinClassroomBtn = document.getElementById('join-classroom-btn');
-    const classroomList = document.getElementById('classroom-list');
+    const classroomList = document.getElementById('classroom-list'); // This is likely for *all* discoverable classrooms
     const noClassroomsMessage = document.getElementById('no-classrooms-message');
-    const userClassroomList = document.getElementById('user-classroom-list');
+    const userClassroomList = document.getElementById('user-classroom-list'); // This is likely for classrooms user *is in*
 
     const classroomSection = document.getElementById('classroom-section');
     const classroomNameDisplay = document.getElementById('classroom-name-display');
@@ -1316,7 +1319,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fetchClassroomDetailsAndJoin(currentUser.classroom_id);
                 } else {
                     showSection('dashboard-section');
-                    loadUserClassrooms();
+                    loadUserClassrooms(); // Load classrooms for the dashboard
                 }
             } else {
                 localStorage.removeItem('token'); // Invalid token
@@ -1357,40 +1360,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // MODIFIED: loadUserClassrooms now fetches ALL discoverable classrooms
     async function loadUserClassrooms() {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('/api/user/classrooms', {
+            const response = await fetch('/api/classrooms', { // Changed to fetch all classrooms
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
             const data = await response.json();
             if (response.ok) {
-                displayUserClassrooms(data.classrooms);
+                displayUserClassrooms(data); // `data` is directly the array of classrooms from /api/classrooms
             } else {
-                createNotification(`Error loading your classrooms: ${data.error}`, 'danger');
+                createNotification(`Error loading available classrooms: ${data.error}`, 'danger');
             }
         } catch (error) {
-            console.error('Error loading user classrooms:', error);
-            createNotification('Network error loading your classrooms.', 'danger');
+            console.error('Error loading available classrooms:', error);
+            createNotification('Network error loading available classrooms.', 'danger');
         }
     }
 
     function displayUserClassrooms(classrooms) {
-        userClassroomList.innerHTML = '';
+        classroomList.innerHTML = ''; // Use classroomList for all discoverable classes
         if (classrooms.length === 0) {
-            noClassroomsMessage.classList.remove('hidden');
+            classroomList.innerHTML = '<p>No classrooms available. Create one or ask an admin to invite you!</p>';
             return;
         }
-        noClassroomsMessage.classList.add('hidden');
         classrooms.forEach(classroom => {
             const li = document.createElement('li');
             li.innerHTML = `
                 <span>${classroom.name} (${classroom.id})</span>
                 <button class="join-existing-classroom-btn" data-classroom-id="${classroom.id}">Join</button>
             `;
-            userClassroomList.appendChild(li);
+            classroomList.appendChild(li); // Append to classroomList
         });
 
         document.querySelectorAll('.join-existing-classroom-btn').forEach(button => {
@@ -1474,7 +1477,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function createClassroom(name) {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch('/api/classrooms/create', {
+            const response = await fetch('/api/classrooms', { // MODIFIED: Corrected endpoint to /api/classrooms (POST)
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1565,7 +1568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 remoteStreams = {};
 
-                loadUserClassrooms();
+                loadUserClassrooms(); // Reload classrooms for the dashboard
                 showSection('dashboard-section');
             } else {
                 createNotification(`Error leaving classroom: ${data.error}`, 'danger');
@@ -1867,8 +1870,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Assessment Management
     createAssessmentBtn.addEventListener('click', () => {
         showSection('assessment-section');
-        createAssessmentContainer.classList.add('hidden');
-        assessmentListContainer.classList.remove('hidden');
+        createAssessmentContainer.classList.remove('hidden'); // Show create form
+        assessmentListContainer.classList.add('hidden'); // Hide list
         assessmentCreationForm.reset();
         questionsContainer.innerHTML = '';
         questionCount = 0;
