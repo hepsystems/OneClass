@@ -1055,57 +1055,73 @@ socket.on('whiteboard_data', (data) => {
         }
     }
 
-    /**
-     * Handles the movement during a drawing action (mousemove or touchmove).
-     * Includes stroke smoothing and line interpolation for pen/eraser.
-     */
     function handleMouseMove(e) {
-        if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
-        e.preventDefault(); // Prevent scrolling on touch devices during drawing
+    if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
+    e.preventDefault(); // Prevent scrolling on touch devices during drawing
 
-        const coords = getCoords(e);
-        const currentX = coords.x;
-        const currentY = coords.y;
+    const coords = getCoords(e);
+    const currentX = coords.x;
+    const currentY = coords.y;
 
-        whiteboardCtx.save();
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.lineWidth = currentBrushSize;
+    whiteboardCtx.save();
+    whiteboardCtx.strokeStyle = currentColor;
+    whiteboardCtx.lineWidth = currentBrushSize;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            if (currentTool === 'eraser') {
-                whiteboardCtx.globalCompositeOperation = 'destination-out';
-            } else {
-                whiteboardCtx.globalCompositeOperation = 'source-over';
-            }
-
-            // Add current point to the stroke points array
-            currentStrokePoints.push({ x: currentX, y: currentY });
-
-            // Stroke Smoothing and Line Interpolation using Quadratic Bezier Curve
-            // Draw a segment from the last point to the current point,
-            // using the last point as the control point for a smoother curve.
-            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
-            whiteboardCtx.stroke();
-            
-            // Move to the midpoint for the start of the next segment
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
-
-            lastX = currentX;
-            lastY = currentY;
-            
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentTool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'destination-out';
         } else {
-            // For shapes, restore snapshot and redraw preview
-            if (snapshot) {
-                whiteboardCtx.putImageData(snapshot, 0, 0);
-            } else {
-                // Fallback if snapshot is somehow missing (shouldn't happen)
-                renderCurrentWhiteboardPage();
-            }
-            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
+            whiteboardCtx.globalCompositeOperation = 'source-over';
         }
-        whiteboardCtx.restore();
+
+        // Stroke smoothing
+        whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
+        whiteboardCtx.stroke();
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
+
+        // Emit this segment
+        if (socket && currentClassroom && currentClassroom.id) {
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: {
+                    prevX: lastX,
+                    prevY: lastY,
+                    currX: currentX,
+                    currY: currentY,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: currentTool,
+                    pageIndex: currentPageIndex
+                }
+            });
+        }
+
+        lastX = currentX;
+        lastY = currentY;
+    } else {
+        // For shapes
+        if (snapshot) {
+            whiteboardCtx.putImageData(snapshot, 0, 0);
+        } else {
+            renderCurrentWhiteboardPage();
+        }
+
+        drawWhiteboardItem({
+            tool: currentTool,
+            startX,
+            startY,
+            endX: currentX,
+            endY: currentY,
+            color: currentColor,
+            width: currentBrushSize
+        });
     }
+
+    whiteboardCtx.restore();
+}
+
 
     /**
  * Handles the end of a drawing action (mouseup or touchend).
