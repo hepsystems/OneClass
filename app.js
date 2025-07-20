@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showSection(authSection);
         showSection(loginContainer);
         displayMessage(authMessage, 'You have been logged out.', 'success');
-        authForm.reset(); // Clear any previous auth messages
+        loginForm.reset(); // Clear any previous auth messages, assuming loginForm is the default shown
     }
 
     // --- Socket.IO Setup ---
@@ -352,8 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('connect', () => {
             console.log('Connected to Socket.IO as:', currentUser.username);
-            socket.emit('request_chat_history', currentClassroomId);
-            socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
+            // These will be requested upon joining a classroom, but good to have a fallback
+            // socket.emit('request_chat_history', currentClassroomId);
+            // socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
         });
 
         socket.on('disconnect', () => {
@@ -378,7 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessages.innerHTML = ''; // Clear messages on joining new room
             whiteboardPageData = []; // Clear whiteboard pages
             currentWhiteboardPage = 0;
-            addWhiteboardPage(true); // Add initial blank page
+            addWhiteboardPage(true); // Add initial blank page (initialLoad = true to prevent emit)
             socket.emit('request_chat_history', currentClassroomId);
             socket.emit('request_whiteboard_state', currentClassroomId, currentWhiteboardPage);
             socket.emit('request_members_list', currentClassroomId);
@@ -468,8 +469,9 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('new_whiteboard_page', (data) => {
             whiteboardPageData = data.pages;
             renderWhiteboardPages();
+            // If the new page is also the current selected page, clear the canvas
             if (data.newPageId === currentWhiteboardPage) {
-                clearWhiteboard(false); // If it's the new current page, clear it
+                clearWhiteboard(false);
             }
         });
 
@@ -557,32 +559,32 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             // Show/hide edit/delete/take buttons based on user role/ownership
             // For now, assume all can view and take. Edit/Delete would require a check for isInstructor or isCreator
-            // For simplicity, let's assume if it's an instructor, they can edit/delete, otherwise only take.
-            if (currentUser && currentUser.isInstructor) { // Example: assuming an 'isInstructor' flag
+            if (currentUser && currentUser.isInstructor) { // Example: assuming an 'isInstructor' flag from server
                 editAssessmentBtn.classList.remove('hidden');
                 deleteAssessmentBtn.classList.remove('hidden');
+                viewSubmissionsBtn.classList.remove('hidden'); // Instructor can always view submissions
+                takeAssessmentBtn.classList.add('hidden'); // Instructor doesn't take their own assessment
             } else {
                 editAssessmentBtn.classList.add('hidden');
                 deleteAssessmentBtn.classList.add('hidden');
+                viewSubmissionsBtn.classList.add('hidden'); // Students only take, not view others' submissions
+                takeAssessmentBtn.classList.remove('hidden');
+                // Check if student has already submitted
+                fetch(`/api/assessments/${assessment.id}/submission_status`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.submitted) {
+                        takeAssessmentBtn.classList.add('hidden');
+                    } else {
+                        takeAssessmentBtn.classList.remove('hidden');
+                    }
+                })
+                .catch(error => console.error('Error fetching submission status:', error));
             }
-
-            // Check if user has already submitted this assessment
-            fetch(`/api/assessments/${assessment.id}/submission_status`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.submitted) {
-                    takeAssessmentBtn.classList.add('hidden');
-                    viewSubmissionsBtn.classList.remove('hidden');
-                } else {
-                    takeAssessmentBtn.classList.remove('hidden');
-                    viewSubmissionsBtn.classList.add('hidden');
-                }
-            })
-            .catch(error => console.error('Error fetching submission status:', error));
 
 
             showSection(viewAssessmentSection);
@@ -638,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const result = await response.json();
             if (response.ok) {
-                socket.emit('request_classroom_list', result);
+                socket.emit('request_classroom_list', result); // Request current list from server for UI update
             } else {
                 console.error('Failed to load classrooms:', result.message);
                 displayMessage(authMessage, result.message, 'error'); // Use authMessage for general errors
@@ -707,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 page: currentWhiteboardPage
             });
         }
-        saveWhiteboardState();
+        saveWhiteboardState(); // Save cleared state
     }
 
     function saveWhiteboardState() {
@@ -816,14 +818,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const addOptionBtn = questionDiv.querySelector('.add-option-btn');
         const removeQuestionBtn = questionDiv.querySelector('.remove-question-btn');
 
+        // Initial state for options container
+        if (questionTypeSelect.value === 'text') {
+            optionsContainer.classList.add('hidden');
+        } else {
+            optionsContainer.classList.remove('hidden');
+        }
+
+
         questionTypeSelect.addEventListener('change', () => {
             if (questionTypeSelect.value === 'text') {
                 optionsContainer.classList.add('hidden');
             } else {
                 optionsContainer.classList.remove('hidden');
-                // Ensure correct radio/checkbox type is set
+                // Ensure correct radio/checkbox type is set for existing options
                 optionsList.querySelectorAll('.correct-option').forEach(input => {
                     input.type = questionTypeSelect.value === 'single-choice' ? 'radio' : 'checkbox';
+                    // For radio, uncheck others if one is checked
+                    if (questionTypeSelect.value === 'single-choice' && input.checked) {
+                        optionsList.querySelectorAll(`.correct-option[name="correct-option-${questionIndex}"]`).forEach(otherInput => {
+                            if (otherInput !== input) otherInput.checked = false;
+                        });
+                    }
                 });
             }
         });
@@ -835,6 +851,11 @@ document.addEventListener('DOMContentLoaded', () => {
         optionsList.addEventListener('click', (e) => {
             if (e.target.classList.contains('remove-option-btn')) {
                 e.target.closest('.option-item').remove();
+            } else if (e.target.classList.contains('correct-option') && e.target.type === 'radio') {
+                // Ensure only one radio is checked for single-choice
+                optionsList.querySelectorAll(`.correct-option[name="correct-option-${questionIndex}"]`).forEach(input => {
+                    if (input !== e.target) input.checked = false;
+                });
             }
         });
 
@@ -1081,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.Item('token'); // Corrected from Item to getItem
             const response = await fetch('/api/classrooms/join', {
                 method: 'POST',
                 headers: {
@@ -1306,7 +1327,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     classroomId: currentClassroomId,
                     title: assessmentData.title
                 });
-                loadAssessments();
+                loadAssessments(); // Go back to assessments list
             } else {
                 alert('Failed to save assessment: ' + result.message);
             }
@@ -1388,6 +1409,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => {
+        loadAssessments();
+    });
+
     // Settings
     if (saveProfileSettingsBtn) saveProfileSettingsBtn.addEventListener('click', async () => {
         const newUsername = usernameSettingsInput.value.trim();
@@ -1454,9 +1479,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeWhiteboard(); // Setup whiteboard canvas initially
     // addWhiteboardPage(true); // Add an initial blank whiteboard page on load, without emitting to server
 
-    // ✅ Move this to the bottom after all elements are defined and listeners are set
-    // It's important that DOMContentLoaded finishes before trying to check login status
-    // to ensure all elements referenced are available.
     if (backToDashboardFromSettingsBtn) backToDashboardFromSettingsBtn.addEventListener('click', () => {
         showSection(dashboardSection);
         updateNavActiveState(navDashboard);
