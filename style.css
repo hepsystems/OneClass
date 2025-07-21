@@ -988,7 +988,7 @@ h3 {
 
 .notification-message {
     background-color: rgba(44, 62, 80, 0.9);
-    color: red;
+    color: green;
     padding: 12px 18px;
     border-radius: var(--border-radius-lg);
     opacity: 0;
