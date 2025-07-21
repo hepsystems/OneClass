@@ -611,22 +611,14 @@ def join_classroom():
             {"id": classroom_id},
             {"$addToSet": {"participants": user_id}} # Add user to participants if not already there
         )
-        # Notify existing participants that a new user joined via Socket.IO
-        # Changed to emit with user_id, which can be used to send whiteboard history to specific user
-        # Also include the session ID (request.sid) for WebRTC peer identification
-        socketio.emit('user_joined', {
-            'username': session.get('username'),
-            'user_id': user_id,
-            'sid': request.sid, # <<< IMPORTANT for WebRTC peer identification
-            'classroomId': classroom_id,
-            'role': session.get('role') # Include role of joining user
-        }, room=classroom_id, include_sid=False)
+        # REMOVED: The problematic emit('user_joined') from this HTTP route
+        # The 'user_joined' event with 'sid' is correctly handled in the socketio.on('join') event handler.
 
         # Emit admin action update
         socketio.emit('admin_action_update', {
             'classroomId': classroom_id,
             'message': f"User {session.get('username')} joined classroom '{classroom.get('name')}'."
-        }, room=class_room_id)
+        }, room=classroom_id)
         print(f"User {session.get('username')} joined classroom {classroom_id}.")
         return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
     else:
