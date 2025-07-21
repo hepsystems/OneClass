@@ -797,7 +797,8 @@ def handle_chat_message(data):
 def handle_whiteboard_data(data):
     classroomId = data.get('classroomId')
     action = data.get('action')
-    drawing_data = data.get('drawing') or data.get('data') # Use drawing_data consistently
+    # Frontend now consistently sends 'data' as the drawing payload
+    drawing_data = data.get('data')
     sender_id = request.sid
     user_role = session.get('role')
 
@@ -805,9 +806,9 @@ def handle_whiteboard_data(data):
         print(f"Whiteboard data missing: {data}")
         return
     
-    # ADDED: Check if drawing_data is a dictionary
-    if not isinstance(drawing_data, dict):
-        print(f"Received malformed drawing_data (not a dictionary): {drawing_data}")
+    # Ensure drawing_data is a dictionary for 'draw' action
+    if action == 'draw' and not isinstance(drawing_data, dict):
+        print(f"Received malformed drawing_data (not a dictionary) for 'draw' action: {drawing_data}")
         return
 
     # Only allow admins to draw or clear
@@ -815,56 +816,111 @@ def handle_whiteboard_data(data):
         print(f"User {sender_id} (role: {user_role}) attempted to modify whiteboard in classroom {classroomId} without admin privileges.")
         return
 
-    page_index = drawing_data.get('pageIndex', 0) # Default to page 0
+    # CORRECTED: Get page_index from the top-level 'data' dictionary
+    page_index = data.get('pageIndex', 0) 
 
     if action == 'draw':
-        # Safely get drawing coordinates and properties using .get()
-        prev_x = drawing_data.get('prevX')
-        prev_y = drawing_data.get('prevY')
-        curr_x = drawing_data.get('currX')
-        curr_y = drawing_data.get('currY')
-        color = drawing_data.get('color')
-        line_thickness = drawing_data.get('width') # Assuming 'width' is the key used for line thickness
+        # Get the tool type to differentiate drawing data
+        tool_type = drawing_data.get('tool')
+        drawing_to_save = {
+            "tool": tool_type,
+            "color": drawing_data.get('color'),
+            # 'size' for text, 'width' for shapes/pen. Prioritize 'width' if both exist or just one
+            "width": drawing_data.get('width') or drawing_data.get('size'), 
+            "timestamp": datetime.utcnow()
+        }
 
-        # ADDED: Basic validation for essential drawing data
-        if None in [prev_x, prev_y, curr_x, curr_y, color, line_thickness]:
-            print(f"Missing essential drawing data for 'draw' action: {drawing_data}")
-            return
+        # Validate and extract specific data based on tool type
+        if tool_type == 'pen' or tool_type == 'eraser':
+            points = drawing_data.get('points')
+            if not points or not isinstance(points, list) or not all(isinstance(p, dict) and 'x' in p and 'y' in p for p in points):
+                print(f"Missing or malformed points for pen/eraser tool: {drawing_data}")
+                return
+            drawing_to_save['points'] = points
+        
+        elif tool_type == 'line':
+            start_x = drawing_data.get('startX')
+            start_y = drawing_data.get('startY')
+            end_x = drawing_data.get('endX')
+            end_y = drawing_data.get('endY')
+            if None in [start_x, start_y, end_x, end_y]:
+                print(f"Missing coordinates for line tool: {drawing_data}")
+                return
+            drawing_to_save['startX'] = start_x
+            drawing_to_save['startY'] = start_y
+            drawing_to_save['endX'] = end_x
+            drawing_to_save['endY'] = end_y
+        
+        elif tool_type == 'rectangle':
+            # Store start and end coordinates as sent by frontend for rectangles
+            start_x = drawing_data.get('startX')
+            start_y = drawing_data.get('startY')
+            end_x = drawing_data.get('endX') 
+            end_y = drawing_data.get('endY')
+            if None in [start_x, start_y, end_x, end_y]:
+                print(f"Missing dimensions for rectangle tool: {drawing_data}")
+                return
+            drawing_to_save['startX'] = start_x
+            drawing_to_save['startY'] = start_y
+            drawing_to_save['endX'] = end_x
+            drawing_to_save['endY'] = end_y
 
-        # Store drawing action in MongoDB for the specific page
+        elif tool_type == 'circle':
+            center_x = drawing_data.get('centerX')
+            center_y = drawing_data.get('centerY')
+            radius = drawing_data.get('radius')
+            if None in [center_x, center_y, radius]:
+                print(f"Missing circle properties: {drawing_data}")
+                return
+            drawing_to_save['centerX'] = center_x
+            drawing_to_save['centerY'] = center_y
+            drawing_to_save['radius'] = radius
+
+        elif tool_type == 'text':
+            text_content = drawing_data.get('text')
+            start_x = drawing_data.get('startX')
+            start_y = drawing_data.get('startY')
+            if None in [text_content, start_x, start_y]:
+                print(f"Missing text properties: {drawing_data}")
+                return
+            drawing_to_save['text'] = text_content
+            drawing_to_save['startX'] = start_x
+            drawing_to_save['startY'] = start_y
+
+        else:
+            print(f"Unknown tool type received: {tool_type} in data: {drawing_data}")
+            return # Don't save unknown tool types
+
+        # Store the comprehensive drawing action in MongoDB for the specific page
         whiteboard_collection.update_one(
             {"classroomId": classroomId, "pageIndex": page_index},
-            {"$push": {"drawings": {
-                "prevX": prev_x,
-                "prevY": prev_y,
-                "currX": curr_x,
-                "currY": curr_y,
-                "color": color,
-                "width": line_thickness,
-                "timestamp": datetime.utcnow() # Add timestamp for ordering/history
-            }}},
+            {"$push": {"drawings": drawing_to_save}},
             upsert=True # Create the document if it doesn't exist
         )
-        # Broadcast drawing data to all in the room except the sender
+        # Broadcast the original incoming data to all in the room except the sender
+        # The frontend will then know how to render based on 'tool' type
         emit('whiteboard_data', data, room=classroomId, include_sid=False)
-        print(f"Whiteboard draw data broadcasted and saved for page {page_index} in classroom {classroomId}")
+        print(f"Whiteboard draw data for tool '{tool_type}' broadcasted and saved for page {page_index} in classroom {classroomId}")
 
     elif action == 'clear':
-        # Clear drawings for a specific page
-        whiteboard_collection.update_one(
-            {"classroomId": classroomId, "pageIndex": page_index},
-            {"$set": {"drawings": []}} # Set drawings to an empty array
-        )
-        # Broadcast clear action to all in the room
-        emit('whiteboard_data', {'action': 'clear', 'data': {'pageIndex': page_index}}, room=classroomId, include_sid=False)
-        print(f"Whiteboard page {page_index} cleared in classroom {classroomId}")
-        # Emit admin action update
-        socketio.emit('admin_action_update', {
-            'classroomId': classroomId,
-            'message': f"Admin {session.get('username')} cleared whiteboard page {page_index + 1}."
-        }, room=classroomId)
-
-
+        # Ensure page_index is correctly retrieved from top-level 'data' for clear action as well
+        if 'pageIndex' in data:
+            page_index_to_clear = data.get('pageIndex', 0)
+            whiteboard_collection.update_one(
+                {"classroomId": classroomId, "pageIndex": page_index_to_clear},
+                {"$set": {"drawings": []}} # Set drawings to an empty array
+            )
+            # Broadcast clear action to all in the room
+            emit('whiteboard_data', {'action': 'clear', 'data': {'pageIndex': page_index_to_clear}}, room=classroomId, include_sid=False)
+            print(f"Whiteboard page {page_index_to_clear} cleared in classroom {classroomId}")
+            # Emit admin action update
+            socketio.emit('admin_action_update', {
+                'classroomId': classroomId,
+                'message': f"Admin {session.get('username')} cleared whiteboard page {page_index_to_clear + 1}."
+            }, room=classroomId)
+        else:
+            print(f"Clear action failed: Missing pageIndex in {data}")
+            
 @socketio.on('whiteboard_page_change')
 def handle_whiteboard_page_change(data):
     classroomId = data.get('classroomId')
