@@ -1001,7 +1001,7 @@ socket.on('whiteboard_data', (data) => {
         renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
     }
 
-    /**
+   /**
  * Handles the start of a drawing action (mousedown or touchstart).
  */
 function handleMouseDown(e) {
@@ -1040,22 +1040,22 @@ function handleMouseDown(e) {
                 text: textInput,
                 color: currentColor,
                 width: currentBrushSize,
-                tool: 'text',
-                pageIndex: currentPageIndex // Keep pageIndex here, as it's part of the data being sent and stored
+                tool: 'text'
+                // pageIndex is REMOVED from textData here, as it's sent at the top level (as per previous recommendation)
             };
             // Emit text drawing data to server
             socket.emit('whiteboard_data', {
                 action: 'draw',
                 classroomId: currentClassroom.id,
                 data: textData,
-                pageIndex: currentPageIndex // Ensure pageIndex is sent at the top level for server processing
+                pageIndex: currentPageIndex // Keep it here at the top level
             });
             // Add to local page data - UPDATED LINE HERE
             whiteboardPages[currentPageIndex].push(textData);
         }
         isDrawing = false; // Text drawing is a single click action
     }
-}
+} 
 
    /**
  * Handles the end of a drawing action (mouseup or touchend).
