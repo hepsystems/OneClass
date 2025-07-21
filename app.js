@@ -1001,121 +1001,112 @@ socket.on('whiteboard_data', (data) => {
         renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
     }
 
-   /**
- * Handles the start of a drawing action (mousedown or touchstart).
- */
-function handleMouseDown(e) {
-    if (currentUser.role !== 'admin') return;
-    isDrawing = true;
-    const coords = getCoords(e);
-    startX = coords.x;
-    startY = coords.y;
-    lastX = coords.x;
-    lastY = coords.y; // Initialize lastY as well
+    /**
+     * Handles the start of a drawing action (mousedown or touchstart).
+     */
+    function handleMouseDown(e) {
+        if (currentUser.role !== 'admin') return;
+        isDrawing = true;
+        const coords = getCoords(e);
+        startX = coords.x;
+        startY = coords.y;
+        lastX = coords.x;
+        lastY = coords.y; // Initialize lastY as well
 
-    // Save snapshot for temporary drawing of shapes
-    if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
-        snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-    }
-
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-        currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
-        whiteboardCtx.beginPath(); // Start a new path for pen/eraser
-        whiteboardCtx.moveTo(startX, startY);
-    } else if (currentTool === 'text') {
-        const textInput = prompt("Enter text:");
-        if (textInput !== null && textInput.trim() !== '') {
-            whiteboardCtx.save();
-            whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-            whiteboardCtx.fillStyle = currentColor;
-            whiteboardCtx.fillText(textInput, startX, startY);
-            whiteboardCtx.restore();
-
-            saveState(); // Save the state after drawing text
-            const textData = {
-                startX: startX,
-                startY: startY,
-                endX: startX, // For text, endX/Y are same as start
-                endY: startY,
-                text: textInput,
-                color: currentColor,
-                width: currentBrushSize,
-                tool: 'text'
-                // pageIndex is REMOVED from textData here, as it's sent at the top level (as per previous recommendation)
-            };
-            // Emit text drawing data to server
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: textData,
-                pageIndex: currentPageIndex // Keep it here at the top level
-            });
-            // Add to local page data - UPDATED LINE HERE
-            whiteboardPages[currentPageIndex].push(textData);
+        // Save snapshot for temporary drawing of shapes
+        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
+            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
-        isDrawing = false; // Text drawing is a single click action
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
+            whiteboardCtx.beginPath(); // Start a new path for pen/eraser
+            whiteboardCtx.moveTo(startX, startY);
+        } else if (currentTool === 'text') {
+            const textInput = prompt("Enter text:");
+            if (textInput !== null && textInput.trim() !== '') {
+                whiteboardCtx.save();
+                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+                whiteboardCtx.fillStyle = currentColor;
+                whiteboardCtx.fillText(textInput, startX, startY);
+                whiteboardCtx.restore();
+
+                saveState(); // Save the state after drawing text
+                const textData = {
+                    startX: startX,
+                    startY: startY,
+                    endX: startX, // For text, endX/Y are same as start
+                    endY: startY,
+                    text: textInput,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: 'text',
+                    pageIndex: currentPageIndex
+                };
+                socket.emit('whiteboard_data', {
+                    action: 'draw',
+                    classroomId: currentClassroom.id,
+                    data: textData
+                });
+                // Add to local page data
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
+            }
+            isDrawing = false; // Text drawing is a single click action
+        }
     }
-} 
 
-   /**
- * Handles the end of a drawing action (mouseup or touchend).
- */
-function handleMouseUp(e) {
-    if (!isDrawing || currentUser.role !== 'admin') return;
-    isDrawing = false;
+    /**
+     * Handles the movement during a drawing action (mousemove or touchmove).
+     * Includes stroke smoothing and line interpolation for pen/eraser.
+     */
+    function handleMouseMove(e) {
+        if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
+        e.preventDefault(); // Prevent scrolling on touch devices during drawing
 
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-        // Finish the last segment of the stroke
-        whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
-        whiteboardCtx.stroke();
-        whiteboardCtx.closePath(); // Close the current path for pen/eraser
+        const coords = getCoords(e);
+        const currentX = coords.x;
+        const currentY = coords.y;
 
-        // Create stroke object
-        const strokeData = {
-            points: currentStrokePoints, // Array of all points in the stroke
-            color: currentColor,
-            width: currentBrushSize,
-            tool: currentTool
-        };
-        // Emit pen/eraser drawing data to server
-        socket.emit('whiteboard_data', { action: 'draw', classroomId: currentClassroom.id, data: strokeData, pageIndex: currentPageIndex });
-        // Save locally - UPDATED LINE HERE
-        whiteboardPages[currentPageIndex].push(strokeData);
-        currentStrokePoints = []; // Clear for next stroke
-    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-        const finalCoords = getCoords(e);
-        const currentX = finalCoords.x;
-        const currentY = finalCoords.y;
-
-        // Redraw existing to reset canvas state
-        renderCurrentWhiteboardPage();
         whiteboardCtx.save();
         whiteboardCtx.strokeStyle = currentColor;
         whiteboardCtx.lineWidth = currentBrushSize;
 
-        const shapeData = {
-            startX,
-            startY,
-            endX: currentX,
-            endY: currentY,
-            color: currentColor,
-            width: currentBrushSize,
-            tool: currentTool
-        };
-        drawWhiteboardItem(shapeData);
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            if (currentTool === 'eraser') {
+                whiteboardCtx.globalCompositeOperation = 'destination-out';
+            } else {
+                whiteboardCtx.globalCompositeOperation = 'source-over';
+            }
+
+            // Add current point to the stroke points array
+            currentStrokePoints.push({ x: currentX, y: currentY });
+
+            // Stroke Smoothing and Line Interpolation using Quadratic Bezier Curve
+            // Draw a segment from the last point to the current point,
+            // using the last point as the control point for a smoother curve.
+            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
+            whiteboardCtx.stroke();
+            
+            // Move to the midpoint for the start of the next segment
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
+
+            lastX = currentX;
+            lastY = currentY;
+            
+        } else {
+            // For shapes, restore snapshot and redraw preview
+            if (snapshot) {
+                whiteboardCtx.putImageData(snapshot, 0, 0);
+            } else {
+                // Fallback if snapshot is somehow missing (shouldn't happen)
+                renderCurrentWhiteboardPage();
+            }
+            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
+        }
         whiteboardCtx.restore();
-        // Emit shape drawing data to server
-        socket.emit('whiteboard_data', { action: 'draw', classroomId: currentClassroom.id, data: shapeData, pageIndex: currentPageIndex });
-        // Save locally - UPDATED LINE HERE
-        whiteboardPages[currentPageIndex].push(shapeData);
     }
 
-    // Reset eraser mode if it was active
-    if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
-        whiteboardCtx.globalCompositeOperation = 'source-over';
-    }
-    saveState(); // Save for undo/redo
-} 
     /**
  * Handles the end of a drawing action (mouseup or touchend).
  */
@@ -1145,8 +1136,8 @@ function handleMouseUp(e) {
             pageIndex: currentPageIndex
         });
 
-        // Save locally - UPDATED LINE HERE
-        whiteboardPages[currentPageIndex].push(strokeData); // <-- CHANGE THIS LINE
+        // Save locally
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
         currentStrokePoints = []; // Clear for next stroke
 
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
@@ -1180,7 +1171,7 @@ function handleMouseUp(e) {
             pageIndex: currentPageIndex
         });
 
-        whiteboardPages[currentPageIndex].push(shapeData); // <-- CHANGE THIS LINE
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
     }
 
     // Reset eraser mode if it was active
