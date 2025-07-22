@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
+from bson.objectid import ObjectId # Import ObjectId for querying by _id in MongoDB
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
@@ -29,969 +30,418 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=T
 
 mongo = PyMongo(app) # Initialize PyMongo after app config
 
-# MongoDB Collections
+# Define collections
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
-library_files_collection = mongo.db.library_files
-assessments_collection = mongo.db.assessments
-assessment_questions_collection = mongo.db.assessment_questions # New
-assessment_submissions_collection = mongo.db.assessment_submissions # New
-# Modified whiteboard_collection to store drawings per page
-whiteboard_collection = mongo.db.whiteboard_drawings_pages
-chat_messages_collection = mongo.db.chat_messages # NEW: Collection for chat messages
-
-# Ensure necessary directories exist for file uploads
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+messages_collection = mongo.db.messages
+files_collection = mongo.db.files
+assessments_collection = mongo.db.assessments # NEW: Assessments collection
+submissions_collection = mongo.db.submissions # NEW: Submissions collection
 
 
-# --- API Endpoints ---
+# --- Helper Functions ---
 
-@app.route('/')
-def index():
-    return send_from_directory('.', 'index.html')
-
-@app.route('/style.css')
-def serve_css():
-    return send_from_directory('.', 'style.css')
-
-@app.route('/app.js')
-def serve_js():
-    return send_from_directory('.', 'app.js')
-
-# Route for classroom details (for direct access via share link)
-@app.route('/classroom/<classroomId>')
-def serve_classroom_page(classroomId):
-    return send_from_directory('.', 'index.html')
-
-@app.route('/uploads/<filename>')
-def serve_uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
-    username = data.get('username')
-    email = data.get('email')
-    password = data.get('password')
-    role = data.get('role', 'user') # 'user' or 'admin'
-
-    if not all([username, email, password]):
-        return jsonify({"error": "Missing required fields"}), 400
-
-    if users_collection.find_one({"email": email}):
-        return jsonify({"error": "Email already registered"}), 409
-
-    hashed_password = generate_password_hash(password)
-    user_id = str(uuid.uuid4()) # Generate a unique ID for the user
-    users_collection.insert_one({
-        "id": user_id,
-        "username": username,
-        "email": email,
-        "password": hashed_password,
-        "role": role,
-        "created_at": datetime.utcnow()
-    })
-    return jsonify({"message": "User registered successfully", "user": {"id": user_id, "username": username, "email": email, "role": role}}), 201
-
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
-
-    if not all([email, password]):
-        return jsonify({"error": "Missing email or password"}), 400
-
-    user = users_collection.find_one({"email": email})
-    if not user or not check_password_hash(user['password'], password):
-        return jsonify({"error": "Invalid email or password"}), 401
-
-    session['user_id'] = user['id'] # Store user ID in session
-    session['username'] = user['username'] # Store username in session
-    session['role'] = user['role'] # Store role in session
-    session.permanent = True # Make session permanent
-    print(f"User {user['username']} ({user['role']}) logged in. Session set.")
-
-    return jsonify({
-        "message": "Login successful",
-        "user": {
-            "id": user['id'],
-            "username": user['username'],
-            "email": user['email'],
-            "role": user['role']
-        }
-    }), 200
-
-@app.route('/api/logout', methods=['POST'])
-def logout():
-    user_id = session.get('user_id')
-    if user_id:
-        print(f"User {session.get('username')} logging out. Clearing session.")
-    session.pop('user_id', None)
-    session.pop('username', None)
-    session.pop('role', None) # Clear role from session
-    return jsonify({"message": "Logged out successfully"}), 200
-
-# NEW: Endpoint to check current user session
-@app.route('/api/@me', methods=['GET'])
 def get_current_user():
     user_id = session.get('user_id')
     if user_id:
-        user = users_collection.find_one({"id": user_id}, {"_id": 0, "password": 0}) # Exclude _id and password
+        # Fetch user from DB to ensure session data is fresh and complete
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
         if user:
-            print(f"Current user session check: {user.get('username')} ({user.get('role')})")
-            return jsonify(user), 200
-        else:
-            print(f"User ID {user_id} found in session but not in DB. Clearing session.")
-            session.pop('user_id', None)
-            session.pop('username', None)
-            session.pop('role', None)
-            return jsonify({"error": "User not found"}), 404
-    print("No user ID in session. Unauthorized.")
-    return jsonify({"error": "Unauthorized"}), 401
+            # Convert ObjectId to string for JSON serialization
+            user['_id'] = str(user['_id'])
+            return user
+    return None
+
+def login_required(f):
+    """Decorator to protect routes that require authentication."""
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Unauthorized, please log in.'}), 401
+        return f(*args, **kwargs)
+    return decorated_function
+
+# --- Authentication Routes ---
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+    role = data.get('role', 'user') # Default role is 'user'
+
+    if not username or not email or not password:
+        return jsonify({'error': 'Missing username, email, or password'}), 400
+
+    if users_collection.find_one({'username': username}):
+        return jsonify({'error': 'Username already exists'}), 409
+    if users_collection.find_one({'email': email}):
+        return jsonify({'error': 'Email already registered'}), 409
+
+    hashed_password = generate_password_hash(password)
+    user_id = users_collection.insert_one({
+        'username': username,
+        'email': email,
+        'password': hashed_password,
+        'role': role,
+        'classrooms': [] # List of classroom IDs the user is a member of
+    }).inserted_id
+
+    return jsonify({'message': 'Registration successful!', 'user_id': str(user_id)}), 201
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    user = users_collection.find_one({'username': username})
+    if user and check_password_hash(user['password'], password):
+        session.permanent = True
+        session['user_id'] = str(user['_id'])
+        session['username'] = user['username'] # Store username in session
+        session['role'] = user['role'] # Store role in session
+        return jsonify({'message': 'Login successful!', 'user': {'id': str(user['_id']), 'username': user['username'], 'email': user['email'], 'role': user['role']}}), 200
+    else:
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.pop('user_id', None)
+    session.pop('username', None)
+    session.pop('role', None)
+    return jsonify({'message': 'Logged out successfully'}), 200
+
+@app.route('/api/check_auth', methods=['GET'])
+def check_auth():
+    user = get_current_user()
+    if user:
+        return jsonify({'authenticated': True, 'user': {'id': user['_id'], 'username': user['username'], 'email': user['email'], 'role': user['role']}}), 200
+    return jsonify({'authenticated': False}), 200
 
 
-@app.route('/api/update-profile', methods=['POST'])
-def update_profile():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json
-    new_username = data.get('username')
-
-    if not new_username:
-        return jsonify({"error": "New username is missing"}), 400
-
-    result = users_collection.update_one(
-        {"id": user_id},
-        {"$set": {"username": new_username, "updated_at": datetime.utcnow()}}
-    )
-
-    if result.matched_count == 0:
-        return jsonify({"error": "User not found"}), 404
-    if result.modified_count == 0:
-        return jsonify({"message": "No changes made"}), 200 # No error if same username
-    
-    session['username'] = new_username # Update username in session
-    print(f"Profile for {user_id} updated to username: {new_username}")
-    return jsonify({"message": "Profile updated successfully"}), 200
-
-@app.route('/api/upload-library-files', methods=['POST'])
-def upload_library_files():
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    if user_role != 'admin':
-        return jsonify({"error": "Forbidden: Only administrators can upload files."}), 403
-
-    if 'files' not in request.files:
-        return jsonify({"error": "No files part"}), 400
-
-    files = request.files.getlist('files')
-    class_room_id = request.form.get('classroomId')
-
-    if not class_room_id:
-        return jsonify({"error": "Classroom ID is missing"}), 400
-
-    uploaded_file_info = []
-    for file in files:
-        if file.filename == '':
-            return jsonify({"error": "No selected file"}), 400
-        if file:
-            filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1] # Unique filename
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            file_id = str(uuid.uuid4()) # Generate unique ID for the file record
-            library_files_collection.insert_one({
-                "id": file_id, # Store the generated ID
-                "classroomId": class_room_id,
-                "original_filename": file.filename,
-                "stored_filename": filename,
-                "url": f"/uploads/{filename}",
-                "uploaded_at": datetime.utcnow(),
-                "uploaded_by": user_id
-            })
-            uploaded_file_info.append({"id": file_id, "filename": file.filename, "url": f"/uploads/{filename}"})
-    
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': class_room_id,
-        'message': f"Admin {session.get('username')} uploaded new file(s) to the library."
-    }, room=class_room_id)
-
-    print(f"Files uploaded to classroom {class_room_id} by {session.get('username')}")
-    return jsonify({"message": "Files uploaded successfully", "files": uploaded_file_info}), 201
-
-@app.route('/api/library-files/<classroomId>', methods=['GET'])
-def get_library_files(classroomId):
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    files = list(library_files_collection.find({"classroomId": classroomId}, {"_id": 0})) # Fetch all fields including 'id'
-    # Rename 'original_filename' to 'filename' for client consistency if needed, but now 'filename' is stored
-    for file in files:
-        if 'original_filename' in file: # Handle older entries
-            file['filename'] = file.pop('original_filename')
-    print(f"Fetched {len(files)} library files for classroom {classroomId}")
-    return jsonify(files), 200
-
-@app.route('/api/library-files/<fileId>', methods=['DELETE'])
-def delete_library_file(fileId):
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    if user_role != 'admin':
-        return jsonify({"error": "Forbidden: Only administrators can delete files."}), 403
-
-    file_data = library_files_collection.find_one({"id": fileId})
-    if not file_data:
-        return jsonify({"error": "File not found"}), 404
-
-    # Delete file from filesystem
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], file_data['stored_filename'])
-    if os.path.exists(filepath):
-        os.remove(filepath)
-    
-    result = library_files_collection.delete_one({"id": fileId})
-    if result.deleted_count > 0:
-        # Emit admin action update
-        socketio.emit('admin_action_update', {
-            'classroomId': file_data.get('classroomId'),
-            'message': f"Admin {session.get('username')} deleted file '{file_data.get('original_filename', file_data.get('filename'))}' from the library."
-        }, room=file_data.get('classroomId'))
-        print(f"File {fileId} deleted by {session.get('username')}")
-        return jsonify({"message": "File deleted successfully"}), 200
-    print(f"Attempted to delete file {fileId} but not found in DB.")
-    return jsonify({"error": "File not found"}), 404
-
-
-@app.route('/api/assessments', methods=['POST'])
-def create_assessment():
-    user_id = session.get('user_id')
-    username = session.get('username')
-    user_role = session.get('role')
-
-    if not user_id or user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only administrators can create assessments."}), 401
-
-    data = request.json
-    class_room_id = data.get('classroomId')
-    title = data.get('title')
-    description = data.get('description')
-    scheduled_at_str = data.get('scheduled_at')
-    duration_minutes = data.get('duration_minutes')
-    questions = data.get('questions') # Retrieve the questions array
-
-    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None, questions is not None]):
-        return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, duration_minutes, or questions"}), 400
-    
-    if not isinstance(questions, list) or not questions:
-        return jsonify({"error": "Questions must be a non-empty list"}), 400
-
-    try:
-        scheduled_at = datetime.fromisoformat(scheduled_at_str)
-    except ValueError:
-        return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM"}), 400
-
-    if not isinstance(duration_minutes, int) or duration_minutes <= 0:
-        return jsonify({"error": "Duration must be a positive integer"}), 400
-
-    assessment_id = str(uuid.uuid4())
-    
-    # Insert assessment details
-    assessments_collection.insert_one({
-        "id": assessment_id,
-        "classroomId": class_room_id,
-        "title": title,
-        "description": description,
-        "scheduled_at": scheduled_at,
-        "duration_minutes": duration_minutes,
-        "creator_id": user_id,
-        "creator_username": username,
-        "creator_role": user_role,
-        "created_at": datetime.utcnow()
-    })
-
-    # Insert each question into the assessment_questions_collection
-    inserted_question_ids = []
-    for q_data in questions:
-        question_id = str(uuid.uuid4())
-        assessment_questions_collection.insert_one({
-            "id": question_id,
-            "assessmentId": assessment_id,
-            "classroomId": class_room_id, # Link to classroom for easier queries
-            "question_text": q_data.get('question_text') or q_data.get('text'),
-            "question_type": q_data.get('question_type') or q_data.get('type'),
-            "options": q_data.get('options'),
-            "correct_answer": q_data.get('correct_answer')
-        })
-        inserted_question_ids.append(question_id)
-
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': class_room_id,
-        'message': f"Admin {session.get('username')} created a new assessment: '{title}' with {len(questions)} questions."
-    }, room=class_room_id)
-
-    print(f"Assessment '{title}' created by {username} in classroom {class_room_id} with {len(questions)} questions.")
-    return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
-
-@app.route('/api/assessments/<assessmentId>/questions', methods=['POST'])
-def add_questions_to_assessment(assessmentId):
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-
-    if not user_id or user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only administrators can add questions."}), 401
-
-    assessment = assessments_collection.find_one({"id": assessmentId})
-    if not assessment:
-        return jsonify({"error": "Assessment not found"}), 404
-
-    data = request.json
-    questions = data.get('questions') # List of question objects
-
-    if not isinstance(questions, list) or not questions:
-        return jsonify({"error": "Questions must be a non-empty list"}), 400
-
-    inserted_question_ids = []
-    for q_data in questions:
-        question_id = str(uuid.uuid4())
-        assessment_questions_collection.insert_one({
-            "id": question_id,
-            "assessmentId": assessmentId,
-            "classroomId": assessment['classroomId'], # Link to classroom
-            "question_text": q_data.get('question_text') or q_data.get('text'),
-            "question_type": q_data.get('question_type') or q_data.get('type'),
-            "options": q_data.get('options'),
-            "correct_answer": q_data.get('correct_answer')
-        })
-        inserted_question_ids.append(question_id)
-
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': assessment.get('classroomId'),
-        'message': f"Admin {session.get('username')} added {len(questions)} questions to assessment '{assessment.get('title')}'."
-    }, room=assessment.get('classroomId'))
-
-    print(f"Added {len(questions)} questions to assessment {assessmentId}")
-    return jsonify({"message": "Questions added successfully", "question_ids": inserted_question_ids}), 201
-
-
-@app.route('/api/assessments/<classroomId>', methods=['GET'])
-def get_assessments(classroomId):
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    # Fetch assessments without their questions for the list view
-    assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
-    
-    # Convert datetime objects to ISO format strings for client-side
-    for assessment in assessments:
-        if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
-            assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
-        if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
-            assessment['created_at'] = assessment['created_at'].isoformat()
-
-    print(f"Fetched {len(assessments)} assessments (list view) for classroom {classroomId}")
-    return jsonify(assessments), 200
-
-@app.route('/api/assessments/<assessmentId>', methods=['GET'])
-def get_assessment_details(assessmentId):
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    assessment = assessments_collection.find_one({"id": assessmentId}, {"_id": 0})
-    if not assessment:
-        print(f"Assessment {assessmentId} not found.")
-        return jsonify({"error": "Assessment not found"}), 404
-    
-    # Fetch questions for this specific assessment
-    assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
-    
-    # Convert datetime objects to ISO format strings for client-side
-    if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
-        assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
-    if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
-        assessment['created_at'] = assessment['created_at'].isoformat()
-
-    print(f"Fetched details for assessment {assessmentId} including questions.")
-    return jsonify(assessment), 200
-
-
-@app.route('/api/assessments/<assessmentId>/submit', methods=['POST'])
-def submit_assessment():
-    user_id = session.get('user_id')
-    username = session.get('username')
-    user_role = session.get('role') # Get user role for submission record
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json
-    assessment_id = data.get('assessmentId')
-    class_room_id = data.get('classroomId')
-    answers = data.get('answers') # List of {question_id: "...", user_answer: "...", question_text: "...", question_type: "...", correct_answer: "..."}
-
-    if not all([assessment_id, class_room_id, answers]):
-        return jsonify({"error": "Missing required fields: assessmentId, classroomId, or answers"}), 400
-    
-    if not isinstance(answers, list):
-        return jsonify({"error": "Answers must be a list"}), 400
-
-    submission_id = str(uuid.uuid4())
-    
-    score = 0
-    total_questions = 0
-    graded_answers = []
-
-    for submitted_answer in answers:
-        question_id = submitted_answer.get('question_id')
-        user_answer = submitted_answer.get('user_answer')
-        
-        if question_id:
-            question = assessment_questions_collection.find_one({"id": question_id})
-            if question:
-                total_questions += 1
-                is_correct = False
-                if question.get('question_type') == 'mcq' or question.get('type') == 'mcq':
-                    # Use the correct_answer from the DB, not client-provided
-                    db_correct_answer = question.get('correct_answer')
-                    if db_correct_answer and user_answer and \
-                       str(user_answer).strip().lower() == str(db_correct_answer).strip().lower():
-                        score += 1
-                        is_correct = True
-                
-                graded_answers.append({
-                    "question_id": question_id,
-                    "question_text": question.get('question_text') or question.get('text'),
-                    "user_answer": user_answer,
-                    "correct_answer": question.get('correct_answer'),
-                    "is_correct": is_correct if (question.get('question_type') == 'mcq' or question.get('type') == 'mcq') else None # Only for MCQ
-                })
-
-    assessment_submissions_collection.insert_one({
-        "id": submission_id,
-        "assessmentId": assessment_id,
-        "classroomId": class_room_id,
-        "student_id": user_id,
-        "student_username": username,
-        "student_role": user_role, # Store student's role
-        "submitted_at": datetime.utcnow(),
-        "answers": graded_answers,
-        "score": score,
-        "total_questions": total_questions
-    })
-
-    # Emit admin action update
-    socketio.emit('admin_action_update', {
-        'classroomId': class_room_id,
-        'message': f"User {username} submitted an assessment for '{assessments_collection.find_one({'id': assessment_id}).get('title')}'."
-    }, room=class_room_id)
-
-    print(f"Assessment {assessment_id} submitted by {username}. Score: {score}/{total_questions}")
-    return jsonify({"message": "Assessment submitted successfully", "submission_id": submission_id, "score": score, "total_questions": total_questions}), 201
-
-@app.route('/api/assessments/<assessmentId>/submissions', methods=['GET'])
-def get_assessment_submissions(assessmentId):
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    # Admins can see all submissions for their assessment
-    # Students can only see their own submission (if any)
-    query = {"assessmentId": assessmentId}
-    if user_role != 'admin':
-        query["student_id"] = user_id
-
-    submissions = list(assessment_submissions_collection.find(query, {"_id": 0}).sort("submitted_at", -1))
-    print(f"Fetched {len(submissions)} submissions for assessment {assessmentId}")
-    return jsonify(submissions), 200
-
-@app.route('/api/assessments/<assessmentId>', methods=['DELETE'])
-def delete_assessment(assessmentId):
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-    if not user_id or user_role != 'admin':
-        return jsonify({"error": "Unauthorized: Only admins can delete assessments"}), 403
-
-    assessment = assessments_collection.find_one({"id": assessmentId})
-    if not assessment:
-        return jsonify({"error": "Assessment not found"}), 404
-
-    # Delete associated questions and submissions
-    assessment_questions_collection.delete_many({"assessmentId": assessmentId})
-    assessment_submissions_collection.delete_many({"assessmentId": assessmentId})
-    result = assessments_collection.delete_one({"id": assessmentId})
-
-    if result.deleted_count > 0:
-        # Emit admin action update
-        socketio.emit('admin_action_update', {
-            'classroomId': assessment.get('classroomId'),
-            'message': f"Admin {session.get('username')} deleted assessment '{assessment.get('title')}'."
-        }, room=assessment.get('classroomId'))
-        print(f"Assessment {assessmentId} and related data deleted by {session.get('username')}")
-        return jsonify({"message": "Assessment and its related data deleted successfully"}), 200
-    print(f"Attempted to delete assessment {assessmentId} but not found in DB.")
-    return jsonify({"error": "Assessment not found"}), 404
+# --- Classroom Routes ---
 
 @app.route('/api/classrooms', methods=['POST'])
+@login_required
 def create_classroom():
-    user_id = session.get('user_id')
-    username = session.get('username')
-    user_role = session.get('role')
+    user = get_current_user()
+    if user['role'] != 'admin':
+        return jsonify({'error': 'Only administrators can create classrooms.'}), 403
 
-    if not user_id or user_role != 'admin': # Only admins can create classrooms
-        return jsonify({"error": "Unauthorized: Only administrators can create classrooms."}), 401
+    data = request.get_json()
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Classroom name is required'}), 400
 
-    data = request.json
-    classroom_name = data.get('name')
+    classroom_id = classrooms_collection.insert_one({
+        'name': name,
+        'creator_id': user['_id'],
+        'creator_username': user['username'],
+        'members': [user['_id']], # Creator is automatically a member
+        'created_at': datetime.utcnow()
+    }).inserted_id
 
-    if not classroom_name:
-        return jsonify({"error": "Classroom name is required"}), 400
+    # Add classroom to admin's list of classrooms
+    users_collection.update_one(
+        {'_id': ObjectId(user['_id'])},
+        {'$push': {'classrooms': str(classroom_id)}}
+    )
 
-    classroom_id = str(uuid.uuid4())
-    classrooms_collection.insert_one({
-        "id": classroom_id,
-        "name": classroom_name,
-        "creator_id": user_id,
-        "creator_username": username,
-        "created_at": datetime.utcnow(),
-        "participants": [user_id] # Creator is initially a participant
-    })
-    # Emit admin action update (this is for general notification, not room-specific yet)
-    socketio.emit('admin_action_update', {
-        'classroomId': classroom_id, # Use new classroom ID
-        'message': f"Admin {username} created a new classroom: '{classroom_name}'."
-    })
-    print(f"Classroom '{classroom_name}' created by {username}. ID: {classroom_id}")
-    return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
+    return jsonify({'message': 'Classroom created successfully!', 'id': str(classroom_id)}), 201
 
 @app.route('/api/classrooms', methods=['GET'])
-def get_classrooms():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
+@login_required
+def get_user_classrooms():
+    user = get_current_user()
+    # Fetch classrooms where the current user is a member
+    user_classrooms = classrooms_collection.find({'members': user['_id']})
+    classrooms_list = []
+    for classroom in user_classrooms:
+        classroom['_id'] = str(classroom['_id'])
+        classrooms_list.append({
+            'id': classroom['_id'],
+            'name': classroom['name'],
+            'creator_username': classroom['creator_username']
+        })
+    return jsonify(classrooms_list), 200
 
-    # MODIFIED: Return ALL classrooms for an authenticated user to discover
-    all_classrooms = list(classrooms_collection.find({}, {"_id": 0}))
-    print(f"Fetched {len(all_classrooms)} classrooms for display.")
-    return jsonify(all_classrooms), 200
-
-@app.route('/api/join-classroom', methods=['POST'])
+@app.route('/api/classrooms/join', methods=['POST'])
+@login_required
 def join_classroom():
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({"error": "Unauthorized"}), 401
-
-    data = request.json
-    classroom_id = data.get('classroomId')
-
-    if not classroom_id:
-        return jsonify({"error": "Classroom ID is required"}), 400
-
-    classroom = classrooms_collection.find_one({"id": classroom_id})
-    if not classroom:
-        return jsonify({"error": "Classroom not found"}), 404
-
-    if user_id not in classroom.get('participants', []):
-        classrooms_collection.update_one(
-            {"id": classroom_id},
-            {"$addToSet": {"participants": user_id}} # Add user to participants if not already there
-        )
-        # REMOVED: The problematic emit('user_joined') from this HTTP route
-        # The 'user_joined' event with 'sid' is correctly handled in the socketio.on('join') event handler.
-
-        # Emit admin action update
-        socketio.emit('admin_action_update', {
-            'classroomId': classroom_id,
-            'message': f"User {session.get('username')} joined classroom '{classroom.get('name')}'."
-        }, room=classroom_id)
-        print(f"User {session.get('username')} joined classroom {classroom_id}.")
-        return jsonify({"message": "Joined classroom successfully", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
-    else:
-        print(f"User {session.get('username')} already a participant in classroom {classroom_id}.")
-        return jsonify({"message": "Already a participant in this classroom", "classroom": {"id": classroom_id, "name": classroom.get('name')}}), 200
-
-@app.route('/api/generate-share-link/<classroomId>', methods=['GET'])
-def generate_share_link(classroomId):
-    # You might want to verify if the classroomId exists and if the user has access
-    classroom = classrooms_collection.find_one({"id": classroomId})
-    if not classroom:
-        return jsonify({"error": "Classroom not found"}), 404
-
-    # Construct the base URL for your application
-    # It's highly recommended to set APP_BASE_URL as an environment variable in Render.
-    # E.g., APP_BASE_URL=https://your-app-name.onrender.com
-    base_url = os.environ.get('APP_BASE_URL', request.host_url)
-    if base_url.endswith('/'):
-        base_url = base_url[:-1] # Remove trailing slash if present
-
-    # Construct the shareable URL for the classroom
-    # This URL should lead to your single-page app which then handles routing
-    share_link = f"{base_url}/classroom/{classroomId}"
-    print(f"Generated share link for classroom {classroomId}: {share_link}")
-    return jsonify({"share_link": share_link}), 200
-
-# --- Socket.IO Event Handlers ---
-
-@socketio.on('connect')
-def connect():
-    user_id = session.get('user_id')
-    username = session.get('username')
-    if user_id:
-        print(f"Client connected: {username} ({user_id}), SID: {request.sid}")
-        session['sid'] = request.sid
-    else:
-        print(f"Unauthenticated client connected, SID: {request.sid}")
-
-@socketio.on('disconnect')
-def disconnect(sid): # MODIFIED: Added 'sid' argument
-    user_id = session.get('user_id')
-    username = session.get('username')
-    # sid is now passed as an argument
-
-    print(f"Client disconnected: {username} ({user_id}), SID: {sid}")
-
-    # Find which classroom the user was in to emit user_left and webrtc_peer_disconnected
-    classroomId_to_leave = None
-    # Iterate through all rooms the sid is in
-    # MODIFIED: Used 'rooms(sid)' directly
-    for room_id in rooms(sid):
-        # Exclude the user's own SID room and the default Flask-SocketIO app room
-        # A simple check: assume classroom IDs are UUIDs (or specific prefix)
-        if room_id != sid and room_id != request.sid:
-            # Check if it's a classroom room (assuming UUID format for classroom IDs)
-            if len(room_id) == 36 and '-' in room_id: # Rough check for UUID format
-                classroomId_to_leave = room_id
-                break
-    
-    if classroomId_to_leave:
-        leave_room(classroomId_to_leave)
-        emit('user_left', {'username': username, 'sid': sid}, room=classroomId_to_leave, include_sid=False)
-        emit('webrtc_peer_disconnected', {'peer_id': sid}, room=classroomId_to_leave, include_sid=False)
-        print(f"User {username} ({sid}) left classroom {classroomId_to_leave} due to disconnect.")
-
-
-@socketio.on('join')
-def on_join(data):
+    user = get_current_user()
+    data = request.get_json()
     classroomId = data.get('classroomId')
-    username = session.get('username')
-    user_id = session.get('user_id')
-    user_role = data.get('role') or session.get('role')
-    sid = request.sid
 
-    if not classroomId or not username or not user_id:
-        print("Missing data for join or user not authenticated.")
+    if not classroomId:
+        return jsonify({'error': 'Classroom ID is required'}), 400
+
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId)})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found'}), 404
+
+    # Check if user is already a member
+    if user['_id'] in classroom['members']:
+        return jsonify({'message': 'Already a member of this classroom.', 'classroom_name': classroom['name']}), 200
+
+    # Add user to classroom's members list
+    classrooms_collection.update_one(
+        {'_id': ObjectId(classroomId)},
+        {'$push': {'members': user['_id']}}
+    )
+    # Add classroom to user's list of classrooms
+    users_collection.update_one(
+        {'_id': ObjectId(user['_id'])},
+        {'$push': {'classrooms': classroomId}}
+    )
+
+    socketio.emit('classroom_member_update', {
+        'classroomId': classroomId,
+        'message': f"{user['username']} has joined the classroom {classroom['name']}."
+    }, room=classroomId)
+
+    return jsonify({'message': 'Joined classroom successfully!', 'classroom_name': classroom['name']}), 200
+
+
+# --- Chat Routes (REST and Socket.IO) ---
+
+@app.route('/api/classrooms/<classroomId>/messages', methods=['GET'])
+@login_required
+def get_classroom_messages(classroomId):
+    user = get_current_user()
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    # Fetch messages, sort by timestamp
+    msgs = list(messages_collection.find({'classroomId': classroomId}).sort('timestamp'))
+    for msg in msgs:
+        msg['_id'] = str(msg['_id'])
+        msg['timestamp'] = msg['timestamp'].isoformat() # Convert datetime to string
+    return jsonify(msgs), 200
+
+@socketio.on('message')
+@login_required
+def handle_message(data):
+    user = get_current_user()
+    classroomId = data.get('classroomId')
+    message_text = data.get('message')
+
+    if not classroomId or not message_text:
+        return {'error': 'Missing classroomId or message'}, 400
+
+    # Ensure user is a member of the classroom
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return {'error': 'Classroom not found or you are not a member'}, 404
+
+    timestamp = datetime.utcnow()
+    message_data = {
+        'classroomId': classroomId,
+        'sender_id': user['_id'],
+        'sender_username': user['username'],
+        'message': message_text,
+        'timestamp': timestamp
+    }
+    messages_collection.insert_one(message_data)
+
+    # Emit message to all members in the room, including sender, but sender_id is client's socket ID for front-end check
+    emit('message', {
+        'classroomId': classroomId,
+        'sender_id': request.sid, # Use request.sid for the sender's current socket ID
+        'sender_user': {'username': user['username'], 'role': user['role']}, # Pass user details
+        'message': message_text,
+        'timestamp': timestamp.isoformat()
+    }, room=classroomId)
+    print(f"Message from {user['username']} in {classroomId}: {message_text}")
+
+
+# --- File Library Routes ---
+
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+@app.route('/api/upload_file', methods=['POST'])
+@login_required
+def upload_file():
+    user = get_current_user()
+    if user['role'] != 'admin':
+        return jsonify({'error': 'Only administrators can upload files.'}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    classroomId = request.form.get('classroomId')
+
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    if not classroomId:
+        return jsonify({'error': 'Classroom ID is required'}), 400
+
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1] # Unique filename
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+
+    file_size = os.path.getsize(filepath)
+
+    file_id = files_collection.insert_one({
+        'classroomId': classroomId,
+        'file_name': file.filename,
+        'unique_filename': filename,
+        'file_url': f'/uploads/{filename}',
+        'uploader_id': user['_id'],
+        'uploader_username': user['username'],
+        'file_size': file_size,
+        'uploaded_at': datetime.utcnow()
+    }).inserted_id
+
+    # Notify all members in the classroom about the new file
+    socketio.emit('file_uploaded', {
+        'classroomId': classroomId,
+        'message': f"New file '{file.filename}' uploaded to the library by {user['username']}!"
+    }, room=classroomId)
+
+    return jsonify({'message': 'File uploaded successfully!', 'file_id': str(file_id)}), 201
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+@app.route('/api/classrooms/<classroomId>/library', methods=['GET'])
+@login_required
+def get_classroom_library_files(classroomId):
+    user = get_current_user()
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    # Fetch files, sort by upload date
+    files = list(files_collection.find({'classroomId': classroomId}).sort('uploaded_at', -1))
+    for f in files:
+        f['_id'] = str(f['_id'])
+        f['uploaded_at'] = f['uploaded_at'].isoformat()
+    return jsonify(files), 200
+
+@app.route('/api/classrooms/<classroomId>/library/<fileId>', methods=['DELETE'])
+@login_required
+def delete_library_file(classroomId, fileId):
+    user = get_current_user()
+    if user['role'] != 'admin':
+        return jsonify({'error': 'Only administrators can delete files.'}), 403
+
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    file_record = files_collection.find_one({'_id': ObjectId(fileId), 'classroomId': classroomId})
+    if not file_record:
+        return jsonify({'error': 'File not found in this classroom.'}), 404
+
+    try:
+        os.remove(os.path.join(UPLOAD_FOLDER, file_record['unique_filename']))
+        files_collection.delete_one({'_id': ObjectId(fileId)})
+
+        socketio.emit('admin_action_update', { # Use general admin action update for consistency
+            'classroomId': classroomId,
+            'message': f"Admin {user['username']} deleted file '{file_record['file_name']}' from the library."
+        }, room=classroomId)
+
+        return jsonify({'message': 'File deleted successfully!'}), 200
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+        return jsonify({'error': 'Failed to delete file.'}), 500
+
+
+# --- WebRTC Signaling (Socket.IO) ---
+@socketio.on('join_classroom')
+@login_required
+def handle_join_classroom(data):
+    user = get_current_user()
+    classroomId = data.get('classroomId')
+    if not classroomId:
+        print(f"Missing classroomId for join_classroom: {data}")
+        return
+
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        print(f"User {user['username']} not authorized to join room {classroomId}")
         return
 
     join_room(classroomId)
-    session['classroomId'] = classroomId # Store for disconnect handling
-    print(f"[Socket.IO] User '{username}' ({user_id}) joined room: {classroomId} with SID: {sid}")
+    print(f"User {user['username']} (SID: {request.sid}) joined room {classroomId}")
+    emit('message', {
+        'sender_id': 'system',
+        'message': f"{user['username']} has joined the chat.",
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=classroomId, include_sid=False) # Broadcast to others in room
 
-    # Broadcast to others in the room that a new user joined.
-    emit('user_joined', {
-        'username': username,
-        'user_id': user_id,
-        'sid': sid,
-        'role': user_role
-    }, room=classroomId, include_sid=False)
+    # NEW: Signal new peer for WebRTC
+    emit('webrtc_new_peer_joined', {
+        'peer_id': request.sid,
+        'classroomId': classroomId
+    }, room=classroomId, include_sid=False) # Notify others in the room about this new peer
 
-    # Send whiteboard history to the joining user
-    # Fetch all pages and their drawings
-    history_cursor = whiteboard_collection.find(
-        {"classroomId": classroomId},
-        {"_id": 0, "pageIndex": 1, "drawings": 1}
-    ).sort("pageIndex", 1)
-
-    whiteboard_history_pages = {}
-    for entry in history_cursor:
-        page_index = entry.get('pageIndex', 0)
-        drawings = entry.get('drawings', [])
-        if page_index not in whiteboard_history_pages:
-            whiteboard_history_pages[page_index] = []
-        whiteboard_history_pages[page_index].extend(drawings)
-    
-    # Convert dict to ordered list of lists
-    # Ensure all pages up to the max index are included, even if empty
-    max_page_index = max(whiteboard_history_pages.keys()) if whiteboard_history_pages else 0
-    ordered_history = [whiteboard_history_pages.get(i, []) for i in range(max_page_index + 1)]
-    
-    emit('whiteboard_data', {'action': 'history', 'history': ordered_history}, room=sid)
-    print(f"Whiteboard history sent to new participant {sid} in classroom {classroomId}")
-
-    # Send chat history to the joining user
-    chat_history_from_db = list(chat_messages_collection.find(
-        {"classroomId": classroomId},
-        {"_id": 0}
-    ).sort("timestamp", 1).limit(100)) # Get last 100 messages
-    if chat_history_from_db:
-        # Convert datetime objects to ISO format strings for client-side
-        for msg in chat_history_from_db:
-            msg['timestamp'] = msg['timestamp'].isoformat()
-        emit('chat_history', chat_history_from_db, room=sid)
-        print(f"Chat history sent to new participant {sid} in classroom {classroomId}")
-
-
-@socketio.on('leave')
-def on_leave(data):
+@socketio.on('leave_classroom')
+@login_required
+def handle_leave_classroom(data):
+    user = get_current_user()
     classroomId = data.get('classroomId')
-    username = session.get('username')
-    sid = request.sid
-
-    if not classroomId or not username:
+    if not classroomId:
+        print(f"Missing classroomId for leave_classroom: {data}")
         return
 
     leave_room(classroomId)
-    print(f"{username} left room: {classroomId}")
-    emit('user_left', {'username': username, 'sid': sid}, room=classroomId, include_sid=False)
-
-
-@socketio.on('message')
-def handle_chat_message(data):
-    classroomId = data.get('classroomId')
-    message = data.get('message')
-    username = session.get('username')
-    user_id = session.get('user_id')
-    user_role = session.get('role')
-
-    if not classroomId or not message or not username or not user_id:
-        print("Missing chat message data.")
-        return
-
-    # Store message in MongoDB
-    chat_message_record = {
-        "classroomId": classroomId,
-        "user_id": user_id,
-        "username": username,
-        "role": user_role,
-        "message": message,
-        "timestamp": datetime.utcnow()
-    }
-    chat_messages_collection.insert_one(chat_message_record)
-
-    # Emit message to all in the room
+    print(f"User {user['username']} (SID: {request.sid}) left room {classroomId}")
     emit('message', {
-        'user_id': user_id,
-        'username': username,
-        'message': message,
-        'timestamp': datetime.utcnow().isoformat(),
-        'role': user_role
-    }, room=classroomId)
-    print(f"Chat message from {username} in {classroomId} broadcasted and saved.")
+        'sender_id': 'system',
+        'message': f"{user['username']} has left the chat.",
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=classroomId, include_sid=False)
 
-
-@socketio.on('whiteboard_data')
-def handle_whiteboard_data(data):
-    classroomId = data.get('classroomId')
-    action = data.get('action')
-    # Frontend now consistently sends 'data' as the drawing payload
-    drawing_data = data.get('data')
-    sender_id = request.sid
-    user_role = session.get('role')
-
-    if not classroomId or not action or not drawing_data:
-        print(f"Whiteboard data missing: {data}")
-        return
-    
-    # Ensure drawing_data is a dictionary for 'draw' action
-    if action == 'draw' and not isinstance(drawing_data, dict):
-        print(f"Received malformed drawing_data (not a dictionary) for 'draw' action: {drawing_data}")
-        return
-
-    # Only allow admins to draw or clear
-    if user_role != 'admin':
-        print(f"User {sender_id} (role: {user_role}) attempted to modify whiteboard in classroom {classroomId} without admin privileges.")
-        return
-
-    # CORRECTED: Get page_index from the top-level 'data' dictionary
-    page_index = data.get('pageIndex', 0) 
-
-    if action == 'draw':
-        # Get the tool type to differentiate drawing data
-        tool_type = drawing_data.get('tool')
-        drawing_to_save = {
-            "tool": tool_type,
-            "color": drawing_data.get('color'),
-            # 'size' for text, 'width' for shapes/pen. Prioritize 'width' if both exist or just one
-            "width": drawing_data.get('width') or drawing_data.get('size'), 
-            "timestamp": datetime.utcnow()
-        }
-
-        # Validate and extract specific data based on tool type
-        if tool_type == 'pen' or tool_type == 'eraser':
-            points = drawing_data.get('points')
-            if not points or not isinstance(points, list) or not all(isinstance(p, dict) and 'x' in p and 'y' in p for p in points):
-                print(f"Missing or malformed points for pen/eraser tool: {drawing_data}")
-                return
-            drawing_to_save['points'] = points
-        
-        elif tool_type == 'line':
-            start_x = drawing_data.get('startX')
-            start_y = drawing_data.get('startY')
-            end_x = drawing_data.get('endX')
-            end_y = drawing_data.get('endY')
-            if None in [start_x, start_y, end_x, end_y]:
-                print(f"Missing coordinates for line tool: {drawing_data}")
-                return
-            drawing_to_save['startX'] = start_x
-            drawing_to_save['startY'] = start_y
-            drawing_to_save['endX'] = end_x
-            drawing_to_save['endY'] = end_y
-        
-        elif tool_type == 'rectangle':
-            # Store start and end coordinates as sent by frontend for rectangles
-            start_x = drawing_data.get('startX')
-            start_y = drawing_data.get('startY')
-            end_x = drawing_data.get('endX') 
-            end_y = drawing_data.get('endY')
-            if None in [start_x, start_y, end_x, end_y]:
-                print(f"Missing dimensions for rectangle tool: {drawing_data}")
-                return
-            drawing_to_save['startX'] = start_x
-            drawing_to_save['startY'] = start_y
-            drawing_to_save['endX'] = end_x
-            drawing_to_save['endY'] = end_y
-
-        elif tool_type == 'circle':
-            center_x = drawing_data.get('centerX')
-            center_y = drawing_data.get('centerY')
-            radius = drawing_data.get('radius')
-            if None in [center_x, center_y, radius]:
-                print(f"Missing circle properties: {drawing_data}")
-                return
-            drawing_to_save['centerX'] = center_x
-            drawing_to_save['centerY'] = center_y
-            drawing_to_save['radius'] = radius
-
-        elif tool_type == 'text':
-            text_content = drawing_data.get('text')
-            start_x = drawing_data.get('startX')
-            start_y = drawing_data.get('startY')
-            if None in [text_content, start_x, start_y]:
-                print(f"Missing text properties: {drawing_data}")
-                return
-            drawing_to_save['text'] = text_content
-            drawing_to_save['startX'] = start_x
-            drawing_to_save['startY'] = start_y
-
-        else:
-            print(f"Unknown tool type received: {tool_type} in data: {drawing_data}")
-            return # Don't save unknown tool types
-
-        # Store the comprehensive drawing action in MongoDB for the specific page
-        whiteboard_collection.update_one(
-            {"classroomId": classroomId, "pageIndex": page_index},
-            {"$push": {"drawings": drawing_to_save}},
-            upsert=True # Create the document if it doesn't exist
-        )
-        # Broadcast the original incoming data to all in the room except the sender
-        # The frontend will then know how to render based on 'tool' type
-        emit('whiteboard_data', data, room=classroomId, include_sid=False)
-        print(f"Whiteboard draw data for tool '{tool_type}' broadcasted and saved for page {page_index} in classroom {classroomId}")
-
-    elif action == 'clear':
-        # Ensure page_index is correctly retrieved from top-level 'data' for clear action as well
-        if 'pageIndex' in data:
-            page_index_to_clear = data.get('pageIndex', 0)
-            whiteboard_collection.update_one(
-                {"classroomId": classroomId, "pageIndex": page_index_to_clear},
-                {"$set": {"drawings": []}} # Set drawings to an empty array
-            )
-            # Broadcast clear action to all in the room
-            emit('whiteboard_data', {'action': 'clear', 'data': {'pageIndex': page_index_to_clear}}, room=classroomId, include_sid=False)
-            print(f"Whiteboard page {page_index_to_clear} cleared in classroom {classroomId}")
-            # Emit admin action update
-            socketio.emit('admin_action_update', {
-                'classroomId': classroomId,
-                'message': f"Admin {session.get('username')} cleared whiteboard page {page_index_to_clear + 1}."
-            }, room=classroomId)
-        else:
-            print(f"Clear action failed: Missing pageIndex in {data}")
-            
-@socketio.on('whiteboard_page_change')
-def handle_whiteboard_page_change(data):
-    classroomId = data.get('classroomId')
-    new_page_index = data.get('newPageIndex')
-    action_type = data.get('action') # e.g., 'add_page'
-
-    if not classroomId or new_page_index is None:
-        print(f"Whiteboard page change missing data: {data}")
-        return
-
-    user_role = session.get('role')
-    if user_role != 'admin':
-        print(f"Non-admin user attempted to change whiteboard page in classroom {classroomId}.")
-        return
-
-    # If a new page is explicitly added by the admin, ensure it exists in DB
-    if action_type == 'add_page':
-        whiteboard_collection.update_one(
-            {"classroomId": classroomId, "pageIndex": new_page_index},
-            {"$setOnInsert": {"drawings": []}}, # Initialize with empty drawings if new
-            upsert=True
-        )
-        print(f"Whiteboard: New page {new_page_index} ensured in classroom {classroomId}")
-        # Emit admin action update
-        socketio.emit('admin_action_update', {
-            'classroomId': classroomId,
-            'message': f"Admin {session.get('username')} added a new whiteboard page."
-        }, room=classroomId)
-
-
-    # Broadcast page change to all other clients in the room
-    emit('whiteboard_page_change', {'newPageIndex': new_page_index}, room=classroomId, include_sid=False)
-    print(f"Whiteboard: Broadcasted page change to {new_page_index} for classroom {classroomId}")
-
+    # NEW: Signal peer disconnection for WebRTC
+    emit('webrtc_peer_disconnected', {
+        'peer_id': request.sid,
+        'classroomId': classroomId
+    }, room=classroomId, include_sid=False)
 
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
     recipient_id = data.get('recipient_id')
-    classroomId = data.get('classroomId')
     offer = data.get('offer')
+    classroomId = data.get('classroomId')
     sender_id = request.sid
-
     if not recipient_id or not offer or not classroomId:
         print(f"Missing data for webrtc_offer: {data}")
         return
-    
-    emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
+
+    emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id, 'classroomId': classroomId}, room=recipient_id)
     print(f"WEBRTC: Offer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 @socketio.on('webrtc_answer')
 def handle_webrtc_answer(data):
     recipient_id = data.get('recipient_id')
-    classroomId = data.get('classroomId')
     answer = data.get('answer')
+    classroomId = data.get('classroomId')
     sender_id = request.sid
-
     if not recipient_id or not answer or not classroomId:
         print(f"Missing data for webrtc_answer: {data}")
         return
-    
-    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
-    print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
+    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id, 'classroomId': classroomId}, room=recipient_id)
+    print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 @socketio.on('webrtc_ice_candidate')
 def handle_webrtc_ice_candidate(data):
     recipient_id = data.get('recipient_id')
-    classroomId = data.get('classroomId')
     candidate = data.get('candidate')
+    classroomId = data.get('classroomId')
     sender_id = request.sid
-
     if not recipient_id or not candidate or not classroomId:
         print(f"Missing data for webrtc_ice_candidate: {data}")
         return
@@ -1024,7 +474,291 @@ def handle_admin_action_update(data):
         print(f"Admin action update from {session.get('username')} in {classroomId}: {message}")
 
 
-# --- Main Run Block ---
+# --- Assessment Routes (NEW) ---
+
+@app.route('/api/assessments', methods=['POST'])
+@login_required
+def create_assessment():
+    user = get_current_user()
+    if user['role'] != 'admin':
+        return jsonify({'error': 'Only administrators can create assessments.'}), 403
+
+    data = request.get_json()
+    classroomId = data.get('classroomId')
+    title = data.get('title')
+    description = data.get('description')
+    questions = data.get('questions')
+    scheduled_at_str = data.get('scheduled_at') # Datetime string from frontend
+    duration_minutes = data.get('duration_minutes')
+
+    if not classroomId or not title or not questions or not scheduled_at_str or not duration_minutes:
+        return jsonify({'error': 'Missing required assessment fields.'}), 400
+
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    try:
+        # Convert scheduled_at string to datetime object
+        scheduled_at = datetime.fromisoformat(scheduled_at_str)
+        if not isinstance(duration_minutes, int) or duration_minutes <= 0:
+            return jsonify({'error': 'Duration must be a positive integer.'}), 400
+    except ValueError:
+        return jsonify({'error': 'Invalid scheduled time format or duration.'}), 400
+
+    assessment_data = {
+        'classroomId': classroomId,
+        'title': title,
+        'description': description,
+        'creator_id': user['_id'],
+        'creator_username': user['username'],
+        'creator_role': user['role'],
+        'created_at': datetime.utcnow(),
+        'scheduled_at': scheduled_at, # Store as datetime
+        'duration_minutes': duration_minutes, # Store as int
+        'questions': []
+    }
+
+    for q in questions:
+        if not q.get('question_text') or not q.get('question_type') or not q.get('correct_answer'):
+            return jsonify({'error': 'Each question must have text, type, and correct answer.'}), 400
+        question_entry = {
+            'id': str(uuid.uuid4()), # Unique ID for each question
+            'question_text': q['question_text'],
+            'question_type': q['question_type'],
+            'correct_answer': q['correct_answer']
+        }
+        if q['question_type'] == 'mcq' and 'options' in q and isinstance(q['options'], list):
+            question_entry['options'] = q['options']
+        assessment_data['questions'].append(question_entry)
+
+    inserted_id = assessments_collection.insert_one(assessment_data).inserted_id
+
+    socketio.emit('admin_action_update', {
+        'classroomId': classroomId,
+        'message': f"Admin {user['username']} created a new assessment: '{title}'."
+    }, room=classroomId)
+
+    return jsonify({'message': 'Assessment created successfully!', 'assessment_id': str(inserted_id)}), 201
+
+@app.route('/api/assessments/<classroomId>', methods=['GET'])
+@login_required
+def get_class_assessments(classroomId):
+    user = get_current_user()
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    # Fetch all assessments for this classroom, sort by scheduled_at
+    assessments = list(assessments_collection.find({'classroomId': classroomId}).sort('scheduled_at', 1))
+    result = []
+    for assessment in assessments:
+        assessment['_id'] = str(assessment['_id'])
+        assessment['scheduled_at'] = assessment['scheduled_at'].isoformat() # Convert datetime to string
+        assessment['created_at'] = assessment['created_at'].isoformat()
+        # Do not send full questions details (especially correct answers) to all users here
+        # Frontend will fetch specific assessment for taking
+        result.append({
+            'id': assessment['_id'],
+            'title': assessment['title'],
+            'description': assessment['description'],
+            'creator_username': assessment['creator_username'],
+            'creator_role': assessment['creator_role'],
+            'scheduled_at': assessment['scheduled_at'],
+            'duration_minutes': assessment['duration_minutes'],
+            'total_questions': len(assessment['questions'])
+        })
+    return jsonify(result), 200
+
+@app.route('/api/assessments/<assessmentId>', methods=['GET'])
+@login_required
+def get_single_assessment(assessmentId):
+    user = get_current_user()
+    assessment = assessments_collection.find_one({'_id': ObjectId(assessmentId)})
+    if not assessment:
+        return jsonify({'error': 'Assessment not found.'}), 404
+
+    # Ensure user is a member of the classroom associated with the assessment
+    classroom = classrooms_collection.find_one({'_id': ObjectId(assessment['classroomId']), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'You are not authorized to view this assessment.'}), 403
+
+    assessment['_id'] = str(assessment['_id'])
+    assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
+    assessment['created_at'] = assessment['created_at'].isoformat()
+    # For taking the assessment, include question details but sanitize sensitive info if needed
+    # For now, sending all details as frontend handles logic, but correct_answer is for scoring only
+    for q in assessment['questions']:
+        q['id'] = str(q['id']) # Ensure question ID is string
+
+    return jsonify(assessment), 200
+
+
+@app.route('/api/assessments/<assessmentId>/submit', methods=['POST'])
+@login_required
+def submit_assessment(assessmentId):
+    user = get_current_user()
+    data = request.get_json()
+    classroomId = data.get('classroomId')
+    answers = data.get('answers') # [{'question_id': 'uuid', 'user_answer': 'text'}]
+
+    if not classroomId or not answers:
+        return jsonify({'error': 'Missing classroom ID or answers.'}), 400
+
+    assessment = assessments_collection.find_one({'_id': ObjectId(assessmentId)})
+    if not assessment:
+        return jsonify({'error': 'Assessment not found.'}), 404
+
+    # Ensure user is a member of the classroom
+    classroom = classrooms_collection.find_one({'_id': ObjectId(classroomId), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'Classroom not found or you are not a member.'}), 404
+
+    # Check if assessment is currently active
+    now = datetime.utcnow()
+    scheduled_at = assessment['scheduled_at']
+    duration = timedelta(minutes=assessment['duration_minutes'])
+    end_time = scheduled_at + duration
+
+    if now < scheduled_at:
+        return jsonify({'error': 'Assessment has not started yet.'}), 400
+    if now > end_time:
+        return jsonify({'error': 'Assessment has already ended.'}), 400
+
+    # Check if user has already submitted this assessment
+    existing_submission = submissions_collection.find_one({
+        'assessment_id': assessmentId,
+        'student_id': user['_id']
+    })
+    if existing_submission:
+        return jsonify({'error': 'You have already submitted this assessment.'}), 400
+
+    score = 0
+    total_questions = len(assessment['questions'])
+    submission_answers = []
+
+    # Map question IDs to question objects for easy lookup
+    questions_map = {q['id']: q for q in assessment['questions']}
+
+    for ans in answers:
+        question_id = ans.get('question_id')
+        user_answer = ans.get('user_answer', '').strip()
+
+        question = questions_map.get(question_id)
+        if question:
+            is_correct = False
+            correct_answer = question['correct_answer'].strip()
+
+            if question['question_type'] == 'mcq':
+                # Case-insensitive and whitespace-insensitive comparison for MCQ options
+                is_correct = (user_answer.lower() == correct_answer.lower())
+            elif question['question_type'] == 'text':
+                # Simple case-insensitive comparison for text answers
+                is_correct = (user_answer.lower() == correct_answer.lower())
+            # Add other question types logic here if needed
+
+            if is_correct:
+                score += 1
+
+            submission_answers.append({
+                'question_id': question_id,
+                'question_text': question['question_text'], # Include question text for display
+                'user_answer': user_answer,
+                'correct_answer': correct_answer, # Include correct answer for review
+                'is_correct': is_correct
+            })
+
+    submission_data = {
+        'assessment_id': assessmentId,
+        'classroomId': classroomId,
+        'student_id': user['_id'],
+        'student_username': user['username'],
+        'student_role': user['role'],
+        'submitted_at': datetime.utcnow(),
+        'score': score,
+        'total_questions': total_questions,
+        'answers': submission_answers
+    }
+    submissions_collection.insert_one(submission_data)
+
+    return jsonify({
+        'message': 'Assessment submitted successfully!',
+        'score': score,
+        'total_questions': total_questions,
+        'submission_id': str(submission_data['_id'])
+    }), 200
+
+
+@app.route('/api/assessments/<assessmentId>/submissions', methods=['GET'])
+@login_required
+def get_assessment_submissions(assessmentId):
+    user = get_current_user()
+    assessment = assessments_collection.find_one({'_id': ObjectId(assessmentId)})
+    if not assessment:
+        return jsonify({'error': 'Assessment not found.'}), 404
+
+    # Ensure user is a member of the classroom associated with the assessment
+    classroom = classrooms_collection.find_one({'_id': ObjectId(assessment['classroomId']), 'members': user['_id']})
+    if not classroom:
+        return jsonify({'error': 'You are not authorized to view submissions for this assessment.'}), 403
+
+    # Only admins can view all submissions. Users can view their own.
+    query = {'assessment_id': assessmentId}
+    if user['role'] != 'admin':
+        query['student_id'] = user['_id']
+
+    submissions = list(submissions_collection.find(query).sort('submitted_at', -1))
+
+    result = []
+    for submission in submissions:
+        submission['_id'] = str(submission['_id'])
+        submission['submitted_at'] = submission['submitted_at'].isoformat()
+        result.append(submission) # Send all submission data including answers for review
+    return jsonify(result), 200
+
+@app.route('/api/assessments/<assessmentId>', methods=['DELETE'])
+@login_required
+def delete_assessment(assessmentId):
+    user = get_current_user()
+    if user['role'] != 'admin':
+        return jsonify({'error': 'Only administrators can delete assessments.'}), 403
+
+    assessment = assessments_collection.find_one({'_id': ObjectId(assessmentId)})
+    if not assessment:
+        return jsonify({'error': 'Assessment not found.'}), 404
+
+    # Delete the assessment itself
+    assessments_collection.delete_one({'_id': ObjectId(assessmentId)})
+    # Delete all associated submissions
+    submissions_collection.delete_many({'assessment_id': assessmentId})
+
+    socketio.emit('admin_action_update', {
+        'classroomId': assessment['classroomId'],
+        'message': f"Admin {user['username']} deleted assessment: '{assessment['title']}' and all its submissions."
+    }, room=assessment['classroomId'])
+
+    return jsonify({'message': 'Assessment and its submissions deleted successfully!'}), 200
+
+
+# --- Serve Static Files ---
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    return send_from_directory('.', path)
+
+# --- Run the App ---
 if __name__ == '__main__':
-    print("Server running on http://localhost:5000 (with Socket.IO)")
-    socketio.run(app, debug=True, port=5000, host='0.0.0.0')
+    # Ensure MongoDB indices if needed (e.g., for performance)
+    users_collection.create_index('username', unique=True)
+    users_collection.create_index('email', unique=True)
+    classrooms_collection.create_index('members')
+    messages_collection.create_index('classroomId')
+    messages_collection.create_index('timestamp')
+    files_collection.create_index('classroomId')
+    assessments_collection.create_index('classroomId')
+    submissions_collection.create_index([('assessment_id', 1), ('student_id', 1)], unique=True)
+
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
