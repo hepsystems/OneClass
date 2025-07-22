@@ -8,6 +8,7 @@ gevent.monkey.patch_all()
 from flask import Flask, request, jsonify, send_from_directory, session
 from flask_pymongo import PyMongo
 from werkzeug.security import generate_password_hash, check_password_hash
+import functools
 import os
 import uuid
 from datetime import datetime, timedelta
