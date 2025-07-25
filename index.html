@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>One Class</title>
     <link rel="stylesheet" href="/style.css">
-    <!-- Socket.IO library - typically exposes 'io' globally, so type="module" isn't strictly needed, but doesn't hurt -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -218,9 +217,6 @@
         </section>
     </div>
 
-    <!-- Load Whiteboard.js first, as it's imported by app.js -->
-    <script type="module" src="Whiteboard.js"></script>
-    <!-- Load app.js as a module -->
-    <script type="module" src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
