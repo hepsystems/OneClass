@@ -720,6 +720,11 @@ def on_join(data):
     for entry in history_cursor:
         page_index = entry.get('pageIndex', 0)
         drawings = entry.get('drawings', [])
+        # Convert datetime objects to ISO format strings for client-side
+        for drawing in drawings:
+            if 'timestamp' in drawing and isinstance(drawing['timestamp'], datetime):
+                drawing['timestamp'] = drawing['timestamp'].isoformat()
+        
         if page_index not in whiteboard_history_pages:
             whiteboard_history_pages[page_index] = []
         whiteboard_history_pages[page_index].extend(drawings)
