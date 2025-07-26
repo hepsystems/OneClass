@@ -1296,7 +1296,9 @@ input[type="range"]::-moz-range-thumb {
 
 #assessment-creation-form input[type="text"],
 #assessment-creation-form textarea,
-#assessment-creation-form select {
+#assessment-creation-form select,
+#assessment-creation-form input[type="datetime-local"], /* New style for datetime-local */
+#assessment-creation-form input[type="number"] { /* New style for number input */
     /* Apply base input styles */
     padding: 12px 15px;
     border: 1px solid #dcdfe6;
@@ -1310,7 +1312,9 @@ input[type="range"]::-moz-range-thumb {
 }
 #assessment-creation-form input[type="text"]:focus,
 #assessment-creation-form textarea:focus,
-#assessment-creation-form select:focus {
+#assessment-creation-form select:focus,
+#assessment-creation-form input[type="datetime-local"]:focus,
+#assessment-creation-form input[type="number"]:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
@@ -1517,6 +1521,21 @@ input[type="range"]::-moz-range-thumb {
     margin-bottom: var(--spacing-md);
 }
 
+/* New: Timer styling */
+#assessment-timer {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: var(--danger-color); /* Red for urgency */
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-sm);
+    border: 2px solid var(--danger-color);
+    border-radius: var(--border-radius-md);
+    background-color: #fff0f0; /* Light red background */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+
 #take-assessment-form .question-display {
     background-color: #fff;
     padding: var(--spacing-md);
@@ -1718,7 +1737,7 @@ input[type="range"]::-moz-range-thumb {
     transform: translateY(-2px);
 }
 
-/* New Search Input Styling */
+/* Search Input Styling */
 .search-input {
     width: calc(100% - 30px); /* Adjust width to match other inputs */
     margin-bottom: var(--spacing-md); /* Space below the search bar */
@@ -1806,102 +1825,6 @@ input[type="range"]::-moz-range-thumb {
         min-width: 70px;
     }
 
-    #whiteboard-navigation button {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-}
-
-@media (max-width: 768px) {
-    #app {
-        padding: var(--spacing-md);
-        margin-top: var(--spacing-md);
-        margin-bottom: var(--spacing-md);
-        min-height: calc(100vh - 20px);
-    }
-
-    section {
-        padding: var(--spacing-md);
-        margin-bottom: var(--spacing-md);
-    }
-
-    #auth-section, #settings-section {
-        margin: 0;
-        max-width: 100%;
-        padding: var(--spacing-md);
-        box-shadow: none;
-    }
-
-    .main-nav {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        margin-bottom: var(--spacing-lg);
-    }
-
-    .main-nav button {
-        width: 100%;
-        padding: var(--spacing-md);
-    }
-
-    .classroom-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm) var(--spacing-md);
-    }
-
-    .hamburger-menu {
-        align-self: flex-end;
-    }
-
-    .sidebar {
-        width: 100%;
-        height: 100%;
-        top: 0;
-        border-radius: 0;
-    }
-
-    .sidebar .close-btn {
-        top: var(--spacing-md);
-        right: var(--spacing-md);
-    }
-
-    .classroom-content-wrapper {
-        flex-direction: column;
-        height: auto;
-        padding-top: var(--spacing-md);
-    }
-
-    .classroom-sub-section {
-        margin: 0 0 var(--spacing-md) 0;
-        padding: var(--spacing-md);
-    }
-
-    #whiteboard-canvas {
-        min-height: 300px;
-    }
-
-    #whiteboard-control-panel {
-        gap: var(--spacing-sm);
-        margin-top: var(--spacing-md);
-        padding: var(--spacing-sm) 0;
-    }
-
-    #whiteboard-tools-container {
-        padding: var(--spacing-xs);
-        width: 98%;
-    }
-
-    .tool-group {
-        gap: var(--spacing-xs);
-    }
-
-    .tool-button, .action-button {
-        width: 40px;
-        height: 40px;
-        font-size: 1.1em;
-    }
-
     input[type="color"] {
         width: 30px;
         height: 30px;
@@ -1985,7 +1908,9 @@ input[type="range"]::-moz-range-thumb {
 
     #assessment-creation-form input[type="text"],
     #assessment-creation-form textarea,
-    #assessment-creation-form select {
+    #assessment-creation-form select,
+    #assessment-creation-form input[type="datetime-local"],
+    #assessment-creation-form input[type="number"] {
         width: calc(100% - 20px);
     }
 
