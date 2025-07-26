@@ -287,8 +287,18 @@ h3 {
 }
 
 /* Dashboard Section */
+#dashboard-section {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-xxl); /* Slightly more padding for dashboard */
+    box-shadow: 0 8px 25px var(--medium-shadow); /* More prominent shadow */
+    background-color: #fcfdfe; /* Lighter background for a fresh look */
+    border: none; /* Remove default border */
+}
+
 #dashboard-section h2 {
     margin-bottom: var(--spacing-lg);
+    color: #2c3e50; /* Darker heading color */
 }
 
 .main-nav {
@@ -339,10 +349,11 @@ h3 {
     color: var(--primary-color);
 }
 
-#create-join-classroom h3 {
+#create-join-classroom {
+    display: grid; /* Use grid for layout */
+    grid-template-columns: 1fr 2fr; /* One column for creation, two for list */
+    gap: var(--spacing-xl); /* Gap between sections */
     margin-top: var(--spacing-xxl);
-    margin-bottom: var(--spacing-lg);
-    color: #444;
 }
 
 #create-classroom-section {
@@ -351,6 +362,13 @@ h3 {
     border-radius: var(--border-radius-lg);
     margin-bottom: var(--spacing-xl);
     border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px var(--subtle-shadow); /* Add shadow to creation section */
+}
+
+#create-classroom-section h3 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    color: #444;
 }
 
 #new-classroom-name {
@@ -400,7 +418,7 @@ h3 {
 #classroom-list {
     list-style: none;
     padding: 0;
-    margin-top: var(--spacing-lg);
+    margin-top: 0; /* Remove top margin as it's now part of grid */
 }
 
 #classroom-list li {
@@ -1189,6 +1207,7 @@ input[type="range"]::-moz-range-thumb {
     align-items: center;
     border: 1px solid #eef1f4;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 #library-items li:hover {
@@ -1853,5 +1872,10 @@ input[type="range"]::-moz-range-thumb {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
+    }
+
+    #create-join-classroom {
+        grid-template-columns: 1fr; /* Stack columns on smaller screens */
+        gap: var(--spacing-md);
     }
 }
