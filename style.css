@@ -1065,77 +1065,98 @@ input[type="range"]::-moz-range-thumb {
     padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--light-border-color);
 }
-/* Chat Section */
-#chat-section {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-}
+
+/* --- Chat Message Styling (Updated) --- */
+
+/* Container for all chat messages */
 #chat-messages {
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
+    flex-grow: 1; /* Allows the chat area to expand */
+    overflow-y: auto; /* Enables scrolling for messages */
     padding: var(--spacing-md);
-    overflow-y: auto;
-    margin-bottom: var(--spacing-md);
-    background-color: #fdfdfd;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
+    background-color: var(--app-bg); /* White background for the chat area */
+    border-radius: var(--border-radius-lg); /* More rounded container */
+    margin-bottom: var(--spacing-md); /* More space below */
+    display: flex; /* Use flexbox for messages */
+    flex-direction: column; /* Stack messages vertically */
+    gap: var(--spacing-sm); /* Space between messages */
+    box-shadow: inset 0 1px 5px rgba(0,0,0,0.05); /* Subtle inner shadow */
 }
-/* Base chat message item */
+
+/* Base style for individual chat message items */
 .chat-message-item {
-    padding: 10px 15px; /* Slightly more padding */
-    border-radius: var(--border-radius-lg);
-    word-wrap: break-word;
-    max-width: 85%; /* Slightly smaller max-width */
-    font-size: 0.95em; /* Slightly smaller font size */
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 18px; /* Rounded corners for chat bubbles */
+    max-width: 80%; /* Limit message width */
+    word-wrap: break-word; /* Ensure long words wrap */
     line-height: 1.4;
-    position: relative; /* For timestamp absolute positioning */
-    display: flex; /* To align timestamp */
-    flex-direction: column; /* To stack sender and message content */
+    font-size: 0.95em;
+    box-shadow: var(--subtle-shadow); /* Subtle shadow for depth */
+    position: relative; /* For potential absolute positioning of elements like timestamp */
 }
-/* Incoming messages (from others) */
-.chat-message-item.incoming {
-    background-color: #e9ecef; /* Light grey background */
-    align-self: flex-start; /* Align to the left */
-    border-bottom-left-radius: var(--border-radius-sm); /* Pointed corner */
-    color: var(--text-color);
-    box-shadow: 0 1px 3px var(--subtle-shadow);
-}
-.chat-message-item.incoming strong {
-    color: var(--primary-dark-color); /* Darker primary for emphasis */
-    font-weight: 600;
-    margin-bottom: 3px; /* Space between name and message */
-    display: block; /* Ensures name is on its own line */
-}
-/* Outgoing messages (from current user) */
-.chat-message-item.outgoing {
+
+/* Styling for messages sent by the current user */
+.chat-message-current-user {
+    align-self: flex-end; /* Align to the right */
     background-color: var(--primary-color); /* Primary color background */
     color: white; /* White text for contrast */
-    align-self: flex-end; /* Align to the right */
-    border-bottom-right-radius: var(--border-radius-sm); /* Pointed corner */
-    box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2); /* Subtle blue shadow */
+    border-bottom-right-radius: 2px; /* Sharpen bottom-right corner for "tail" effect */
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2); /* Slightly stronger shadow for sent messages */
 }
-.chat-message-item.outgoing strong {
-    color: rgba(255, 255, 255, 0.9); /* Slightly muted white for name */
-    font-weight: 600;
-    margin-bottom: 3px;
-    display: block;
+
+/* Styling for messages sent by other users */
+.chat-message-other-user {
+    align-self: flex-start; /* Align to the left */
+    background-color: var(--body-bg); /* Lighter background for other messages */
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 2px; /* Sharpen bottom-left corner for "tail" effect */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08); /* Consistent shadow */
 }
-/* Timestamp styling */
-.chat-message-item .timestamp {
-    font-size: 0.7em; /* Smaller timestamp */
-    color: #888;
-    margin-top: 5px; /* Space above timestamp */
-    text-align: right; /* Align timestamp to the right within the bubble */
-    align-self: flex-end; /* Ensure timestamp stays at the end of the flex column */
-    opacity: 0.8;
+
+/* Styling for messages sent by admin users */
+.chat-message-admin {
+    border: 2px solid var(--info-color); /* Info color border for admin messages */
+    background-color: #e6f7ff; /* Light blue background */
+    color: var(--text-color);
+    box-shadow: 0 2px 5px rgba(23, 162, 184, 0.2); /* Shadow with info color tint */
 }
-.chat-message-item.outgoing .timestamp {
-    color: rgba(255, 255, 255, 0.7); /* Lighter timestamp for outgoing messages */
+
+/* Styling for the sender's name within a message */
+.chat-sender-name {
+    font-weight: bold;
+    margin-right: var(--spacing-xs);
+    color: var(--primary-dark-color); /* Default sender name color */
 }
+
+/* Override sender name color for current user messages */
+.chat-message-current-user .chat-sender-name {
+    color: rgba(255, 255, 255, 0.9); /* Lighter color for sender name on primary background */
+}
+
+/* Override sender name color for admin messages */
+.chat-message-admin .chat-sender-name {
+    color: var(--info-dark-color); /* Darker info color for admin sender name */
+}
+
+/* Styling for the timestamp within a message */
+.chat-timestamp {
+    font-size: 0.75em; /* Slightly larger timestamp */
+    color: rgba(0, 0, 0, 0.5); /* Slightly faded color for timestamp */
+    margin-left: var(--spacing-xs);
+    white-space: nowrap; /* Prevent timestamp from wrapping */
+}
+
+/* Override timestamp color for current user messages */
+.chat-message-current-user .chat-timestamp {
+    color: rgba(255, 255, 255, 0.6); /* Lighter color for timestamp on primary background */
+}
+
+/* Override timestamp color for admin messages */
+.chat-message-admin .chat-timestamp {
+    color: rgba(0, 0, 0, 0.6); /* Keep consistent with other users for admin */
+}
+
+
 /* Chat input area */
 .chat-input-area {
     display: flex;
@@ -1647,6 +1668,12 @@ input[type="range"]::-moz-range-thumb {
     outline: none;
 }
 
+#update-profile-form input[type="email"]:disabled {
+    background-color: #e9ecef;
+    color: #888;
+    cursor: not-allowed;
+}
+
 #update-profile-form button[type="submit"] {
     /* Apply primary button variant */
     /* Apply base button styles */
@@ -1874,6 +1901,10 @@ input[type="range"]::-moz-range-thumb {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
+    }
+
+    #assessment-list button {
+        width: 100%;
     }
 
     #create-join-classroom {
