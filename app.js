@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.error("Error fetching classroom details:", err);
                         showNotification("Could not load classroom.", true);
                         showSection(dashboardSection);
-                   o     loadAvailableClassrooms();
+                        loadAvailableClassrooms();
                     });
             }
         } else {
@@ -544,71 +544,73 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('message', (data) => {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('chat-message-item'); // Base class for all messages
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('chat-message-item'); // Base class for all messages
 
-    const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
-    if (data.sender_id === currentUserId) {
-        messageElement.classList.add('chat-message-current-user');
-    } else {
-        messageElement.classList.add('chat-message-other-user');
-    }
+            const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
+            // NOTE: data.sender_id is expected to be available from the server for message origin
+            if (data.sender_id === currentUserId) {
+                messageElement.classList.add('chat-message-current-user');
+            } else {
+                messageElement.classList.add('chat-message-other-user');
+            }
 
-    if (data.role === 'admin') {
-        messageElement.classList.add('chat-message-admin');
-    }
+            if (data.role === 'admin') {
+                messageElement.classList.add('chat-message-admin');
+            }
 
-    const senderDisplayName = getDisplayName(data.username, data.role);
-    const date = new Date(data.timestamp);
-    const options = {
-        year: 'numeric',
-        month: 'numeric',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    };
-    const formattedDateTime = date.toLocaleString(undefined, options);
-    // Use innerHTML to allow styling of parts of the message content
-    messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${data.message}`;
-    chatMessages.appendChild(messageElement);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
+            const senderDisplayName = getDisplayName(data.username, data.role);
+            const date = new Date(data.timestamp);
+            const options = {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            };
+            const formattedDateTime = date.toLocaleString(undefined, options);
+            // Use innerHTML to allow styling of parts of the message content
+            messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${data.message}`;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
 
         socket.on('chat_history', (history) => {
-    chatMessages.innerHTML = '';
-    history.forEach(msg => {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('chat-message-item'); // Base class for all messages
+            chatMessages.innerHTML = '';
+            history.forEach(msg => {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('chat-message-item'); // Base class for all messages
 
-        const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
-        if (msg.sender_id === currentUserId) {
-            messageElement.classList.add('chat-message-current-user');
-        } else {
-            messageElement.classList.add('chat-message-other-user');
-        }
+                const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
+                // NOTE: msg.sender_id is expected to be available from the server for message origin
+                if (msg.sender_id === currentUserId) {
+                    messageElement.classList.add('chat-message-current-user');
+                } else {
+                    messageElement.classList.add('chat-message-other-user');
+                }
 
-        if (msg.role === 'admin') {
-            messageElement.classList.add('chat-message-admin');
-        }
+                if (msg.role === 'admin') {
+                    messageElement.classList.add('chat-message-admin');
+                }
 
-        const senderDisplayName = getDisplayName(msg.username, msg.role);
-        const date = new Date(msg.timestamp);
-        const options = {
-            year: 'numeric',
-            month: 'numeric',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        };
-        const formattedDateTime = date.toLocaleString(undefined, options);
-        // Use innerHTML to allow styling of parts of the message content
-        messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${msg.message}`;
-        chatMessages.appendChild(messageElement);
-    });
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-});
+                const senderDisplayName = getDisplayName(msg.username, msg.role);
+                const date = new Date(msg.timestamp);
+                const options = {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                };
+                const formattedDateTime = date.toLocaleString(undefined, options);
+                // Use innerHTML to allow styling of parts of the message content
+                messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${msg.message}`;
+                chatMessages.appendChild(messageElement);
+            });
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
 
         socket.on('user_joined', (data) => {
             console.log(`[Socket.IO] User joined: ${data.username} (${data.sid})`);
@@ -1614,7 +1616,8 @@ function handleMouseUp(e) {
                         classroomId: currentClassroom.id,
                         message: message,
                         username: currentUser.username,
-                        role: currentUser.role
+                        role: currentUser.role,
+                        sender_id: sessionStorage.getItem('user_id') // Ensure sender_id is sent
                     });
                     chatInput.value = '';
                 }
@@ -2162,6 +2165,7 @@ async function submitAssessment() {
                 if (response.ok) {
                     currentUser = result.user;
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    sessionStorage.setItem('user_id', currentUser.id); // Store user_id in sessionStorage
                     displayMessage(authMessage, result.message, false);
                     checkLoginStatus();
                 } else {
@@ -2205,6 +2209,7 @@ async function submitAssessment() {
                 const response = await fetch('/api/logout', { method: 'POST' });
                 if (response.ok) {
                     localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('user_id'); // Clear user_id from sessionStorage
                     currentUser = null;
                     cleanupClassroomResources(); // Clean up all classroom-related state
                     showSection(authSection);
@@ -2339,7 +2344,7 @@ async function submitAssessment() {
 
         checkLoginStatus();
 
-    // âœ… Sidebar toggle logic â€” moved here from bottom
+    // ✅ Sidebar toggle logic — moved here from bottom
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
     const sidebar = document.getElementById('classroom-sidebar');
     const closeSidebarBtn = document.getElementById('close-sidebar-btn');
@@ -2370,6 +2375,3 @@ async function submitAssessment() {
         });
     }
 });
-
-
-
