@@ -311,29 +311,31 @@ h3 {
 }
 
 .main-nav button {
-    /* Apply base button styles */
+    background-color: transparent; /* Remove background */
     border: none;
-    border-radius: var(--border-radius-md);
+    border-bottom: 2px solid transparent; /* For active state indicator */
+    border-radius: 0; /* Remove border-radius to make it a line */
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: #e9ecef;
-    color: var(--light-text-color);
+    transition: all var(--transition-normal); /* Transition for all properties */
+    color: var(--light-text-color); /* Default text color */
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 16px;
 }
 
 .main-nav button:hover:not(.active-nav) {
-    background-color: #dcdfe6;
-    color: var(--text-color);
-    transform: translateY(-2px);
+    color: var(--primary-color); /* Highlight text on hover */
+    border-color: var(--primary-color); /* Show border on hover */
+    transform: translateY(-2px); /* Slight lift on hover */
+    box-shadow: none; /* Ensure no shadow on hover */
 }
 
 .main-nav button.active-nav {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+    background-color: transparent; /* Keep background transparent */
+    color: var(--primary-color); /* Active state text color */
+    border-color: var(--primary-color); /* Active state border color */
+    font-weight: 600; /* Bolder text for active state */
+    box-shadow: none; /* No shadow for active state */
     cursor: default;
     transform: none; /* No transform for active state */
 }
