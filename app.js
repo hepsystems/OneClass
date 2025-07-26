@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const createClassroomBtn = document.getElementById('create-classroom-btn');
     const classroomMessage = document.getElementById('classroom-message');
     const classroomList = document.getElementById('classroom-list');
+    const classroomSearchInput = document.getElementById('classroom-search-input'); // New search input
 
     const classroomSection = document.getElementById('classroom-section');
     const classNameValue = document.getElementById('class-name-value');
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadLibraryFilesBtn = document.getElementById('upload-library-files-btn');
     const libraryRoleMessage = document.getElementById('library-role-message');
     const libraryFilesList = document.getElementById('library-files-list'); // Ensure this element is referenced
+    const librarySearchInput = document.getElementById('library-search-input'); // New search input
 
     // Assessment Elements
     const assessmentCreationForm = document.getElementById('assessment-creation-form');
@@ -94,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const assessmentCreationMessage = document.getElementById('assessment-creation-message');
     const assessmentListContainer = document.getElementById('assessment-list-container');
     const assessmentListDiv = document.getElementById('assessment-list');
+    const assessmentSearchInput = document.getElementById('assessment-search-input'); // New search input
     const takeAssessmentContainer = document.getElementById('take-assessment-container');
     const takeAssessmentTitle = document.getElementById('take-assessment-title');
     const takeAssessmentDescription = document.getElementById('take-assessment-description');
@@ -107,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToAssessmentListFromSubmissionsBtn = document.getElementById('back-to-assessment-list-from-submissions-btn');
 
     const notificationsContainer = document.getElementById('notifications-container');
+
 
     // --- Global Variables ---
     let socket;
@@ -128,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let isDrawing = false;
     let startX, startY;
     let lastX, lastY; // Used for live drawing of pen/eraser segments
-    let currentColor = colorPicker ? colorPicker.value : '#FFF800';
-    let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5;
+    let currentColor = colorPicker ? colorPicker.value : '#FF0000'; // Default color
+    let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5; // Default size
     let currentTool = 'pen';
     let snapshot; // For temporary drawing of shapes
 
@@ -321,6 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Loads all available classrooms and displays them, categorized by user's participation.
+     * Filters classrooms based on the search input.
      */
     async function loadAvailableClassrooms() {
         if (!currentUser || !currentUser.id) {
@@ -329,11 +334,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         try {
             const response = await fetch('/api/classrooms');
-            const classrooms = await response.json();
+            let classrooms = await response.json();
+
+            const searchTerm = classroomSearchInput.value.toLowerCase();
+            if (searchTerm) {
+                classrooms = classrooms.filter(cls =>
+                    cls.name.toLowerCase().includes(searchTerm) ||
+                    cls.id.toLowerCase().includes(searchTerm)
+                );
+            }
+
             classroomList.innerHTML = '';
 
             if (classrooms.length === 0) {
-                classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
+                classroomList.innerHTML = '<li>No classrooms found matching your search.</li>';
             } else {
                 const userJoinedClassrooms = classrooms.filter(cls =>
                     cls.creator_id === currentUser.id || (cls.participants && cls.participants.includes(currentUser.id))
@@ -647,63 +661,61 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // app.js (Excerpt from socket.on('whiteboard_data', ...))
+        socket.on('whiteboard_data', (data) => {
+            if (!whiteboardCtx) {
+                console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
+                return;
+            }
+            const applyDrawingProperties = (tool, color, width) => {
+                whiteboardCtx.strokeStyle = color;
+                whiteboardCtx.lineWidth = width;
+                whiteboardCtx.fillStyle = color;
+                if (tool === 'eraser') {
+                    whiteboardCtx.globalCompositeOperation = 'destination-out';
+                } else {
+                    whiteboardCtx.globalCompositeOperation = 'source-over';
+                }
+            };
 
-socket.on('whiteboard_data', (data) => {
-    if (!whiteboardCtx) {
-        console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
-        return;
-    }
-    const applyDrawingProperties = (tool, color, width) => {
-        whiteboardCtx.strokeStyle = color;
-        whiteboardCtx.lineWidth = width;
-        whiteboardCtx.fillStyle = color;
-        if (tool === 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'destination-out';
-        } else {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-    };
+            if (data.action === 'draw') {
+                const drawingItem = data.data; // This is the actual drawing object sent from the server
+                const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
 
-    if (data.action === 'draw') {
-        const drawingItem = data.data; // This is the actual drawing object sent from the server
-        const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
+                // Ensure page exists locally. If not, create it.
+                if (!whiteboardPages[pageIndex]) {
+                    whiteboardPages[pageIndex] = [];
+                }
+                // Store the actual drawing item for re-rendering purposes
+                whiteboardPages[pageIndex].push(drawingItem);
 
-        // Ensure page exists locally. If not, create it.
-        if (!whiteboardPages[pageIndex]) {
-            whiteboardPages[pageIndex] = [];
-        }
-        // Store the actual drawing item for re-rendering purposes
-        whiteboardPages[pageIndex].push(drawingItem);
-
-        // Only draw if it's the current active page
-        if (pageIndex === currentPageIndex) {
-            whiteboardCtx.save();
-            // applyDrawingProperties expects tool, color, width from the drawing item
-            applyDrawingProperties(drawingItem.tool, drawingItem.color, drawingItem.width);
-            drawWhiteboardItem(drawingItem); // drawWhiteboardItem expects the full drawing item
-            whiteboardCtx.restore();
-        }
-    } else if (data.action === 'clear') {
-        const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
-        if (whiteboardPages[pageIndex]) {
-            whiteboardPages[pageIndex] = []; // Clear data for that specific page
-        }
-        if (pageIndex === currentPageIndex) {
-            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
-            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        }
-    } else if (data.action === 'history' && data.history) {
-        whiteboardPages = data.history;
-        if (whiteboardPages.length === 0) {
-            whiteboardPages = [[]]; // Ensure at least one page
-        }
-        currentPageIndex = 0; // Reset to first page
-        renderCurrentWhiteboardPage();
-        updateWhiteboardPageDisplay();
-    }
-});
+                // Only draw if it's the current active page
+                if (pageIndex === currentPageIndex) {
+                    whiteboardCtx.save();
+                    // applyDrawingProperties expects tool, color, width from the drawing item
+                    applyDrawingProperties(drawingItem.tool, drawingItem.color, drawingItem.width);
+                    drawWhiteboardItem(drawingItem); // drawWhiteboardItem expects the full drawing item
+                    whiteboardCtx.restore();
+                }
+            } else if (data.action === 'clear') {
+                const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
+                if (whiteboardPages[pageIndex]) {
+                    whiteboardPages[pageIndex] = []; // Clear data for that specific page
+                }
+                if (pageIndex === currentPageIndex) {
+                    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
+                    whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                }
+            } else if (data.action === 'history' && data.history) {
+                whiteboardPages = data.history;
+                if (whiteboardPages.length === 0) {
+                    whiteboardPages = [[]]; // Ensure at least one page
+                }
+                currentPageIndex = 0; // Reset to first page
+                renderCurrentWhiteboardPage();
+                updateWhiteboardPageDisplay();
+            }
+        });
 
         socket.on('whiteboard_page_change', (data) => {
             const { newPageIndex } = data;
@@ -1637,6 +1649,7 @@ function handleMouseUp(e) {
 
     /**
      * Loads and displays files in the classroom library.
+     * Filters files based on the search input.
      */
     async function loadLibraryFiles() {
         if (!currentClassroom || !currentClassroom.id) {
@@ -1646,11 +1659,20 @@ function handleMouseUp(e) {
 
         try {
             const response = await fetch(`/api/library-files/${currentClassroom.id}`);
-            const files = await response.json();
+            let files = await response.json();
+
+            const searchTerm = librarySearchInput.value.toLowerCase();
+            if (searchTerm) {
+                files = files.filter(file =>
+                    (file.original_filename && file.original_filename.toLowerCase().includes(searchTerm)) ||
+                    (file.filename && file.filename.toLowerCase().includes(searchTerm))
+                );
+            }
+
             if (libraryFilesList) libraryFilesList.innerHTML = '';
 
             if (files.length === 0) {
-                if (libraryFilesList) libraryFilesList.innerHTML = '<p>No files in this library yet.</p>';
+                if (libraryFilesList) libraryFilesList.innerHTML = '<p>No files in this library yet or no files matching your search.</p>';
             } else {
                 files.forEach(file => {
                     const fileDiv = document.createElement('div');
@@ -1847,6 +1869,7 @@ async function submitAssessment() {
 
     /**
      * Loads and displays available assessments for the current classroom.
+     * Filters assessments based on the search input.
      */
     async function loadAssessments() {
         if (!currentClassroom || !currentClassroom.id) {
@@ -1871,11 +1894,20 @@ async function submitAssessment() {
 
         try {
             const response = await fetch(`/api/assessments/${currentClassroom.id}`);
-            const assessments = await response.json();
+            let assessments = await response.json();
+
+            const searchTerm = assessmentSearchInput.value.toLowerCase();
+            if (searchTerm) {
+                assessments = assessments.filter(assessment =>
+                    assessment.title.toLowerCase().includes(searchTerm) ||
+                    (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
+                );
+            }
+
             assessmentListDiv.innerHTML = '';
 
             if (assessments.length === 0) {
-                assessmentListDiv.innerHTML = '<p>No assessments available in this classroom.</p>';
+                assessmentListDiv.innerHTML = '<p>No assessments available in this classroom or no assessments matching your search.</p>';
             } else {
                 assessments.forEach(assessment => {
                     const assessmentItem = document.createElement('div');
@@ -2253,6 +2285,11 @@ async function submitAssessment() {
         });
     }
 
+    // Classroom Search Input
+    if (classroomSearchInput) {
+        classroomSearchInput.addEventListener('input', loadAvailableClassrooms);
+    }
+
     // Navigation
     if (navDashboard) navDashboard.addEventListener('click', () => { showSection(dashboardSection); updateNavActiveState(navDashboard); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
     if (navClassroom) navClassroom.addEventListener('click', () => { if (currentClassroom && currentClassroom.id) { enterClassroom(currentClassroom.id, currentClassroom.name); } else { showNotification('Please create or join a classroom first!', true); } });
@@ -2335,6 +2372,11 @@ async function submitAssessment() {
         });
     });
 
+    // Library Search Input
+    if (librarySearchInput) {
+        librarySearchInput.addEventListener('input', loadLibraryFiles);
+    }
+
     // Assessment Controls
     if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
     if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
@@ -2342,7 +2384,12 @@ async function submitAssessment() {
     if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
     if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
 
-        checkLoginStatus();
+    // Assessment Search Input
+    if (assessmentSearchInput) {
+        assessmentSearchInput.addEventListener('input', loadAssessments);
+    }
+
+    checkLoginStatus();
 
     // ✅ Sidebar toggle logic — moved here from bottom
     const hamburgerMenuBtn = document.getElementById('hamburger-menu-btn');
