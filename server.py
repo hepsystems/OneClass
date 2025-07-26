@@ -307,13 +307,16 @@ def create_assessment():
 
     assessment_id = str(uuid.uuid4())
     
+    # Debugging: Print values before insertion
+    print(f"Creating assessment: title='{title}', scheduled_at='{scheduled_at}', duration_minutes='{duration_minutes}'")
+
     # Insert assessment details
     assessments_collection.insert_one({
         "id": assessment_id,
         "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "scheduled_at": scheduled_at,
+        "scheduled_at": scheduled_at, # Storing as datetime object
         "duration_minutes": duration_minutes,
         "creator_id": user_id,
         "creator_username": username,
@@ -329,7 +332,7 @@ def create_assessment():
         question_doc = {
             "id": question_id,
             "assessmentId": assessment_id,
-            "classroomId": class_room_id,
+            "classroomId": class_room_id, # Link to classroom for easier queries
             "question_text": q_data.get('question_text'), # Use 'question_text'
             "question_type": q_data.get('question_type'), # Use 'question_type'
             "options": q_data.get('options'),
@@ -425,10 +428,21 @@ def get_assessment_details(assessmentId):
         print(f"Assessment {assessmentId} not found.")
         return jsonify({"error": "Assessment not found"}), 404
     
+    # Debugging: Print raw values from DB
+    print(f"Raw assessment details from DB for {assessmentId}: scheduled_at={assessment.get('scheduled_at')}, duration_minutes={assessment.get('duration_minutes')}")
+
     # Check if the assessment is starting now and emit event
     now = datetime.utcnow()
-    scheduled_at = assessment['scheduled_at']
-    duration_minutes = assessment['duration_minutes']
+    scheduled_at = assessment.get('scheduled_at')
+    duration_minutes = assessment.get('duration_minutes')
+
+    # Basic validation for scheduled_at and duration_minutes before calculations
+    if not isinstance(scheduled_at, datetime) or not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
+        print(f"Invalid scheduled_at ({scheduled_at}) or duration_minutes ({duration_minutes}) for assessment {assessmentId}. Cannot calculate end time.")
+        # Return an error or handle gracefully if data is corrupt
+        return jsonify({"error": "Assessment scheduling data is invalid. Please contact an administrator."}), 500
+
+
     end_time = scheduled_at + timedelta(minutes=duration_minutes)
 
     # If the assessment is active and it's the first time a user is fetching it since it became active
