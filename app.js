@@ -90,6 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const assessmentCreationForm = document.getElementById('assessment-creation-form');
     const assessmentTitleInput = document.getElementById('assessment-title');
     const assessmentDescriptionTextarea = document.getElementById('assessment-description');
+    const assessmentScheduledAtInput = document.getElementById('assessment-scheduled-at'); // New
+    const assessmentDurationMinutesInput = document.getElementById('assessment-duration-minutes'); // New
     const questionsContainer = document.getElementById('questions-container');
     const addQuestionBtn = document.getElementById('add-question-btn');
     const submitAssessmentBtn = document.getElementById('submit-assessment-btn');
@@ -100,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const takeAssessmentContainer = document.getElementById('take-assessment-container');
     const takeAssessmentTitle = document.getElementById('take-assessment-title');
     const takeAssessmentDescription = document.getElementById('take-assessment-description');
+    const assessmentTimerDisplay = document.getElementById('assessment-timer'); // New timer display
     const takeAssessmentForm = document.getElementById('take-assessment-form');
     const submitAnswersBtn = document.getElementById('submit-answers-btn');
     const assessmentSubmissionMessage = document.getElementById('assessment-submission-message');
@@ -117,6 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
     let currentClassroom = JSON.parse(localStorage.getItem('currentClassroom')) || null;
     let currentAssessmentToTake = null;
+    let assessmentTimerInterval = null; // For the countdown timer
+    let assessmentEndTime = null; // The exact Date object when the assessment should end
 
     // WebRTC Variables
     let localStream;
@@ -504,6 +509,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         currentClassroom = null;
         localStorage.removeItem('currentClassroom');
+
+        // Clear any active assessment timer
+        if (assessmentTimerInterval) {
+            clearInterval(assessmentTimerInterval);
+            assessmentTimerInterval = null;
+        }
+        if (assessmentTimerDisplay) {
+            assessmentTimerDisplay.textContent = 'Time Left: --:--:--';
+            assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
+        }
     }
 
     // --- Socket.IO Initialization and Handlers ---
@@ -553,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadLibraryFiles();
             }
             if (data.message.includes('assessment')) {
-                loadAssessments();
+                loadAssessments(); // Reload assessments to update status/availability
             }
         });
 
@@ -789,6 +804,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (videoElement) {
                     videoElement.remove();
                 }
+            }
+        });
+
+        // New Socket.IO event for assessment start (emitted by server)
+        socket.on('assessment_started', (data) => {
+            if (currentClassroom && currentClassroom.id === data.classroomId && currentAssessmentToTake && currentAssessmentToTake.id === data.assessmentId) {
+                showNotification(`Assessment "${data.title}" has started!`);
+                startAssessmentTimer(new Date(data.endTime)); // Start timer for the user
+            }
+        });
+
+        // New Socket.IO event for submission marked feedback (emitted by server)
+        socket.on('submission_marked', (data) => {
+            if (currentUser && currentUser.id === data.studentId) {
+                showNotification(`Your assessment "${data.assessmentTitle}" has been marked!`);
+                // Optionally, trigger a view of their marked submission or a notification
+                // For now, just a notification. You'd need a separate UI flow to show marked submissions.
+                // Example: if you have a "My Submissions" section:
+                // loadMySubmissions();
             }
         });
     }
@@ -1777,13 +1811,8 @@ async function submitAssessment() {
 
     const title = assessmentTitleInput.value.trim();
     const description = assessmentDescriptionTextarea.value.trim();
-    // Get the new input values
-    const scheduledAtInput = document.getElementById('assessment-scheduled-at'); // Get the element
-    const durationMinutesInput = document.getElementById('assessment-duration-minutes'); // Get the element
-
-    const scheduledAt = scheduledAtInput ? scheduledAtInput.value : ''; // Get its value
-    const durationMinutes = durationMinutesInput ? parseInt(durationMinutesInput.value, 10) : 0; // Get its value and parse as int
-
+    const scheduledAt = assessmentScheduledAtInput.value;
+    const durationMinutes = parseInt(assessmentDurationMinutesInput.value, 10);
 
     const questions = [];
 
@@ -1791,7 +1820,6 @@ async function submitAssessment() {
         displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
         return;
     }
-    // Add validation for scheduled_at and duration_minutes
     if (!scheduledAt) {
         displayMessage(assessmentCreationMessage, 'Please set a scheduled date and time.', true);
         return;
@@ -1800,7 +1828,6 @@ async function submitAssessment() {
         displayMessage(assessmentCreationMessage, 'Please enter a valid duration in minutes (a positive number).', true);
         return;
     }
-
 
     const questionItems = questionsContainer.querySelectorAll('.question-item');
     questionItems.forEach((item, index) => {
@@ -1909,20 +1936,37 @@ async function submitAssessment() {
             if (assessments.length === 0) {
                 assessmentListDiv.innerHTML = '<p>No assessments available in this classroom or no assessments matching your search.</p>';
             } else {
+                const now = new Date();
                 assessments.forEach(assessment => {
+                    const scheduledTime = new Date(assessment.scheduled_at);
+                    const endTime = new Date(scheduledTime.getTime() + assessment.duration_minutes * 60 * 1000);
+                    let status = '';
+                    let actionButton = '';
+
+                    if (now < scheduledTime) {
+                        status = `<span style="color: blue;">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
+                    } else if (now >= scheduledTime && now <= endTime) {
+                        status = `<span style="color: green;">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
+                    } else {
+                        status = `<span style="color: red;">(Ended: ${endTime.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                    }
+
                     const assessmentItem = document.createElement('div');
                     assessmentItem.classList.add('assessment-item');
                     assessmentItem.innerHTML = `
                         <div>
-                            <h4>${assessment.title}</h4>
+                            <h4>${assessment.title} ${status}</h4>
                             <p>${assessment.description || 'No description'}</p>
                             <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
                         </div>
                         <div>
                             ${currentUser.role === 'admin' ?
-                                `<button class="view-submissions-btn" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
-                                <button class="delete-assessment-btn" data-assessment-id="${assessment.id}">Delete</button>` :
-                                `<button class="take-assessment-btn" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`
+                                `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
+                                <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
+                                actionButton
                             }
                         </div>
                     `;
@@ -1930,12 +1974,14 @@ async function submitAssessment() {
                 });
 
                 document.querySelectorAll('.take-assessment-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const assessmentId = e.target.dataset.assessmentId;
-                        const assessmentTitle = e.target.dataset.assessmentTitle;
-                        const assessmentDescription = e.target.dataset.assessmentDescription;
-                        takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
-                    });
+                    if (!button.disabled) { // Only add listener if not disabled
+                        button.addEventListener('click', (e) => {
+                            const assessmentId = e.target.dataset.assessmentId;
+                            const assessmentTitle = e.target.dataset.assessmentTitle;
+                            const assessmentDescription = e.target.dataset.assessmentDescription;
+                            takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
+                        });
+                    }
                 });
 
                 document.querySelectorAll('.view-submissions-btn').forEach(button => {
@@ -1988,7 +2034,15 @@ async function submitAssessment() {
      * @param {string} description - The description of the assessment.
      */
     async function takeAssessment(assessmentId, title, description) {
-        currentAssessmentToTake = { id: assessmentId, title: title, description: description };
+        // Clear any previous timer
+        if (assessmentTimerInterval) {
+            clearInterval(assessmentTimerInterval);
+            assessmentTimerInterval = null;
+        }
+        if (assessmentTimerDisplay) {
+            assessmentTimerDisplay.textContent = 'Time Left: --:--:--';
+            assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
+        }
 
         assessmentListContainer.classList.add('hidden');
         assessmentCreationForm.classList.add('hidden');
@@ -2000,24 +2054,48 @@ async function submitAssessment() {
         takeAssessmentDescription.textContent = description;
         takeAssessmentForm.innerHTML = '';
         assessmentSubmissionMessage.textContent = '';
+        submitAnswersBtn.disabled = true; // Disable until assessment is active or questions loaded
 
         try {
-            const response = await fetch(`/api/assessments/${assessmentId}`); // Fetch full assessment details including questions
+            const response = await fetch(`/api/assessments/${assessmentId}`);
             const assessment = await response.json();
             currentAssessmentToTake = assessment; // Update with full object
+
+            const now = new Date();
+            const scheduledTime = new Date(assessment.scheduled_at);
+            assessmentEndTime = new Date(scheduledTime.getTime() + assessment.duration_minutes * 60 * 1000);
+
+            if (now < scheduledTime) {
+                takeAssessmentForm.innerHTML = `<p>This assessment starts on: <strong>${scheduledTime.toLocaleString()}</strong></p>`;
+                assessmentTimerDisplay.textContent = `Starts in: ${formatTime(scheduledTime.getTime() - now.getTime())}`;
+                assessmentTimerDisplay.classList.add('upcoming');
+                showNotification("This assessment has not started yet.", true);
+                submitAnswersBtn.disabled = true;
+                return;
+            } else if (now > assessmentEndTime) {
+                takeAssessmentForm.innerHTML = `<p>This assessment has already ended on: <strong>${assessmentEndTime.toLocaleString()}</strong></p>`;
+                assessmentTimerDisplay.textContent = 'Assessment Ended';
+                assessmentTimerDisplay.classList.add('ended');
+                showNotification("This assessment has already ended.", true);
+                submitAnswersBtn.disabled = true;
+                return;
+            }
+
+            // If we reach here, the assessment is active
+            submitAnswersBtn.disabled = false;
+            startAssessmentTimer(assessmentEndTime); // Start the timer
 
             if (!assessment.questions || assessment.questions.length === 0) {
                 takeAssessmentForm.innerHTML = '<p>No questions found for this assessment.</p>';
                 submitAnswersBtn.disabled = true;
                 return;
             }
-            submitAnswersBtn.disabled = false;
 
             assessment.questions.forEach((question, index) => {
                 const questionDiv = document.createElement('div');
                 questionDiv.classList.add('question-display');
                 questionDiv.dataset.questionId = question.id;
-                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text || question.text}</label>`; // Handle both field names
+                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text || question.text}</label>`;
 
                 if (question.question_type === 'text' || question.type === 'text') {
                     const textarea = document.createElement('textarea');
@@ -2056,12 +2134,93 @@ async function submitAssessment() {
     }
 
     /**
-     * Submits the user's answers for an assessment.
+     * Starts the countdown timer for an assessment.
+     * @param {Date} endTime - The exact Date object when the assessment should end.
      */
-    async function submitAnswers() {
+    function startAssessmentTimer(endTime) {
+        if (assessmentTimerInterval) {
+            clearInterval(assessmentTimerInterval);
+        }
+
+        assessmentEndTime = endTime; // Store the end time globally
+
+        function updateTimer() {
+            const now = new Date().getTime();
+            const timeLeft = assessmentEndTime.getTime() - now;
+
+            if (timeLeft <= 0) {
+                clearInterval(assessmentTimerInterval);
+                assessmentTimerDisplay.textContent = 'Time Left: 00:00:00 - Automatically Submitted!';
+                assessmentTimerDisplay.classList.remove('warning', 'critical');
+                assessmentTimerDisplay.classList.add('ended');
+                showNotification("Time's up! Your assessment has been automatically submitted.", false);
+                submitAnswers(true); // Automatically submit
+                takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+                submitAnswersBtn.disabled = true;
+                return;
+            }
+
+            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+            const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            assessmentTimerDisplay.textContent = `Time Left: ${displayTime}`;
+
+            // Add visual cues for remaining time
+            if (timeLeft < 60 * 1000) { // Less than 1 minute
+                assessmentTimerDisplay.classList.add('critical');
+                assessmentTimerDisplay.classList.remove('warning');
+            } else if (timeLeft < 5 * 60 * 1000) { // Less than 5 minutes
+                assessmentTimerDisplay.classList.add('warning');
+                assessmentTimerDisplay.classList.remove('critical');
+            } else {
+                assessmentTimerDisplay.classList.remove('warning', 'critical');
+            }
+        }
+
+        updateTimer(); // Initial call to display immediately
+        assessmentTimerInterval = setInterval(updateTimer, 1000);
+        assessmentTimerDisplay.classList.add('active');
+    }
+
+    /**
+     * Helper to format milliseconds into HH:MM:SS string.
+     * @param {number} ms - Milliseconds.
+     * @returns {string} Formatted time string.
+     */
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+
+
+    /**
+     * Submits the user's answers for an assessment.
+     * @param {boolean} [isAutoSubmit=false] - True if this is an automatic submission due to timer.
+     */
+    async function submitAnswers(isAutoSubmit = false) {
         if (!currentAssessmentToTake || !currentClassroom || !currentClassroom.id) {
             showNotification('No assessment selected for submission.', true);
             return;
+        }
+
+        // Prevent double submission or submission after manual disable
+        if (submitAnswersBtn.disabled && !isAutoSubmit) {
+            showNotification('Assessment already submitted or ended.', true);
+            return;
+        }
+
+        // Stop the timer if it's running
+        if (assessmentTimerInterval) {
+            clearInterval(assessmentTimerInterval);
+            assessmentTimerInterval = null;
+        }
+        if (assessmentTimerDisplay) {
+            assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
         }
 
         const answers = [];
@@ -2083,8 +2242,8 @@ async function submitAssessment() {
             
             answers.push({
                 question_id: questionId,
-                question_text: questionData.question_text || questionData.text, // Use existing text or new 'text' field
-                question_type: questionData.question_type || questionData.type, // Use existing type or new 'type' field
+                question_text: questionData.question_text || questionData.text,
+                question_type: questionData.question_type || questionData.type,
                 user_answer: userAnswer,
                 correct_answer: questionData.correct_answer // Pass correct answer for server-side scoring
             });
@@ -2097,16 +2256,18 @@ async function submitAssessment() {
                 body: JSON.stringify({
                     assessmentId: currentAssessmentToTake.id,
                     classroomId: currentClassroom.id,
-                    answers: answers
+                    answers: answers,
+                    is_auto_submit: isAutoSubmit // Indicate if it's an auto-submission
                 })
             });
             const result = await response.json();
             if (response.ok) {
                 displayMessage(assessmentSubmissionMessage, `Assessment submitted! Your score: ${result.score}/${result.total_questions}`, false);
                 submitAnswersBtn.disabled = true;
+                takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true); // Disable form after submission
                 showNotification(`Assessment submitted! Score: ${result.score}/${result.total_questions}`);
                 setTimeout(() => {
-                    loadAssessments();
+                    loadAssessments(); // Go back to assessment list
                 }, 2000);
             } else {
                 displayMessage(assessmentSubmissionMessage, result.error, true);
@@ -2132,6 +2293,7 @@ async function submitAssessment() {
         submissionsAssessmentTitle.textContent = `Submissions for: ${title}`;
         submissionsList.innerHTML = 'Loading submissions...';
         assessmentListContainer.classList.add('hidden');
+        takeAssessmentContainer.classList.add('hidden'); // Ensure take assessment is hidden
         viewSubmissionsContainer.classList.remove('hidden');
         viewSubmissionsContainer.classList.add('admin-feature-highlight');
 
@@ -2152,6 +2314,8 @@ async function submitAssessment() {
                 submissionItem.innerHTML = `
                     <h5>Submitted by: ${studentDisplayName} on ${new Date(submission.submitted_at).toLocaleString()}</h5>
                     <p>Score: ${submission.score}/${submission.total_questions}</p>
+                    <button class="mark-submission-btn btn-info" data-submission-id="${submission.id}" data-assessment-id="${assessmentId}">Mark Submission</button>
+                    <div id="marking-area-${submission.id}" class="marking-area hidden"></div>
                 `;
                 
                 submission.answers.forEach(answer => {
@@ -2159,17 +2323,28 @@ async function submitAssessment() {
                     answerPair.classList.add('question-answer-pair');
                     answerPair.innerHTML = `
                         <p><strong>Q:</strong> ${answer.question_text}</p>
-                        <p><strong>Your Answer:</strong> ${answer.user_answer || 'N/A'}</p>
+                        <p><strong>User Answer:</strong> ${answer.user_answer || 'N/A'}</p>
                     `;
                     if (answer.is_correct !== undefined && answer.is_correct !== null) {
-                        answerPair.innerHTML += `<p><strong>Correct:</strong> ${answer.is_correct ? 'Yes' : 'No'} (Expected: ${answer.correct_answer || 'N/A'})</p>`;
+                        answerPair.innerHTML += `<p><strong>Correct:</strong> <span style="color: ${answer.is_correct ? 'green' : 'red'};">${answer.is_correct ? 'Yes' : 'No'}</span> (Expected: ${answer.correct_answer || 'N/A'})</p>`;
                         answerPair.style.backgroundColor = answer.is_correct ? '#e6ffe6' : '#ffe6e6';
                     } else if (answer.correct_answer) {
                         answerPair.innerHTML += `<p><strong>Expected Answer:</strong> ${answer.correct_answer}</p>`;
                     }
+                    if (answer.admin_feedback) {
+                        answerPair.innerHTML += `<p><strong>Admin Feedback:</strong> ${answer.admin_feedback}</p>`;
+                    }
                     submissionItem.appendChild(answerPair);
                 });
                 submissionsList.appendChild(submissionItem);
+            });
+
+            document.querySelectorAll('.mark-submission-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const submissionId = e.target.dataset.submissionId;
+                    const assessmentId = e.target.dataset.assessmentId;
+                    markSubmission(submissionId, assessmentId);
+                });
             });
 
         } catch (error) {
@@ -2177,6 +2352,136 @@ async function submitAssessment() {
             submissionsList.innerHTML = '<p>Failed to load submissions.</p>';
             showNotification('Failed to load submissions.', true);
         }
+    }
+
+    /**
+     * Displays a specific submission for admin to mark.
+     * @param {string} submissionId - The ID of the submission to mark.
+     * @param {string} assessmentId - The ID of the parent assessment.
+     */
+    async function markSubmission(submissionId, assessmentId) {
+        const markingArea = document.getElementById(`marking-area-${submissionId}`);
+        if (!markingArea) return;
+
+        markingArea.classList.remove('hidden');
+        markingArea.innerHTML = '<p>Loading submission for marking...</p>';
+
+        try {
+            const response = await fetch(`/api/submissions/${submissionId}`);
+            const submission = await response.json();
+
+            if (!response.ok) {
+                throw new Error(submission.error || 'Failed to load submission for marking.');
+            }
+
+            let markingHtml = `
+                <h5>Marking Submission from ${getDisplayName(submission.username, submission.student_role || 'user')}</h5>
+                <form id="marking-form-${submission.id}">
+            `;
+
+            submission.answers.forEach((answer, index) => {
+                markingHtml += `
+                    <div class="marking-question-item">
+                        <p><strong>Q${index + 1}:</strong> ${answer.question_text}</p>
+                        <p><strong>User Answer:</strong> ${answer.user_answer || 'N/A'}</p>
+                        ${answer.correct_answer ? `<p><strong>Expected:</strong> ${answer.correct_answer}</p>` : ''}
+                        
+                        <label>
+                            <input type="checkbox" class="is-correct-checkbox" data-question-id="${answer.question_id}" ${answer.is_correct ? 'checked' : ''}> Mark as Correct
+                        </label>
+                        <textarea class="admin-feedback-comment" data-question-id="${answer.question_id}" placeholder="Add feedback comment (optional)">${answer.admin_feedback || ''}</textarea>
+                    </div>
+                `;
+            });
+
+            markingHtml += `
+                    <button type="button" class="save-marks-btn btn-success" data-submission-id="${submission.id}" data-assessment-id="${assessmentId}">Save Marks</button>
+                    <button type="button" class="cancel-marking-btn btn-secondary">Cancel</button>
+                </form>
+            `;
+            markingArea.innerHTML = markingHtml;
+
+            markingArea.querySelector('.save-marks-btn').addEventListener('click', () => saveMarkedSubmission(submissionId, assessmentId));
+            markingArea.querySelector('.cancel-marking-btn').addEventListener('click', () => markingArea.classList.add('hidden'));
+
+        } catch (error) {
+            console.error('Error loading submission for marking:', error);
+            markingArea.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            showNotification(`Error loading submission for marking: ${error.message}`, true);
+        }
+    }
+
+    /**
+     * Saves the marked submission data to the backend.
+     * @param {string} submissionId - The ID of the submission being marked.
+     * @param {string} assessmentId - The ID of the parent assessment.
+     */
+    async function saveMarkedSubmission(submissionId, assessmentId) {
+        const markingArea = document.getElementById(`marking-area-${submissionId}`);
+        const updatedAnswers = [];
+
+        markingArea.querySelectorAll('.marking-question-item').forEach(qItem => {
+            const questionId = qItem.querySelector('.is-correct-checkbox').dataset.questionId;
+            const isCorrect = qItem.querySelector('.is-correct-checkbox').checked;
+            const adminFeedback = qItem.querySelector('.admin-feedback-comment').value.trim();
+
+            updatedAnswers.push({
+                question_id: questionId,
+                is_correct: isCorrect,
+                admin_feedback: adminFeedback || undefined // Only include if not empty
+            });
+        });
+
+        try {
+            const response = await fetch(`/api/assessments/${assessmentId}/mark-submission/${submissionId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    updated_answers: updatedAnswers
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(result.message);
+                markingArea.classList.add('hidden');
+                viewSubmissions(assessmentId, submissionsAssessmentTitle.textContent.replace('Submissions for: ', '')); // Refresh submissions list
+            } else {
+                showNotification(`Error saving marks: ${result.error}`, true);
+            }
+        } catch (error) {
+            console.error('Error saving marked submission:', error);
+            showNotification('An error occurred while saving marks.', true);
+        }
+    }
+
+    /**
+     * Displays feedback for a user's own submitted assessment.
+     * This function is a placeholder and would need a dedicated UI section
+     * for a user to view their past submissions.
+     * @param {object} submission - The submission object with marking feedback.
+     */
+    function displaySubmissionFeedback(submission) {
+        // This would typically be called when a user navigates to "My Submissions"
+        // and clicks on a specific submission to view its feedback.
+        // For now, it just logs to console and shows a notification.
+        console.log("Displaying feedback for submission:", submission);
+        showNotification(`Feedback for "${submission.assessment_title}" is available.`);
+
+        // Example of how you might render it in a modal or dedicated section:
+        // const feedbackModal = document.getElementById('feedback-modal'); // Assume you have this
+        // feedbackModal.innerHTML = `
+        //     <h3>Feedback for ${submission.assessment_title}</h3>
+        //     <p>Your Score: ${submission.score}/${submission.total_questions}</p>
+        //     ${submission.answers.map(answer => `
+        //         <div class="feedback-question-item">
+        //             <p><strong>Q:</strong> ${answer.question_text}</p>
+        //             <p><strong>Your Answer:</strong> ${answer.user_answer}</p>
+        //             <p><strong>Correct:</strong> <span style="color: ${answer.is_correct ? 'green' : 'red'};">${answer.is_correct ? 'Yes' : 'No'}</span></p>
+        //             ${answer.admin_feedback ? `<p><strong>Admin Comment:</strong> ${answer.admin_feedback}</p>` : ''}
+        //         </div>
+        //     `).join('')}
+        // `;
+        // feedbackModal.classList.remove('hidden');
     }
 
 
@@ -2380,7 +2685,7 @@ async function submitAssessment() {
     // Assessment Controls
     if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
     if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
-    if (submitAnswersBtn) submitAnswersBtn.addEventListener('click', submitAnswers);
+    if (submitAnswersBtn) submitAnswersBtn.addEventListener('click', () => submitAnswers(false)); // Manual submission
     if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
     if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
 
