@@ -1939,20 +1939,30 @@ async function submitAssessment() {
             } else {
                 const now = new Date();
                 assessments.forEach(assessment => {
+                    // Defensive parsing for scheduled_at and duration_minutes
                     const scheduledTime = new Date(assessment.scheduled_at);
-                    const endTime = new Date(scheduledTime.getTime() + assessment.duration_minutes * 60 * 1000);
+                    const durationMinutes = parseInt(assessment.duration_minutes, 10);
+                    
                     let status = '';
                     let actionButton = '';
 
-                    if (now < scheduledTime) {
-                        status = `<span style="color: blue;">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
-                    } else if (now >= scheduledTime && now <= endTime) {
-                        status = `<span style="color: green;">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
+                    if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
+                        status = `<span style="color: orange;">(Invalid Schedule Data)</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
+                        showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
                     } else {
-                        status = `<span style="color: red;">(Ended: ${endTime.toLocaleString()})</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                        const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
+
+                        if (now < scheduledTime) {
+                            status = `<span style="color: blue;">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
+                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
+                        } else if (now >= scheduledTime && now <= endTime) {
+                            status = `<span style="color: green;">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
+                            actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
+                        } else {
+                            status = `<span style="color: red;">(Ended: ${endTime.toLocaleString()})</span>`;
+                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                        }
                     }
 
                     const assessmentItem = document.createElement('div');
@@ -2069,14 +2079,14 @@ async function submitAssessment() {
             const durationMinutes = parseInt(assessment.duration_minutes, 10);
 
             // Validate scheduledTime and durationMinutes
-            if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes)) {
+            if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
                 console.error("Invalid scheduled_at or duration_minutes:", assessment.scheduled_at, assessment.duration_minutes);
                 takeAssessmentForm.innerHTML = '<p style="color:red;">Error: Assessment scheduling data is invalid. Please contact an administrator.</p>';
-                assessmentTimerDisplay.textContent = 'Error: Invalid Time';
+                assessmentTimerDisplay.textContent = 'Error: Invalid Time Data';
                 assessmentTimerDisplay.classList.add('error');
                 submitAnswersBtn.disabled = true;
-                showNotification("Assessment time data is invalid.", true);
-                return;
+                showNotification("Assessment time data is invalid. Please contact an administrator.", true);
+                return; // Exit function if data is invalid
             }
 
             assessmentEndTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
@@ -2208,6 +2218,10 @@ async function submitAssessment() {
      * @returns {string} Formatted time string.
      */
     function formatTime(ms) {
+        // Ensure ms is a valid number before calculations
+        if (isNaN(ms) || ms < 0) {
+            return '--:--:--'; // Return a default invalid time string
+        }
         const totalSeconds = Math.floor(ms / 1000);
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
