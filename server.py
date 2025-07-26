@@ -289,12 +289,12 @@ def create_assessment():
     description = data.get('description')
     scheduled_at_str = data.get('scheduled_at')
     duration_minutes = data.get('duration_minutes')
-    questions = data.get('questions') # Retrieve the questions array
+    questions_data = data.get('questions') # Renamed to avoid conflict with 'questions' list below
 
-    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None, questions is not None]):
+    if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None, questions_data is not None]):
         return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, duration_minutes, or questions"}), 400
     
-    if not isinstance(questions, list) or not questions:
+    if not isinstance(questions_data, list) or not questions_data:
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     try:
@@ -323,26 +323,31 @@ def create_assessment():
 
     # Insert each question into the assessment_questions_collection
     inserted_question_ids = []
-    for q_data in questions:
+    for q_data in questions_data: # Iterate over questions_data
         question_id = str(uuid.uuid4())
-        assessment_questions_collection.insert_one({
+        # Ensure consistent key names for storing questions
+        question_doc = {
             "id": question_id,
             "assessmentId": assessment_id,
-            "classroomId": class_room_id, # Link to classroom for easier queries
-            "question_text": q_data.get('question_text') or q_data.get('text'),
-            "question_type": q_data.get('question_type') or q_data.get('type'),
+            "classroomId": class_room_id,
+            "question_text": q_data.get('question_text'), # Use 'question_text'
+            "question_type": q_data.get('question_type'), # Use 'question_type'
             "options": q_data.get('options'),
             "correct_answer": q_data.get('correct_answer')
-        })
+        }
+        # Filter out None values for optional fields if they are not provided
+        question_doc = {k: v for k, v in question_doc.items() if v is not None}
+        
+        assessment_questions_collection.insert_one(question_doc)
         inserted_question_ids.append(question_id)
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
-        'message': f"Admin {session.get('username')} created a new assessment: '{title}' with {len(questions)} questions."
+        'message': f"Admin {session.get('username')} created a new assessment: '{title}' with {len(questions_data)} questions."
     }, room=class_room_id)
 
-    print(f"Assessment '{title}' created by {username} in classroom {class_room_id} with {len(questions)} questions.")
+    print(f"Assessment '{title}' created by {username} in classroom {class_room_id} with {len(questions_data)} questions.")
     return jsonify({"message": "Assessment created successfully", "id": assessment_id}), 201
 
 @app.route('/api/assessments/<assessmentId>/questions', methods=['POST'])
@@ -358,32 +363,35 @@ def add_questions_to_assessment(assessmentId):
         return jsonify({"error": "Assessment not found"}), 404
 
     data = request.json
-    questions = data.get('questions') # List of question objects
+    questions_data = data.get('questions') # Renamed
 
-    if not isinstance(questions, list) or not questions:
+    if not isinstance(questions_data, list) or not questions_data:
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     inserted_question_ids = []
-    for q_data in questions:
+    for q_data in questions_data: # Iterate over questions_data
         question_id = str(uuid.uuid4())
-        assessment_questions_collection.insert_one({
+        question_doc = {
             "id": question_id,
             "assessmentId": assessmentId,
             "classroomId": assessment['classroomId'], # Link to classroom
-            "question_text": q_data.get('question_text') or q_data.get('text'),
-            "question_type": q_data.get('question_type') or q_data.get('type'),
+            "question_text": q_data.get('question_text'), # Use 'question_text'
+            "question_type": q_data.get('question_type'), # Use 'question_type'
             "options": q_data.get('options'),
             "correct_answer": q_data.get('correct_answer')
-        })
+        }
+        question_doc = {k: v for k, v in question_doc.items() if v is not None}
+
+        assessment_questions_collection.insert_one(question_doc)
         inserted_question_ids.append(question_id)
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': assessment.get('classroomId'),
-        'message': f"Admin {session.get('username')} added {len(questions)} questions to assessment '{assessment.get('title')}'."
+        'message': f"Admin {session.get('username')} added {len(questions_data)} questions to assessment '{assessment.get('title')}'."
     }, room=assessment.get('classroomId'))
 
-    print(f"Added {len(questions)} questions to assessment {assessmentId}")
+    print(f"Added {len(questions_data)} questions to assessment {assessmentId}")
     return jsonify({"message": "Questions added successfully", "question_ids": inserted_question_ids}), 201
 
 
@@ -444,6 +452,7 @@ def get_assessment_details(assessmentId):
 
 
     # Fetch questions for this specific assessment
+    # Ensure the keys are consistent with what the frontend expects
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
     
     # Convert datetime objects to ISO format strings for client-side
@@ -452,7 +461,7 @@ def get_assessment_details(assessmentId):
     if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
         assessment['created_at'] = assessment['created_at'].isoformat()
 
-    print(f"Fetched details for assessment {assessmentId} including questions.")
+    print(f"Fetched details for assessment {assessmentId} including questions. Questions count: {len(assessment['questions'])}")
     return jsonify(assessment), 200
 
 
@@ -512,7 +521,8 @@ def submit_assessment():
             if question:
                 total_questions += 1
                 is_correct = False
-                if question.get('question_type') == 'mcq' or question.get('type') == 'mcq':
+                # Use 'question_type' from DB for consistency
+                if question.get('question_type') == 'mcq': 
                     # Use the correct_answer from the DB, not client-provided
                     db_correct_answer = question.get('correct_answer')
                     if db_correct_answer and user_answer is not None and \
@@ -522,10 +532,10 @@ def submit_assessment():
                 
                 graded_answers.append({
                     "question_id": question_id,
-                    "question_text": question.get('question_text') or question.get('text'),
+                    "question_text": question.get('question_text'), # Use 'question_text' from DB
                     "user_answer": user_answer,
                     "correct_answer": question.get('correct_answer'),
-                    "is_correct": is_correct if (question.get('question_type') == 'mcq' or question.get('type') == 'mcq') else None # Only for MCQ
+                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None # Only for MCQ
                 })
 
     assessment_submissions_collection.insert_one({
@@ -1030,15 +1040,25 @@ def handle_whiteboard_data(data):
             drawing_to_save['endY'] = end_y
 
         elif tool_type == 'circle':
-            center_x = drawing_data.get('centerX')
-            center_y = drawing_data.get('centerY')
-            radius = drawing_data.get('radius')
-            if None in [center_x, center_y, radius]:
-                print(f"Missing circle properties: {drawing_data}")
+            # For circle, frontend sends startX, startY as center, and endX, endY to calculate radius
+            # We should store startX, startY, endX, endY as sent by frontend, and recalculate radius on frontend
+            # Or, if frontend sends radius, store radius directly.
+            # Assuming frontend sends startX, startY, endX, endY to define the circle:
+            start_x = drawing_data.get('startX')
+            start_y = drawing_data.get('startY')
+            end_x = drawing_data.get('endX')
+            end_y = drawing_data.get('endY')
+            if None in [start_x, start_y, end_x, end_y]:
+                print(f"Missing circle properties (startX, startY, endX, endY): {drawing_data}")
                 return
-            drawing_to_save['centerX'] = center_x
-            drawing_to_save['centerY'] = center_y
-            drawing_to_save['radius'] = radius
+            drawing_to_save['startX'] = start_x
+            drawing_to_save['startY'] = start_y
+            drawing_to_save['endX'] = end_x
+            drawing_to_save['endY'] = end_y
+            # If the frontend sends 'radius', store it directly
+            if 'radius' in drawing_data:
+                drawing_to_save['radius'] = drawing_data.get('radius')
+
 
         elif tool_type == 'text':
             text_content = drawing_data.get('text')
