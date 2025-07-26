@@ -562,17 +562,25 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
         socket.on('chat_history', (history) => {
-            chatMessages.innerHTML = '';
-            history.forEach(msg => {
-                const messageElement = document.createElement('div');
-                const senderDisplayName = getDisplayName(msg.username, msg.role);
-                const date = new Date(msg.timestamp);
-                const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${msg.message}`;
-                chatMessages.appendChild(messageElement);
-            });
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
+    chatMessages.innerHTML = '';
+    history.forEach(msg => {
+        const messageElement = document.createElement('div');
+        const senderDisplayName = getDisplayName(msg.username, msg.role);
+        const date = new Date(msg.timestamp);
+        const options = {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true // or false, depending on your preference for 12-hour vs 24-hour format
+        };
+        const formattedDateTime = date.toLocaleString(undefined, options); // This will show date and time in local format
+        messageElement.textContent = `${senderDisplayName} (${formattedDateTime}): ${msg.message}`;
+        chatMessages.appendChild(messageElement);
+    });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
 
         socket.on('user_joined', (data) => {
             console.log(`[Socket.IO] User joined: ${data.username} (${data.sid})`);
