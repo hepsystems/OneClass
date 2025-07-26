@@ -544,14 +544,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         socket.on('message', (data) => {
-            const messageElement = document.createElement('div');
-            const senderDisplayName = getDisplayName(data.username, data.role);
-            const date = new Date(data.timestamp);
-            const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            messageElement.textContent = `${senderDisplayName} (${formattedTime}): ${data.message}`;
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        });
+    const messageElement = document.createElement('div');
+    const senderDisplayName = getDisplayName(data.username, data.role);
+    const date = new Date(data.timestamp); // Creates a Date object from the UTC timestamp
+    const options = {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true // Set to false for 24-hour format if preferred
+    };
+    const formattedDateTime = date.toLocaleString(undefined, options); // Formats to local date and time
+    messageElement.textContent = `${senderDisplayName} (${formattedDateTime}): ${data.message}`;
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+});
 
         socket.on('chat_history', (history) => {
             chatMessages.innerHTML = '';
