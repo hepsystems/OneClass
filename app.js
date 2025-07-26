@@ -306,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.error("Error fetching classroom details:", err);
                         showNotification("Could not load classroom.", true);
                         showSection(dashboardSection);
-                        loadAvailableClassrooms();
+                   o     loadAvailableClassrooms();
                     });
             }
         } else {
@@ -545,18 +545,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on('message', (data) => {
     const messageElement = document.createElement('div');
+    messageElement.classList.add('chat-message-item'); // Base class for all messages
+
+    const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
+    if (data.sender_id === currentUserId) {
+        messageElement.classList.add('chat-message-current-user');
+    } else {
+        messageElement.classList.add('chat-message-other-user');
+    }
+
+    if (data.role === 'admin') {
+        messageElement.classList.add('chat-message-admin');
+    }
+
     const senderDisplayName = getDisplayName(data.username, data.role);
-    const date = new Date(data.timestamp); // Creates a Date object from the UTC timestamp
+    const date = new Date(data.timestamp);
     const options = {
         year: 'numeric',
         month: 'numeric',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true // Set to false for 24-hour format if preferred
+        hour12: true
     };
-    const formattedDateTime = date.toLocaleString(undefined, options); // Formats to local date and time
-    messageElement.textContent = `${senderDisplayName} (${formattedDateTime}): ${data.message}`;
+    const formattedDateTime = date.toLocaleString(undefined, options);
+    // Use innerHTML to allow styling of parts of the message content
+    messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${data.message}`;
     chatMessages.appendChild(messageElement);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 });
@@ -565,6 +579,19 @@ document.addEventListener('DOMContentLoaded', () => {
     chatMessages.innerHTML = '';
     history.forEach(msg => {
         const messageElement = document.createElement('div');
+        messageElement.classList.add('chat-message-item'); // Base class for all messages
+
+        const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
+        if (msg.sender_id === currentUserId) {
+            messageElement.classList.add('chat-message-current-user');
+        } else {
+            messageElement.classList.add('chat-message-other-user');
+        }
+
+        if (msg.role === 'admin') {
+            messageElement.classList.add('chat-message-admin');
+        }
+
         const senderDisplayName = getDisplayName(msg.username, msg.role);
         const date = new Date(msg.timestamp);
         const options = {
@@ -573,10 +600,11 @@ document.addEventListener('DOMContentLoaded', () => {
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            hour12: true // or false, depending on your preference for 12-hour vs 24-hour format
+            hour12: true
         };
-        const formattedDateTime = date.toLocaleString(undefined, options); // This will show date and time in local format
-        messageElement.textContent = `${senderDisplayName} (${formattedDateTime}): ${msg.message}`;
+        const formattedDateTime = date.toLocaleString(undefined, options);
+        // Use innerHTML to allow styling of parts of the message content
+        messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${msg.message}`;
         chatMessages.appendChild(messageElement);
     });
     chatMessages.scrollTop = chatMessages.scrollHeight;
