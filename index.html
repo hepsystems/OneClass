@@ -104,39 +104,43 @@
                     <h3>Whiteboard</h3>
                     <p id="whiteboard-role-message" class="role-message hidden" data-user-only></p>
                     <canvas id="whiteboard-canvas"></canvas>
-                    <div id="whiteboard-control-panel">
-                        <div id="whiteboard-tools-container">
-                            <div class="tool-group">
-                                <button id="toolPen" class="tool-button active" data-tool="pen"><i class="fas fa-pen"></i></button>
-                                <button id="toolEraser" class="tool-button" data-tool="eraser"><i class="fas fa-eraser"></i></button>
-                                <button id="toolLine" class="tool-button" data-tool="line"><i class="fas fa-slash"></i></button>
-                                <button id="toolRectangle" class="tool-button" data-tool="rectangle"><i class="far fa-square"></i></button>
-                                <button id="toolCircle" class="tool-button" data-tool="circle"><i class="far fa-circle"></i></button>
-                                <button id="toolText" class="tool-button" data-tool="text"><i class="fas fa-font"></i></button>
+                    
+                    <!-- Whiteboard controls and share button are now admin-only -->
+                    <div data-admin-only>
+                        <div id="whiteboard-control-panel">
+                            <div id="whiteboard-tools-container">
+                                <div class="tool-group">
+                                    <button id="toolPen" class="tool-button active" data-tool="pen"><i class="fas fa-pen"></i></button>
+                                    <button id="toolEraser" class="tool-button" data-tool="eraser"><i class="fas fa-eraser"></i></button>
+                                    <button id="toolLine" class="tool-button" data-tool="line"><i class="fas fa-slash"></i></button>
+                                    <button id="toolRectangle" class="tool-button" data-tool="rectangle"><i class="far fa-square"></i></button>
+                                    <button id="toolCircle" class="tool-button" data-tool="circle"><i class="far fa-circle"></i></button>
+                                    <button id="toolText" class="tool-button" data-tool="text"><i class="fas fa-font"></i></button>
+                                </div>
+                                <div class="tool-group tool-settings">
+                                    <label for="colorPicker">Color:</label>
+                                    <input type="color" id="colorPicker" value="#FF0000">
+                                    <label for="brushSize">Size:</label>
+                                    <input type="range" id="brushSize" min="1" max="50" value="5">
+                                </div>
+                                <div class="tool-group action-buttons">
+                                    <button id="undoButton" class="action-button undo-button"><i class="fas fa-undo"></i> Undo</button>
+                                    <button id="redoButton" class="action-button redo-button"><i class="fas fa-redo"></i> Redo</button>
+                                    <button id="clearButton" class="action-button clear-button"><i class="fas fa-trash-alt"></i> Clear</button>
+                                    <button id="saveButton" class="action-button save-button"><i class="fas fa-save"></i> Save</button>
+                                </div>
                             </div>
-                            <div class="tool-group tool-settings">
-                                <label for="colorPicker">Color:</label>
-                                <input type="color" id="colorPicker" value="#FF0000">
-                                <label for="brushSize">Size:</label>
-                                <input type="range" id="brushSize" min="1" max="50" value="5">
-                            </div>
-                            <div class="tool-group action-buttons">
-                                <button id="undoButton" class="action-button undo-button"><i class="fas fa-undo"></i> Undo</button>
-                                <button id="redoButton" class="action-button redo-button"><i class="fas fa-redo"></i> Redo</button>
-                                <button id="clearButton" class="action-button clear-button"><i class="fas fa-trash-alt"></i> Clear</button>
-                                <button id="saveButton" class="action-button save-button"><i class="fas fa-save"></i> Save</button>
+                            <div id="whiteboard-navigation">
+                                <button id="prev-whiteboard-page-btn"><i class="fas fa-arrow-left"></i> Prev</button>
+                                <span id="whiteboard-page-display">Page 1/1</span>
+                                <button id="next-whiteboard-page-btn">Next <i class="fas fa-arrow-right"></i></button>
                             </div>
                         </div>
-                        <div id="whiteboard-navigation">
-                            <button id="prev-whiteboard-page-btn"><i class="fas fa-arrow-left"></i> Prev</button>
-                            <span id="whiteboard-page-display">Page 1/1</span>
-                            <button id="next-whiteboard-page-btn">Next <i class="fas fa-arrow-right"></i></button>
+                        <button id="share-whiteboard-btn" class="btn-info">Share Whiteboard Link</button>
+                        <div id="share-link-display" class="hidden">
+                            <input type="text" id="share-link-input" readonly>
+                            <button id="copy-share-link-btn" class="btn-success"><i class="fas fa-copy"></i> Copy Link</button>
                         </div>
-                    </div>
-                    <button id="share-whiteboard-btn" class="btn-info">Share Whiteboard Link</button>
-                    <div id="share-link-display" class="hidden">
-                        <input type="text" id="share-link-input" readonly>
-                        <button id="copy-share-link-btn" class="btn-success"><i class="fas fa-copy"></i> Copy Link</button>
                     </div>
 
                     <!-- Video Elements (positioned absolutely over whiteboard area) -->
