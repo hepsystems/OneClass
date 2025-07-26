@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
             // NOTE: data.sender_id is expected to be available from the server for message origin
-            if (data.sender_id === currentUserId) {
+            if (data.user_id === currentUserId) { // Use user_id from data, not sender_id
                 messageElement.classList.add('chat-message-current-user');
             } else {
                 messageElement.classList.add('chat-message-other-user');
@@ -612,8 +612,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageElement.classList.add('chat-message-item'); // Base class for all messages
 
                 const currentUserId = sessionStorage.getItem('user_id'); // Get the current logged-in user's ID
-                // NOTE: msg.sender_id is expected to be available from the server for message origin
-                if (msg.sender_id === currentUserId) {
+                // NOTE: msg.user_id is expected to be available from the server for message origin
+                if (msg.user_id === currentUserId) { // Use user_id from msg
                     messageElement.classList.add('chat-message-current-user');
                 } else {
                     messageElement.classList.add('chat-message-other-user');
@@ -809,7 +809,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // New Socket.IO event for assessment start (emitted by server)
         socket.on('assessment_started', (data) => {
-            if (currentClassroom && currentClassroom.id === data.classroomId && currentAssessmentToTake && currentAssessmentToTake.id === data.assessmentId) {
+            // Ensure this event is only processed if the user is currently looking at this assessment
+            if (currentAssessmentToTake && currentAssessmentToTake.id === data.assessmentId) {
                 showNotification(`Assessment "${data.title}" has started!`);
                 startAssessmentTimer(new Date(data.endTime)); // Start timer for the user
             }
@@ -1663,7 +1664,7 @@ function handleMouseUp(e) {
                         message: message,
                         username: currentUser.username,
                         role: currentUser.role,
-                        sender_id: sessionStorage.getItem('user_id') // Ensure sender_id is sent
+                        user_id: sessionStorage.getItem('user_id') // Ensure user_id is sent
                     });
                     chatInput.value = '';
                 }
@@ -1848,8 +1849,8 @@ async function submitAssessment() {
         if (questionText) {
             questions.push({
                 id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
-                question_text: questionText,
-                question_type: questionType,
+                question_text: questionText, // Ensure this key is used for backend
+                question_type: questionType, // Ensure this key is used for backend
                 options: options.length > 0 ? options : undefined, // Only include if options exist
                 correct_answer: correctAnswer || undefined // Only include if correct answer exists
             });
@@ -1871,7 +1872,7 @@ async function submitAssessment() {
                 description,
                 scheduled_at: scheduledAt,         
                 duration_minutes: durationMinutes,
-                questions
+                questions // Send the questions array
             })
         });
         const result = await response.json();
@@ -2061,9 +2062,24 @@ async function submitAssessment() {
             const assessment = await response.json();
             currentAssessmentToTake = assessment; // Update with full object
 
+            console.log("Fetched assessment details:", assessment); // Debugging: Check received assessment object
+
             const now = new Date();
             const scheduledTime = new Date(assessment.scheduled_at);
-            assessmentEndTime = new Date(scheduledTime.getTime() + assessment.duration_minutes * 60 * 1000);
+            const durationMinutes = parseInt(assessment.duration_minutes, 10);
+
+            // Validate scheduledTime and durationMinutes
+            if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes)) {
+                console.error("Invalid scheduled_at or duration_minutes:", assessment.scheduled_at, assessment.duration_minutes);
+                takeAssessmentForm.innerHTML = '<p style="color:red;">Error: Assessment scheduling data is invalid. Please contact an administrator.</p>';
+                assessmentTimerDisplay.textContent = 'Error: Invalid Time';
+                assessmentTimerDisplay.classList.add('error');
+                submitAnswersBtn.disabled = true;
+                showNotification("Assessment time data is invalid.", true);
+                return;
+            }
+
+            assessmentEndTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
 
             if (now < scheduledTime) {
                 takeAssessmentForm.innerHTML = `<p>This assessment starts on: <strong>${scheduledTime.toLocaleString()}</strong></p>`;
@@ -2095,15 +2111,17 @@ async function submitAssessment() {
                 const questionDiv = document.createElement('div');
                 questionDiv.classList.add('question-display');
                 questionDiv.dataset.questionId = question.id;
-                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text || question.text}</label>`;
+                // Use question.question_text directly as backend now stores it consistently
+                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text}</label>`;
 
-                if (question.question_type === 'text' || question.type === 'text') {
+                // Use question.question_type directly
+                if (question.question_type === 'text') {
                     const textarea = document.createElement('textarea');
                     textarea.name = `question_${question.id}`;
                     textarea.placeholder = 'Your answer here...';
                     textarea.rows = 3;
                     questionDiv.appendChild(textarea);
-                } else if ((question.question_type === 'mcq' || question.type === 'mcq') && question.options) {
+                } else if (question.question_type === 'mcq' && question.options) {
                     question.options.forEach((option, optIndex) => {
                         const optionId = `q${question.id}-opt${optIndex}`;
                         const radioInput = document.createElement('input');
@@ -2127,7 +2145,7 @@ async function submitAssessment() {
             });
         } catch (error) {
             console.error('Error loading assessment questions:', error);
-            takeAssessmentForm.innerHTML = '<p>Failed to load questions.</p>';
+            takeAssessmentForm.innerHTML = '<p>Failed to load questions. An error occurred.</p>';
             submitAnswersBtn.disabled = true;
             showNotification('Failed to load assessment questions.', true);
         }
@@ -2242,8 +2260,8 @@ async function submitAssessment() {
             
             answers.push({
                 question_id: questionId,
-                question_text: questionData.question_text || questionData.text,
-                question_type: questionData.question_type || questionData.type,
+                question_text: questionData.question_text, // Use consistent key
+                question_type: questionData.question_type, // Use consistent key
                 user_answer: userAnswer,
                 correct_answer: questionData.correct_answer // Pass correct answer for server-side scoring
             });
@@ -2375,7 +2393,7 @@ async function submitAssessment() {
             }
 
             let markingHtml = `
-                <h5>Marking Submission from ${getDisplayName(submission.username, submission.student_role || 'user')}</h5>
+                <h5>Marking Submission from ${getDisplayName(submission.student_username, submission.student_role || 'user')}</h5>
                 <form id="marking-form-${submission.id}">
             `;
 
