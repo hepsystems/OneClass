@@ -55,7 +55,6 @@ body {
     min-height: 100vh;
     box-sizing: border-box;
     color: var(--text-color);
-    transition: background-color var(--transition-normal); /* Added transition */
 }
 
 #app {
@@ -72,24 +71,16 @@ body {
     flex-direction: column;
     min-height: calc(100vh - 60px);
     overflow: hidden;
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal); /* Added transition */
 }
-
-#app:hover {
-    transform: translateY(-3px); /* Subtle lift on hover */
-    box-shadow: 0 8px 25px var(--strong-shadow); /* More pronounced shadow */
-}
-
 
 section {
-    padding: var(--spacing-xl); /* Slightly reduced */
+    padding: var(--spacing-xl);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     margin-bottom: var(--spacing-xl);
     flex-grow: 1;
     display: none;
     box-shadow: 0 2px 8px var(--subtle-shadow);
-    transition: all var(--transition-slow); /* Added transition for display changes */
 }
 
 /* Headings */
@@ -143,14 +134,11 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-    padding: 10px 18px; /* Reduced button padding */
-    font-size: 15px; /* Reduced button font size */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 }
 
 .btn-base:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px var(--subtle-shadow); /* Subtle shadow on hover */
 }
 
 /* Specific Button Variants */
@@ -196,18 +184,17 @@ h3 {
 
 /* Base Input Styles */
 .input-base {
-    padding: 10px 12px; /* Reduced input padding */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced input font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .input-base:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
 /* Auth Section */
@@ -218,7 +205,7 @@ h3 {
     background-color: var(--app-bg);
     box-shadow: 0 4px 15px var(--medium-shadow);
     border: none; /* Override default section border */
-    padding: var(--spacing-xl); /* Reduced padding */
+    padding: var(--spacing-xxl); /* Add padding here for consistency */
     border-radius: var(--border-radius-lg); /* Ensure rounded corners */
 }
 
@@ -238,11 +225,12 @@ h3 {
 #auth-section input[type="text"],
 #auth-section select {
     /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
+    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 #auth-section input[type="email"]:focus,
 #auth-section input[type="password"]:focus,
@@ -251,27 +239,26 @@ h3 {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
 #auth-section button {
     /* Apply base button styles */
+    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--primary-color);
     color: white;
-    padding: 10px 18px; /* Reduced padding */
-    font-size: 16px; /* Reduced font size */
+    padding: 12px 20px;
+    font-size: 18px;
     font-weight: 600;
 }
 #auth-section button:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px var(--subtle-shadow);
+    transform: translateY(-2px);
 }
 
 #auth-section p {
@@ -283,12 +270,10 @@ h3 {
     color: var(--primary-color);
     text-decoration: none;
     font-weight: 500;
-    transition: color var(--transition-fast), text-decoration var(--transition-fast);
 }
 
 #auth-section a:hover {
     text-decoration: underline;
-    color: var(--primary-dark-color);
 }
 
 #auth-message {
@@ -309,8 +294,8 @@ h3 {
 .main-nav {
     display: flex;
     justify-content: flex-start;
-    gap: var(--spacing-sm); /* Reduced gap */
-    margin-bottom: var(--spacing-xl); /* Reduced margin */
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xxl);
     padding-bottom: var(--spacing-md);
     border-bottom: 1px solid var(--light-border-color);
 }
@@ -321,19 +306,18 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: #e9ecef;
     color: var(--light-text-color);
-    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
-    font-size: 15px; /* Reduced font size */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: 16px;
 }
 
 .main-nav button:hover:not(.active-nav) {
     background-color: #dcdfe6;
     color: var(--text-color);
-    transform: translateY(-2px) scale(1.03); /* Added scale on hover */
-    box-shadow: 0 2px 8px var(--subtle-shadow); /* Added shadow on hover */
+    transform: translateY(-2px);
 }
 
 .main-nav button.active-nav {
@@ -345,7 +329,7 @@ h3 {
 }
 
 #dashboard-section p {
-    font-size: 1.05em; /* Slightly reduced font size */
+    font-size: 1.1em;
     margin-bottom: var(--spacing-md);
     color: var(--light-text-color);
 }
@@ -371,11 +355,11 @@ h3 {
 
 #new-classroom-name {
     /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 
     width: calc(100% - 22px);
     margin-bottom: var(--spacing-md);
@@ -384,7 +368,6 @@ h3 {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
 #create-classroom-btn {
@@ -394,18 +377,17 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--success-color);
     color: white;
-    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
-    font-size: 15px; /* Reduced font size */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: 16px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #create-classroom-btn:hover {
     background-color: var(--success-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
+    transform: translateY(-2px); /* Re-apply if needed */
 }
 
 
@@ -435,8 +417,8 @@ h3 {
 }
 
 #classroom-list li:hover {
-    transform: translateY(-3px); /* More pronounced lift */
-    box-shadow: 0 6px 15px var(--medium-shadow); /* More pronounced shadow */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--medium-shadow);
 }
 
 #classroom-list button {
@@ -446,18 +428,17 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--primary-color); /* Changed from secondary to primary */
     color: white;
     padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px; /* Reduced font size */
+    font-size: 15px;
     transform: none; /* Override base hover transform if not desired here */
 }
 #classroom-list button:hover {
     background-color: var(--primary-dark-color); /* Darken primary color on hover */
-    transform: translateY(-2px) scale(1.05); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+    transform: translateY(-2px); /* Re-apply if needed */
 }
 
 /* Classroom Section */
@@ -505,12 +486,11 @@ h3 {
     cursor: pointer;
     color: var(--light-text-color);
     padding: var(--spacing-xs);
-    transition: color var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    transition: color var(--transition-normal);
 }
 
 .hamburger-menu:hover {
     color: var(--primary-color);
-    transform: scale(1.1); /* Subtle zoom on hover */
 }
 
 .sidebar {
@@ -544,8 +524,8 @@ h3 {
     font-weight: 500;
     transition: background-color var(--transition-normal), transform var(--transition-fast);
 
-    padding: 15px 20px; /* Slightly reduced padding */
-    font-size: 16px; /* Slightly reduced font size */
+    padding: 18px 25px;
+    font-size: 17px;
     color: var(--sidebar-text);
     display: block;
     background: none;
@@ -584,12 +564,6 @@ h3 {
     line-height: 1;
     padding: 0;
     margin: 0;
-    transition: color var(--transition-normal), transform var(--transition-fast);
-}
-
-.sidebar .close-btn:hover {
-    color: var(--danger-color);
-    transform: rotate(90deg); /* Rotate effect on close button */
 }
 
 /* Classroom Content Wrapper */
@@ -640,11 +614,6 @@ h3 {
     min-height: 400px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.07);
     border-radius: var(--border-radius-lg);
-    transition: box-shadow var(--transition-normal); /* Added transition */
-}
-
-#whiteboard-canvas:hover {
-    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
 }
 
 #whiteboard-role-message {
@@ -658,210 +627,234 @@ h3 {
     align-self: flex-start;
 }
 
-/* Toolbar inside sidebar */
-#whiteboard-tools-container {
+/* New Styles for Whiteboard Controls */
+#whiteboard-control-panel {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-    background-color: var(--sidebar-hover-bg);
-    border-top: 1px solid rgba(255,255,255,0.1);
-    border-bottom: 1px solid rgba(255,255,255,0.1);
     margin-top: var(--spacing-lg);
+    width: 98%;
+    max-width: 100%;
+    padding: var(--spacing-md) 0;
+    background-color: #f0f4f7;
     border-radius: var(--border-radius-lg);
-    margin: var(--spacing-md);
+    box-shadow: 0 2px 8px var(--subtle-shadow);
+}
+
+#whiteboard-tools-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: #e9ecef;
+    border-radius: var(--border-radius-md);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    width: 95%; /* Adjust width within the control panel */
+    max-width: 700px;
 }
 
 #whiteboard-tools-container h4 {
-    margin-top: 0;
-    color: white;
-    text-align: center;
-    margin-bottom: var(--spacing-md);
+    display: none; /* Hide the heading as it's no longer in the sidebar */
 }
 
-.sidebar .tool-group {
+.tool-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--spacing-sm);
     justify-content: center;
+    align-items: center;
 }
 
-.sidebar .tool-button,
-.sidebar .action-button {
-    /* Apply base button styles */
-    border: none;
+.tool-group.tool-settings {
+    background-color: #dcdfe6;
+    padding: var(--spacing-xs) var(--spacing-md);
     border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+}
 
-    background-color: #556c82;
-    color: white;
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 15px;
-    flex-grow: 1;
-    min-width: 90px;
-    text-align: center;
+.tool-group.action-buttons {
+    background-color: #e6f7ff;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+}
+
+.tool-button,
+.action-button {
+    width: 48px; /* Fixed width for circular buttons */
+    height: 48px; /* Fixed height for circular buttons */
+    border-radius: 50%; /* Make them circular */
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-xs);
-    transform: none; /* No transform for these buttons by default */
+    font-size: 1.2em; /* Larger icon size */
+    color: white;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2); /* More prominent shadow */
+    transition: all var(--transition-fast) ease-in-out;
+    background-color: var(--primary-color); /* Default color for tools */
+    border: 2px solid transparent;
 }
 
-.sidebar .tool-button i, .sidebar .action-button i {
-    margin-right: var(--spacing-xs);
+.tool-button:hover,
+.action-button:hover {
+    transform: scale(1.1) translateY(-2px); /* Pop out slightly on hover */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.3); /* Enhanced shadow on hover */
+    background-color: var(--primary-dark-color);
 }
 
-.sidebar .tool-button.active,
-.sidebar .tool-button:hover,
-.sidebar .action-button:hover {
-    background-color: var(--primary-color);
-    transform: translateY(-2px) scale(1.03); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+.tool-button.active {
+    background-color: var(--success-color); /* Highlight active tool */
+    border-color: white; /* White border for active tool */
+    box-shadow: 0 0 0 4px var(--success-dark-color), 0 6px 15px rgba(0,0,0,0.3);
 }
 
-.sidebar label {
-    color: var(--sidebar-text);
-    font-weight: 500;
-    margin-top: var(--spacing-sm);
-    display: block;
-    text-align: center;
+.tool-button#toolEraser { background-color: var(--danger-color); }
+.tool-button#toolEraser.active { background-color: var(--danger-dark-color); }
+
+.action-button {
+    background-color: var(--secondary-color); /* Different color for action buttons */
 }
 
-.sidebar input[type="color"] {
-    width: 40px;
-    height: 40px;
-    border: 2px solid var(--sidebar-text);
-    border-radius: 50%;
-    display: block;
-    margin: var(--spacing-sm) auto var(--spacing-md) auto;
-    padding: 0;
-    overflow: hidden;
+.action-button:hover {
+    background-color: var(--secondary-dark-color);
 }
 
-.sidebar input[type="color"]::-webkit-color-swatch-wrapper {
-    padding: 0;
-}
-
-.sidebar input[type="color"]::-webkit-color-swatch {
-    border: none;
-    border-radius: 50%;
-}
-
-.sidebar input[type="range"] {
-    width: calc(100% - 20px);
-    margin: var(--spacing-sm) auto;
-    display: block;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 8px;
-    background: #d3d3d3;
-    outline: none;
-    border-radius: var(--border-radius-sm);
-    opacity: 0.7;
-    transition: opacity var(--transition-fast);
-}
-
-.sidebar input[type="range"]:hover {
-    opacity: 1;
-}
-
-.sidebar input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: var(--spacing-lg);
-    height: var(--spacing-lg);
-    border-radius: 50%;
-    background: var(--primary-color);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), transform var(--transition-fast);
-}
-
-.sidebar input[type="range"]::-webkit-slider-thumb:hover {
-    background: var(--primary-dark-color);
-    transform: scale(1.1);
-}
-
-.sidebar input[type="range"]::-moz-range-thumb {
-    width: var(--spacing-lg);
-    height: var(--spacing-lg);
-    border-radius: 50%;
-    background: var(--primary-color);
-    cursor: pointer;
-    transition: background-color var(--transition-fast), transform var(--transition-fast);
-}
-
-.sidebar input[type="range"]::-moz-range-thumb:hover {
-    background: var(--primary-dark-color);
-    transform: scale(1.1);
-}
+.action-button.undo-button { background-color: #ffc107; color: #333; }
+.action-button.undo-button:hover { background-color: #e0a800; }
+.action-button.redo-button { background-color: #17a2b8; }
+.action-button.redo-button:hover { background-color: #138496; }
+.action-button.clear-button { background-color: #dc3545; }
+.action-button.clear-button:hover { background-color: #c82333; }
+.action-button.save-button { background-color: #28a745; }
+.action-button.save-button:hover { background-color: #218838; }
 
 #share-whiteboard-btn {
-    /* Use info button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
+    width: auto; /* Allow natural width for this button */
+    border-radius: var(--border-radius-md); /* Not circular */
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    font-size: 1em;
     background-color: var(--info-color);
     color: white;
-    margin-top: var(--spacing-md);
-    width: 100%;
-    transform: none; /* Override base hover transform if not desired here */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
 }
+
 #share-whiteboard-btn:hover {
     background-color: var(--info-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(23, 162, 184, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
+
+
+label {
+    color: var(--text-color);
+    font-weight: 500;
+    margin-right: var(--spacing-xs);
+    font-size: 0.9em;
+}
+
+input[type="color"] {
+    width: 35px;
+    height: 35px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    display: block;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 50%;
+}
+
+input[type="range"] {
+    width: 100px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--light-border-color);
+    outline: none;
+    border-radius: var(--border-radius-sm);
+    opacity: 0.9;
+    transition: opacity var(--transition-fast);
+    cursor: grab;
+}
+
+input[type="range"]:hover {
+    opacity: 1;
+}
+input[type="range"]:active {
+    cursor: grabbing;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
 
 #whiteboard-navigation {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: var(--spacing-md);
-    background-color: #f0f4f7;
+    padding: var(--spacing-sm);
+    background-color: var(--app-bg);
     border-top: 1px solid var(--border-color);
     flex-shrink: 0;
-    width: 98%;
-    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-    margin-top: var(--spacing-sm);
-    box-shadow: 0 -2px 5px rgba(0,0,0,0.03);
+    width: 95%;
+    max-width: 500px;
+    border-radius: var(--border-radius-lg);
+    margin-top: var(--spacing-md);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 #whiteboard-navigation button {
-    /* Use primary button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
     background-color: var(--primary-color);
     color: white;
-    padding: var(--spacing-sm) 18px;
-    font-size: 15px;
-    margin: 0 8px;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 14px;
+    margin: 0 6px;
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
-    transform: none; /* Override base hover transform if not desired here */
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 #whiteboard-navigation button:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-1px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 #whiteboard-page-display {
     font-weight: 600;
     margin: 0 var(--spacing-md);
     color: var(--text-color);
-    font-size: 1.1em;
+    font-size: 1.0em;
 }
 
 #share-link-display {
@@ -889,24 +882,17 @@ h3 {
 }
 
 #copy-share-link-btn {
-    /* Use success button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
     background-color: var(--success-color);
     color: white;
     padding: var(--spacing-xs) var(--spacing-md);
     font-size: 14px;
-    transform: none; /* Override base hover transform if not desired here */
+    border-radius: var(--border-radius-md);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 #copy-share-link-btn:hover {
     background-color: var(--success-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 /* Video Broadcast controls inside sidebar */
@@ -950,7 +936,7 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--danger-color);
     color: white;
@@ -965,8 +951,7 @@ h3 {
 }
 #start-broadcast:hover, #end-broadcast:hover:not(:disabled) {
     background-color: var(--danger-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2);
+    transform: translateY(-2px); /* Re-apply if needed */
 }
 
 #end-broadcast:disabled {
@@ -974,7 +959,6 @@ h3 {
     cursor: not-allowed;
     opacity: 0.7;
     transform: none;
-    box-shadow: none; /* No shadow for disabled */
 }
 
 .role-message {
@@ -1001,14 +985,7 @@ h3 {
     border-radius: var(--border-radius-sm);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     object-fit: cover;
-    transition: box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transition */
 }
-#local-video:hover {
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-    transform: scale(1.03);
-}
-
-
 #remote-video-container {
     position: absolute;
     top: var(--spacing-lg);
@@ -1018,7 +995,6 @@ h3 {
     gap: var(--spacing-md);
     z-index: 5;
 }
-
 #remote-video-container video {
     width: 180px;
     height: 135px;
@@ -1027,13 +1003,7 @@ h3 {
     border-radius: var(--border-radius-sm);
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     object-fit: cover;
-    transition: box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transition */
 }
-#remote-video-container video:hover {
-    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
-    transform: scale(1.03);
-}
-
 /* Notifications within whiteboard area */
 #notifications-container {
     position: absolute;
@@ -1045,7 +1015,6 @@ h3 {
     gap: var(--spacing-sm);
     max-width: 300px;
 }
-
 .notification-message {
     background-color: rgba(44, 62, 80, 0.9);
     color: green;
@@ -1058,30 +1027,24 @@ h3 {
     box-shadow: 0 2px 10px rgba(0,0,0,0.2);
     transform: translateY(-10px);
 }
-
 .notification-message.show {
     opacity: 1;
     transform: translateY(0);
 }
-
 /* Classroom Sub-section structure (Chat, Library, Assessments) */
 #chat-section, #library-section, #assessments-section {
-    /* These sections are expected to be children of .classroom-content-wrapper
-       and inherit styles from .classroom-sub-section.
-       Remove redundant border, padding, box-shadow, background-color that are already set by .classroom-sub-section. */
+    /* These sections are expected to be children of .classroom-content-wrapper and inherit styles from .classroom-sub-section. Remove redundant border, padding, box-shadow, background-color that are already set by .classroom-sub-section. */
     border: none; /* Already handled by classroom-sub-section */
     padding: 0; /* Already handled by classroom-sub-section */
     box-shadow: none; /* Already handled by classroom-sub-section */
     background-color: var(--app-bg); /* Already handled by classroom-sub-section */
 }
-
 #chat-section h3, #library-section h3, #assessments-section h3 {
     margin-top: 0;
     margin-bottom: var(--spacing-md);
     padding-bottom: var(--spacing-sm);
     border-bottom: 1px solid var(--light-border-color);
 }
-
 /* Chat Section */
 #chat-section {
     display: flex;
@@ -1089,7 +1052,6 @@ h3 {
     justify-content: space-between;
     height: 100%;
 }
-
 #chat-messages {
     flex-grow: 1;
     border: 1px solid var(--border-color);
@@ -1102,26 +1064,18 @@ h3 {
     flex-direction: column;
     gap: var(--spacing-sm);
 }
-
 /* Base chat message item */
 .chat-message-item {
-    padding: 8px 12px; /* Slightly more padding, reduced overall */
+    padding: 10px 15px; /* Slightly more padding */
     border-radius: var(--border-radius-lg);
     word-wrap: break-word;
     max-width: 85%; /* Slightly smaller max-width */
-    font-size: 0.9em; /* Slightly smaller font size */
+    font-size: 0.95em; /* Slightly smaller font size */
     line-height: 1.4;
     position: relative; /* For timestamp absolute positioning */
     display: flex; /* To align timestamp */
     flex-direction: column; /* To stack sender and message content */
-    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Added transition */
 }
-.chat-message-item:hover {
-    transform: translateY(-2px); /* Lift effect on hover */
-    box-shadow: 0 2px 5px var(--subtle-shadow);
-}
-
-
 /* Incoming messages (from others) */
 .chat-message-item.incoming {
     background-color: #e9ecef; /* Light grey background */
@@ -1130,14 +1084,12 @@ h3 {
     color: var(--text-color);
     box-shadow: 0 1px 3px var(--subtle-shadow);
 }
-
 .chat-message-item.incoming strong {
     color: var(--primary-dark-color); /* Darker primary for emphasis */
     font-weight: 600;
     margin-bottom: 3px; /* Space between name and message */
     display: block; /* Ensures name is on its own line */
 }
-
 /* Outgoing messages (from current user) */
 .chat-message-item.outgoing {
     background-color: var(--primary-color); /* Primary color background */
@@ -1146,14 +1098,12 @@ h3 {
     border-bottom-right-radius: var(--border-radius-sm); /* Pointed corner */
     box-shadow: 0 1px 3px rgba(0, 123, 255, 0.2); /* Subtle blue shadow */
 }
-
 .chat-message-item.outgoing strong {
     color: rgba(255, 255, 255, 0.9); /* Slightly muted white for name */
     font-weight: 600;
     margin-bottom: 3px;
     display: block;
 }
-
 /* Timestamp styling */
 .chat-message-item .timestamp {
     font-size: 0.7em; /* Smaller timestamp */
@@ -1163,11 +1113,9 @@ h3 {
     align-self: flex-end; /* Ensure timestamp stays at the end of the flex column */
     opacity: 0.8;
 }
-
 .chat-message-item.outgoing .timestamp {
     color: rgba(255, 255, 255, 0.7); /* Lighter timestamp for outgoing messages */
 }
-
 /* Chat input area */
 .chat-input-area {
     display: flex;
@@ -1175,74 +1123,96 @@ h3 {
     padding-top: var(--spacing-md);
     border-top: 1px solid var(--border-color);
 }
-
 #chat-input {
     /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
-
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
     flex-grow: 1;
 }
 #chat-input:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
 #send-chat-button {
-    /* Use primary button variant */
     /* Apply base button styles */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--primary-color);
     color: white;
-    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
-    font-size: 15px; /* Reduced font size */
-    font-weight: 500;
-    transform: none; /* Override base hover transform if not desired here */
+    padding: 10px 20px;
+    font-size: 16px;
+    flex-shrink: 0;
 }
 #send-chat-button:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    transform: translateY(-2px);
 }
 
 /* Library Section */
-#library-section div[data-admin-only] {
-    background-color: #f9fbfd;
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-xl);
-    border: 1px solid var(--border-color);
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-}
-
-#library-file-input {
-    /* Apply base input styles */
-    padding: 8px 10px; /* Reduced padding */
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
-
+#library-items {
     flex-grow: 1;
-    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    margin-bottom: var(--spacing-md);
+    background-color: #fdfdfd;
 }
-#library-file-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
+
+#library-items p {
+    color: var(--light-text-color);
+    text-align: center;
+    margin-top: var(--spacing-xl);
+}
+
+#library-items ul {
+    list-style: none;
+    padding: 0;
+}
+
+#library-items li {
+    background-color: #f9fbfd;
+    margin-bottom: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #eef1f4;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+#library-items li:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--medium-shadow);
+}
+
+#library-items button {
+    /* Use danger button variant */
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--danger-color);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 14px;
+}
+#library-items button:hover {
+    background-color: var(--danger-dark-color);
+    transform: translateY(-2px);
 }
 
 #upload-library-files-btn {
@@ -1252,112 +1222,49 @@ h3 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--success-color);
     color: white;
-    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
-    font-size: 15px; /* Reduced font size */
-    transform: none; /* Override base hover transform if not desired here */
+    padding: 10px 20px;
+    font-size: 16px;
+    width: 100%;
+    margin-top: var(--spacing-md);
 }
 #upload-library-files-btn:hover {
     background-color: var(--success-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
+    transform: translateY(-2px);
 }
 
-#library-role-message {
-    background-color: #d1ecf1;
-    color: #0c5460;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid #bee5eb;
-    border-radius: var(--border-radius-sm);
-    margin-bottom: var(--spacing-md);
-}
-
-#library-files-list {
-    margin-top: var(--spacing-lg);
-}
-
-#library-files-list div {
-    background-color: #fdfefe;
-    margin-bottom: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-#library-files-list div:hover {
-    transform: translateY(-3px); /* More pronounced lift */
-    box-shadow: 0 6px 15px var(--medium-shadow); /* More pronounced shadow */
-}
-
-#library-files-list a {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color var(--transition-fast);
-}
-
-#library-files-list a:hover {
-    color: var(--primary-dark-color);
-    text-decoration: underline;
-}
-
-#library-files-list button {
-    /* Use danger button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
-    background-color: var(--danger-color);
-    color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px; /* Reduced font size */
-    transform: none; /* Override base hover transform if not desired here */
-}
-#library-files-list button:hover {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
-}
-
-/* Assessments Section */
-#assessment-creation-form {
+/* Assessment Section */
+#assessment-creation-container {
     background-color: #f9fbfd;
-    padding: var(--spacing-xl);
+    padding: var(--spacing-lg);
     border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-xxl);
+    margin-bottom: var(--spacing-xl);
     border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px var(--subtle-shadow);
 }
 
-#assessment-creation-form h4 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-lg);
-    color: #444;
+#assessment-creation-form label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 500;
+    color: var(--text-color);
 }
 
 #assessment-creation-form input[type="text"],
 #assessment-creation-form textarea,
 #assessment-creation-form select {
     /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 
-    display: block;
-    width: calc(100% - 24px);
+    width: calc(100% - 30px); /* Adjust width */
     margin-bottom: var(--spacing-md);
+    display: block;
 }
 #assessment-creation-form input[type="text"]:focus,
 #assessment-creation-form textarea:focus,
@@ -1365,568 +1272,537 @@ h3 {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
-#questions-container {
-    margin-top: var(--spacing-xl);
-    border-top: 1px dashed var(--border-color);
-    padding-top: var(--spacing-lg);
-}
-
-#questions-container h5 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: var(--light-text-color);
-    font-weight: 500;
-}
-
-.question-item {
-    background-color: #fdfdfd;
-    border: 1px solid #eef1f4;
+.question-block {
+    border: 1px dashed var(--border-color);
     padding: var(--spacing-md);
-    margin-bottom: var(--spacing-md);
-    border-radius: var(--border-radius-lg);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-    transition: box-shadow var(--transition-fast); /* Added transition */
-}
-.question-item:hover {
-    box-shadow: 0 2px 8px var(--subtle-shadow);
+    margin-bottom: var(--spacing-lg);
+    border-radius: var(--border-radius-md);
+    background-color: #fefefe;
 }
 
+.question-block label {
+    font-weight: 600;
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
 
-.mcq-options label {
+.mcq-options {
+    margin-left: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+}
+
+.mcq-options div {
     display: flex;
     align-items: center;
-    margin-bottom: 8px;
-    font-size: 1em;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.mcq-options input[type="text"] {
+    flex-grow: 1;
+    width: auto; /* Override default width */
+    margin-bottom: 0;
 }
 
 .mcq-options input[type="radio"],
 .mcq-options input[type="checkbox"] {
-    margin-right: 8px;
     accent-color: var(--primary-color);
+    transform: scale(1.2);
 }
 
-.mcq-options input[type="text"] {
-    /* Apply base input styles */
-    padding: 8px 10px; /* Reduced padding */
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 14px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
-
-    width: calc(100% - 24px - 26px);
-    display: inline-block;
-    vertical-align: middle;
-    margin-bottom: 0;
-    margin-left: var(--spacing-xs);
-    padding: 8px;
-    font-size: 15px;
-}
-.mcq-options input[type="text"]:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
-}
-
-#add-question-btn, #submit-assessment-btn {
-    /* Use primary button variant */
+.add-option-btn, .remove-option-btn {
     /* Apply base button styles */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
+    padding: 6px 10px;
+    font-size: 0.85em;
+    margin-left: var(--spacing-xs);
+}
+
+.add-option-btn {
+    background-color: var(--info-color);
+    color: white;
+}
+.add-option-btn:hover {
+    background-color: var(--info-dark-color);
+    transform: translateY(-1px);
+}
+
+.remove-option-btn {
+    background-color: var(--danger-color);
+    color: white;
+}
+.remove-option-btn:hover {
+    background-color: var(--danger-dark-color);
+    transform: translateY(-1px);
+}
+
+.remove-question-btn {
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--danger-color);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 0.9em;
+    margin-top: var(--spacing-md);
+    display: block;
+    width: fit-content;
+}
+.remove-question-btn:hover {
+    background-color: var(--danger-dark-color);
+    transform: translateY(-1px);
+}
+
+#add-question-btn, #submit-assessment-btn {
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: var(--spacing-md);
+}
+
+#add-question-btn {
+    background-color: var(--secondary-color);
+    color: white;
+}
+#add-question-btn:hover {
+    background-color: var(--secondary-dark-color);
+    transform: translateY(-2px);
+}
+
+#submit-assessment-btn {
     background-color: var(--primary-color);
     color: white;
-    padding: 10px 20px; /* Reduced padding */
-    font-size: 16px; /* Reduced font size */
-    font-weight: 600;
-    margin-top: var(--spacing-lg);
-    transform: none; /* Override base hover transform if not desired here */
 }
-#add-question-btn:hover, #submit-assessment-btn:hover {
+#submit-assessment-btn:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    transform: translateY(-2px);
 }
 
-#assessment-creation-message {
+#assessment-list {
     margin-top: var(--spacing-lg);
-    font-weight: bold;
-    color: var(--success-color);
 }
 
-#assessment-list-container h4 {
-    margin-top: var(--spacing-xxl);
-    margin-bottom: var(--spacing-lg);
-    color: #444;
-    border-bottom: 1px dashed var(--border-color);
-    padding-bottom: var(--spacing-sm);
+#no-assessments-message {
+    text-align: center;
+    color: var(--light-text-color);
 }
 
 #assessment-list div {
     background-color: #fdfefe;
-    border: 1px solid #eef1f4;
-    padding: var(--spacing-md) var(--spacing-lg);
     margin-bottom: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
     border-radius: var(--border-radius-lg);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border: 1px solid #eef1f4;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+
 #assessment-list div:hover {
-    transform: translateY(-3px); /* More pronounced lift */
-    box-shadow: 0 6px 15px var(--medium-shadow); /* More pronounced shadow */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--medium-shadow);
 }
 
 #assessment-list button {
-    /* Use primary button variant */
     /* Apply base button styles */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: 15px;
+    margin-left: var(--spacing-sm);
+}
+
+#assessment-list .btn-primary {
     background-color: var(--primary-color);
     color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px; /* Reduced font size */
-    transform: none; /* Override base hover transform if not desired here */
 }
-#assessment-list button:hover {
+#assessment-list .btn-primary:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
-}
-
-#take-assessment-container,
-#view-submissions-container {
-    margin-top: var(--spacing-xxl);
-    padding: var(--spacing-xl); /* Reduced padding */
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    background-color: #f9fbfd;
-    box-shadow: 0 2px 8px var(--subtle-shadow);
-}
-
-#take-assessment-container h4,
-#view-submissions-container h4 {
-    margin-bottom: var(--spacing-lg);
-}
-
-#take-assessment-container p {
-    color: var(--light-text-color);
-    margin-bottom: var(--spacing-xl);
-    line-height: 1.6;
-}
-
-#take-assessment-form label {
-    display: block;
-    margin-top: var(--spacing-md);
-    font-weight: 600;
-    color: #444;
-    font-size: 1.05em;
-}
-
-#take-assessment-form input[type="text"],
-#take-assessment-form textarea {
-    /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
-
-    width: calc(100% - 24px);
-    padding: var(--spacing-sm);
-    margin-top: 8px;
-    margin-bottom: var(--spacing-md);
-}
-#take-assessment-form input[type="text"]:focus,
-#take-assessment-form textarea:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
-}
-
-#take-assessment-form input[type="radio"] {
-    margin-right: 8px;
-    accent-color: var(--primary-color);
-}
-
-#submit-answers-btn {
-    /* Use success button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
-    background-color: var(--success-color);
-    color: white;
-    padding: 10px 20px; /* Reduced padding */
-    font-size: 16px; /* Reduced font size */
-    font-weight: 600;
-    margin-top: var(--spacing-lg);
-    transform: none; /* Override base hover transform if not desired here */
-}
-#submit-answers-btn:hover {
-    background-color: var(--success-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
-}
-
-#assessment-submission-message {
-    margin-top: var(--spacing-lg);
-    font-weight: bold;
-    text-align: center;
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
-}
-
-#assessment-submission-message.success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
-}
-
-#assessment-submission-message.error {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-}
-
-#back-to-assessment-list-btn, #back-to-assessment-list-from-submissions-btn {
-    /* Use secondary button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
-
-    background-color: var(--secondary-color);
-    color: white;
-    padding: 10px 20px; /* Reduced padding */
-    font-size: 16px; /* Reduced font size */
-    font-weight: 600;
-    margin-top: var(--spacing-lg);
-    margin-left: var(--spacing-sm);
-    transform: none; /* Override base hover transform if not desired here */
-}
-#back-to-assessment-list-btn:hover, #back-to-assessment-list-from-submissions-btn:hover {
-    background-color: var(--secondary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(108, 117, 125, 0.2);
-}
-
-
-#submissions-list .submission-item {
-    background-color: #fdfdfd;
-    border: 1px solid #eef1f4;
-    padding: var(--spacing-md);
-    margin-bottom: var(--spacing-sm);
-    border-radius: var(--border-radius-lg);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-    transition: box-shadow var(--transition-fast), transform var(--transition-fast); /* Added transition */
-}
-#submissions-list .submission-item:hover {
-    box-shadow: 0 2px 8px var(--subtle-shadow);
     transform: translateY(-2px);
 }
 
+#assessment-list .btn-info {
+    background-color: var(--info-color);
+    color: white;
+}
+#assessment-list .btn-info:hover {
+    background-color: var(--info-dark-color);
+    transform: translateY(-2px);
+}
+
+#assessment-list .btn-danger {
+    background-color: var(--danger-color);
+    color: white;
+}
+#assessment-list .btn-danger:hover {
+    background-color: var(--danger-dark-color);
+    transform: translateY(-2px);
+}
+
+#take-assessment-container, #view-submissions-container {
+    background-color: #f9fbfd;
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-lg);
+    margin-top: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+#take-assessment-container h4, #view-submissions-container h4 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+}
+
+#take-assessment-form .question-display {
+    background-color: #fff;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid #eef1f4;
+}
+
+#take-assessment-form .question-display p {
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-color);
+}
+
+#take-assessment-form .mcq-option-label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    cursor: pointer;
+}
+
+#take-assessment-form .mcq-option-label input[type="radio"],
+#take-assessment-form .mcq-option-label input[type="checkbox"] {
+    margin-right: var(--spacing-sm);
+    accent-color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+#take-assessment-form textarea {
+    min-height: 80px;
+}
+
+#submit-answers-btn, #back-to-assessment-list-btn {
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: var(--spacing-md);
+}
+
+#submit-answers-btn {
+    background-color: var(--success-color);
+    color: white;
+}
+#submit-answers-btn:hover {
+    background-color: var(--success-dark-color);
+    transform: translateY(-2px);
+}
+
+#back-to-assessment-list-btn {
+    background-color: var(--secondary-color);
+    color: white;
+    margin-left: var(--spacing-md);
+}
+#back-to-assessment-list-btn:hover {
+    background-color: var(--secondary-dark-color);
+    transform: translateY(-2px);
+}
+
+#assessment-submission-message {
+    margin-top: var(--spacing-md);
+    font-weight: bold;
+    color: var(--success-color);
+    text-align: center;
+}
+
+#submissions-list .submission-item {
+    background-color: #fff;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid #eef1f4;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
 #submissions-list .submission-item h5 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
     color: var(--primary-color);
-    margin-bottom: 8px;
+    font-weight: 600;
 }
 
 #submissions-list .submission-item p {
-    margin-bottom: var(--spacing-xs);
     font-size: 0.95em;
-    color: var(--light-text-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+#submissions-list .submission-item strong {
+    color: var(--text-color);
+}
+
+#back-to-assessment-list-from-submissions-btn {
+    /* Apply base button styles */
+    border: none;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
+
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: var(--spacing-md);
+}
+#back-to-assessment-list-from-submissions-btn:hover {
+    background-color: var(--secondary-dark-color);
+    transform: translateY(-2px);
 }
 
 /* Settings Section */
-#settings-section h2 {
-    margin-bottom: var(--spacing-xl);
+#settings-section {
+    max-width: 600px;
+    margin: 40px auto;
 }
 
 #update-profile-form {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
+    margin-top: var(--spacing-xl);
 }
 
 #update-profile-form label {
-    font-weight: 600;
-    color: var(--light-text-color);
+    font-weight: 500;
+    color: var(--text-color);
     margin-bottom: var(--spacing-xs);
-    display: block;
 }
 
 #update-profile-form input[type="text"],
 #update-profile-form input[type="email"] {
     /* Apply base input styles */
-    padding: 10px 12px; /* Reduced padding */
+    padding: 12px 15px;
     border: 1px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 15px; /* Reduced font size */
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal), transform var(--transition-fast); /* Added transform transition */
+    font-size: 16px;
+    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+
+    width: calc(100% - 30px);
 }
 #update-profile-form input[type="text"]:focus,
 #update-profile-form input[type="email"]:focus {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
     outline: none;
-    transform: scale(1.01); /* Subtle zoom on focus */
 }
 
-#update-profile-form input[type="email"]:disabled {
-    background-color: #e9ecef;
-    color: #888;
-    cursor: not-allowed;
-    transform: none; /* No transform for disabled */
-}
-
-#update-profile-form button {
-    /* Use primary button variant */
+#update-profile-form button[type="submit"] {
+    /* Apply primary button variant */
     /* Apply base button styles */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--primary-color);
     color: white;
-    padding: 10px 18px; /* Reduced padding */
-    font-size: 16px; /* Reduced font size */
-    font-weight: 600;
-    margin-top: var(--spacing-lg);
-    transform: none; /* Override base hover transform if not desired here */
+    padding: 12px 20px;
+    font-size: 18px;
+    margin-top: var(--spacing-md);
 }
-#update-profile-form button:hover {
+#update-profile-form button[type="submit"]:hover {
     background-color: var(--primary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
+    transform: translateY(-2px);
 }
 
 #back-to-dashboard-from-settings {
-    /* Use secondary button variant */
+    /* Apply secondary button variant */
     /* Apply base button styles */
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal); /* Added box-shadow transition */
+    transition: background-color var(--transition-normal), transform var(--transition-fast);
 
     background-color: var(--secondary-color);
     color: white;
-    padding: var(--spacing-sm) var(--spacing-md); /* Reduced padding */
-    font-size: 15px; /* Reduced font size */
-    margin-top: var(--spacing-lg);
-    transform: none; /* Override base hover transform if not desired here */
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: var(--spacing-xl);
+    width: fit-content;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
 }
 #back-to-dashboard-from-settings:hover {
     background-color: var(--secondary-dark-color);
-    transform: translateY(-2px) scale(1.02); /* Added scale on hover */
-    box-shadow: 0 4px 10px rgba(108, 117, 125, 0.2);
+    transform: translateY(-2px);
 }
 
-
-/* Responsive Adjustments */
-@media (max-width: 1024px) {
+/* Responsive adjustments */
+@media (max-width: 768px) {
     #app {
-        padding: var(--spacing-lg);
-        margin-top: var(--spacing-lg);
-        margin-bottom: var(--spacing-lg);
-        width: 98%;
-        min-height: calc(100vh - 40px);
+        padding: var(--spacing-md);
+        margin-top: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+        min-height: calc(100vh - 20px);
     }
 
     section {
-        padding: var(--spacing-md); /* Reduced padding further */
+        padding: var(--spacing-md);
+        margin-bottom: var(--spacing-md);
+    }
+
+    .main-nav {
+        flex-direction: column;
+        gap: var(--spacing-sm);
         margin-bottom: var(--spacing-lg);
     }
 
-    .classroom-header {
-        flex-wrap: wrap;
+    .main-nav button {
+        width: 100%;
         padding: var(--spacing-md);
     }
 
-    .classroom-content-wrapper {
-        height: auto;
+    .classroom-header {
         flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .hamburger-menu {
+        align-self: flex-end;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: 100%;
+        top: 0;
+        border-radius: 0;
+    }
+
+    .sidebar .close-btn {
+        top: var(--spacing-md);
+        right: var(--spacing-md);
+    }
+
+    .classroom-content-wrapper {
+        flex-direction: column;
+        height: auto;
+        padding-top: var(--spacing-md);
     }
 
     .classroom-sub-section {
-        margin: var(--spacing-sm) 0;
-        min-height: 400px;
+        margin: 0 0 var(--spacing-md) 0;
+        padding: var(--spacing-md);
     }
 
     #whiteboard-canvas {
         min-height: 300px;
     }
 
-    #local-video {
-        width: 120px;
-        height: 90px;
-        bottom: var(--spacing-sm);
-        left: var(--spacing-sm);
+    #whiteboard-control-panel {
+        gap: var(--spacing-sm);
+        margin-top: var(--spacing-md);
+        padding: var(--spacing-sm) 0;
     }
 
-    #remote-video-container video {
-        width: 100px;
-        height: 75px;
+    #whiteboard-tools-container {
+        padding: var(--spacing-xs);
+        width: 98%;
     }
 
-    .sidebar {
-        width: 260px;
-        padding-top: 70px;
+    .tool-group {
+        gap: var(--spacing-xs);
     }
 
-    .sidebar button {
-        padding: var(--spacing-md) var(--spacing-lg);
-        font-size: 16px;
+    .tool-button, .action-button {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1em;
     }
 
-    #whiteboard-tools-container,
-    #video-broadcast-section {
-        padding: var(--spacing-md);
-        margin: var(--spacing-sm);
+    input[type="color"] {
+        width: 30px;
+        height: 30px;
     }
 
-    .sidebar .tool-button,
-    .sidebar .action-button {
-        padding: 8px 12px;
-        font-size: 14px;
-        min-width: 70px;
-    }
-
-    #whiteboard-navigation button {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
-}
-
-@media (max-width: 768px) {
-    #app {
-        width: 100%;
-        margin: 0;
-        border-radius: 0;
-        box-shadow: none;
-        min-height: 100vh;
-        padding: var(--spacing-sm); /* Reduced padding further */
-    }
-
-    section {
-        padding: var(--spacing-sm); /* Reduced padding further */
-        margin-bottom: var(--spacing-md);
-        border-radius: 0;
-        box-shadow: none;
-    }
-
-    #auth-section, #settings-section {
-        margin: 0;
-        max-width: 100%;
-        padding: var(--spacing-md);
-        box-shadow: none;
-    }
-
-    .main-nav {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: var(--spacing-xs); /* Reduced gap */
-        margin-bottom: var(--spacing-lg);
-    }
-
-    .main-nav button {
-        padding: 6px var(--spacing-sm); /* Reduced padding */
-        font-size: 13px; /* Reduced font size */
-    }
-
-    .sidebar {
-        width: 100%;
-        padding-top: 60px;
-        transform: translateX(-100%);
-    }
-
-    .sidebar.active {
-        transform: translateX(0);
-    }
-
-    .sidebar .close-btn {
-        right: var(--spacing-md);
-        font-size: 30px;
-        top: var(--spacing-md);
-    }
-
-    .classroom-header {
-        padding: var(--spacing-xs); /* Reduced padding */
-        font-size: 0.9em;
-    }
-
-    .classroom-header h2 {
-        font-size: 1.5em;
-    }
-
-    .hamburger-menu {
-        font-size: 24px;
-    }
-
-    .classroom-sub-section {
-        padding: var(--spacing-md);
-        margin: var(--spacing-sm) 0;
-    }
-
-    #whiteboard-canvas {
-        min-height: 250px;
-        width: 100%;
+    input[type="range"] {
+        width: 80px;
     }
 
     #whiteboard-navigation {
         flex-direction: column;
         gap: var(--spacing-sm);
-        width: 100%;
+        padding: var(--spacing-sm);
+        margin-top: var(--spacing-sm);
+        width: 98%;
     }
 
     #whiteboard-navigation button {
-        width: 80%;
-        padding: var(--spacing-sm);
-        font-size: 14px;
+        width: 100%;
+        margin: 0;
+        padding: var(--spacing-sm) var(--spacing-md);
     }
 
     #share-link-display {
         flex-direction: column;
-        align-items: stretch;
-        width: 100%;
+        gap: var(--spacing-sm);
+        padding: var(--spacing-sm);
+        width: 98%;
     }
 
     #share-link-input {
         text-align: center;
+        width: 100%;
     }
 
     #copy-share-link-btn {
         width: 100%;
     }
 
-    #notifications-container {
-        top: var(--spacing-sm);
-        right: var(--spacing-sm);
-        max-width: 250px;
+    #local-video {
+        width: 120px;
+        height: 90px;
+        bottom: var(--spacing-md);
+        left: var(--spacing-md);
     }
 
-    .notification-message {
-        min-width: unset;
+    #remote-video-container video {
+        width: 140px;
+        height: 105px;
     }
 
     #chat-messages {
@@ -1977,18 +1853,5 @@ h3 {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
-    }
-
-    #assessment-list button {
-        width: 100%;
-    }
-
-    #submit-answers-btn, #back-to-assessment-list-btn, #back-to-assessment-list-from-submissions-btn {
-        width: 100%;
-        margin-left: 0;
-    }
-
-    #update-profile-form button, #back-to-dashboard-from-settings {
-        width: 100%;
     }
 }
