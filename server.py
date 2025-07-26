@@ -417,6 +417,32 @@ def get_assessment_details(assessmentId):
         print(f"Assessment {assessmentId} not found.")
         return jsonify({"error": "Assessment not found"}), 404
     
+    # Check if the assessment is starting now and emit event
+    now = datetime.utcnow()
+    scheduled_at = assessment['scheduled_at']
+    duration_minutes = assessment['duration_minutes']
+    end_time = scheduled_at + timedelta(minutes=duration_minutes)
+
+    # If the assessment is active and it's the first time a user is fetching it since it became active
+    # (or within a small buffer to ensure notification)
+    if scheduled_at <= now < end_time:
+        # Check if this user has already started/submitted this assessment
+        existing_submission = assessment_submissions_collection.find_one({
+            "assessmentId": assessmentId,
+            "student_id": user_id
+        })
+        # Only emit if no submission exists yet for this user for this assessment
+        if not existing_submission:
+            # Emit assessment_started event to the specific user who just fetched it
+            socketio.emit('assessment_started', {
+                'classroomId': assessment['classroomId'],
+                'assessmentId': assessmentId,
+                'title': assessment['title'],
+                'endTime': end_time.isoformat()
+            }, room=request.sid) # Emit only to the requesting client's SID
+            print(f"Emitted 'assessment_started' to {request.sid} for assessment {assessmentId}")
+
+
     # Fetch questions for this specific assessment
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
     
@@ -442,12 +468,34 @@ def submit_assessment():
     assessment_id = data.get('assessmentId')
     class_room_id = data.get('classroomId')
     answers = data.get('answers') # List of {question_id: "...", user_answer: "...", question_text: "...", question_type: "...", correct_answer: "..."}
+    is_auto_submit = data.get('is_auto_submit', False) # New: flag for auto-submission
 
     if not all([assessment_id, class_room_id, answers]):
         return jsonify({"error": "Missing required fields: assessmentId, classroomId, or answers"}), 400
     
     if not isinstance(answers, list):
         return jsonify({"error": "Answers must be a list"}), 400
+
+    # Check if assessment is still active or if it's an auto-submission
+    assessment_details = assessments_collection.find_one({"id": assessment_id})
+    if not assessment_details:
+        return jsonify({"error": "Assessment not found"}), 404
+
+    now = datetime.utcnow()
+    scheduled_at = assessment_details['scheduled_at']
+    duration_minutes = assessment_details['duration_minutes']
+    end_time = scheduled_at + timedelta(minutes=duration_minutes)
+
+    if not is_auto_submit and now > end_time:
+        return jsonify({"error": "Assessment submission time has passed."}), 403
+
+    # Check if user has already submitted
+    existing_submission = assessment_submissions_collection.find_one({
+        "assessmentId": assessment_id,
+        "student_id": user_id
+    })
+    if existing_submission:
+        return jsonify({"error": "You have already submitted this assessment."}), 409
 
     submission_id = str(uuid.uuid4())
     
@@ -467,7 +515,7 @@ def submit_assessment():
                 if question.get('question_type') == 'mcq' or question.get('type') == 'mcq':
                     # Use the correct_answer from the DB, not client-provided
                     db_correct_answer = question.get('correct_answer')
-                    if db_correct_answer and user_answer and \
+                    if db_correct_answer and user_answer is not None and \
                        str(user_answer).strip().lower() == str(db_correct_answer).strip().lower():
                         score += 1
                         is_correct = True
@@ -490,13 +538,14 @@ def submit_assessment():
         "submitted_at": datetime.utcnow(),
         "answers": graded_answers,
         "score": score,
-        "total_questions": total_questions
+        "total_questions": total_questions,
+        "is_auto_submit": is_auto_submit # Store auto-submit flag
     })
 
     # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
-        'message': f"User {username} submitted an assessment for '{assessments_collection.find_one({'id': assessment_id}).get('title')}'."
+        'message': f"User {username} submitted an assessment for '{assessment_details.get('title')}'."
     }, room=class_room_id)
 
     print(f"Assessment {assessment_id} submitted by {username}. Score: {score}/{total_questions}")
@@ -513,12 +562,119 @@ def get_assessment_submissions(assessmentId):
     # Admins can see all submissions for their assessment
     # Students can only see their own submission (if any)
     query = {"assessmentId": assessmentId}
+    # If not admin, filter by student_id
     if user_role != 'admin':
         query["student_id"] = user_id
 
     submissions = list(assessment_submissions_collection.find(query, {"_id": 0}).sort("submitted_at", -1))
     print(f"Fetched {len(submissions)} submissions for assessment {assessmentId}")
     return jsonify(submissions), 200
+
+@app.route('/api/submissions/<submissionId>', methods=['GET'])
+def get_single_submission(submissionId):
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    submission = assessment_submissions_collection.find_one({"id": submissionId}, {"_id": 0})
+    if not submission:
+        return jsonify({"error": "Submission not found"}), 404
+
+    # Ensure only admin (who owns the assessment) or the submitting student can view
+    assessment = assessments_collection.find_one({"id": submission['assessmentId']})
+    if not assessment:
+        return jsonify({"error": "Associated assessment not found"}), 404
+
+    if user_role == 'admin' and assessment['creator_id'] == user_id:
+        return jsonify(submission), 200
+    elif user_role == 'user' and submission['student_id'] == user_id:
+        return jsonify(submission), 200
+    else:
+        return jsonify({"error": "Forbidden: You do not have permission to view this submission."}), 403
+
+
+@app.route('/api/assessments/<assessmentId>/mark-submission/<submissionId>', methods=['POST'])
+def mark_submission(assessmentId, submissionId):
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+
+    if not user_id or user_role != 'admin':
+        return jsonify({"error": "Unauthorized: Only administrators can mark submissions."}), 401
+
+    assessment = assessments_collection.find_one({"id": assessmentId})
+    if not assessment or assessment['creator_id'] != user_id:
+        return jsonify({"error": "Forbidden: You are not the creator of this assessment."}), 403
+
+    submission = assessment_submissions_collection.find_one({"id": submissionId, "assessmentId": assessmentId})
+    if not submission:
+        return jsonify({"error": "Submission not found for this assessment."}), 404
+
+    data = request.json
+    updated_answers = data.get('updated_answers') # List of {question_id: "...", is_correct: bool, admin_feedback: "..."}
+
+    if not isinstance(updated_answers, list):
+        return jsonify({"error": "updated_answers must be a list"}), 400
+
+    # Create a dictionary for quick lookup of existing answers
+    existing_answers_map = {ans['question_id']: ans for ans in submission['answers']}
+
+    new_score = 0
+    updated_answers_list = []
+
+    for updated_ans_data in updated_answers:
+        q_id = updated_ans_data.get('question_id')
+        is_correct = updated_ans_data.get('is_correct')
+        admin_feedback = updated_ans_data.get('admin_feedback')
+
+        if q_id and q_id in existing_answers_map:
+            original_answer = existing_answers_map[q_id]
+            
+            # Update the original answer with new marking data
+            original_answer['is_correct'] = is_correct
+            original_answer['admin_feedback'] = admin_feedback
+
+            if is_correct:
+                new_score += 1
+            
+            updated_answers_list.append(original_answer)
+        else:
+            print(f"Warning: Question ID {q_id} not found in original submission {submissionId}")
+
+    # Update the submission document
+    result = assessment_submissions_collection.update_one(
+        {"id": submissionId},
+        {"$set": {
+            "answers": updated_answers_list,
+            "score": new_score,
+            "marked_by": user_id,
+            "marked_at": datetime.utcnow()
+        }}
+    )
+
+    if result.modified_count > 0:
+        # Emit Socket.IO event to the student who submitted the assessment
+        socketio.emit('submission_marked', {
+            'assessmentId': assessmentId,
+            'assessmentTitle': assessment['title'],
+            'submissionId': submissionId,
+            'studentId': submission['student_id'],
+            'score': new_score,
+            'total_questions': submission['total_questions']
+        }, room=submission['student_id']) # Emit to the student's user_id room
+
+        # Also emit admin action update to the classroom
+        socketio.emit('admin_action_update', {
+            'classroomId': assessment.get('classroomId'),
+            'message': f"Admin {session.get('username')} marked a submission for '{assessment.get('title')}'."
+        }, room=assessment.get('classroomId'))
+
+        print(f"Submission {submissionId} for assessment {assessmentId} marked by admin {user_id}. New score: {new_score}")
+        return jsonify({"message": "Submission marked successfully", "new_score": new_score}), 200
+    
+    print(f"No changes made to submission {submissionId} during marking.")
+    return jsonify({"message": "No changes made to submission"}), 200
+
 
 @app.route('/api/assessments/<assessmentId>', methods=['DELETE'])
 def delete_assessment(assessmentId):
@@ -654,6 +810,9 @@ def connect():
     if user_id:
         print(f"Client connected: {username} ({user_id}), SID: {request.sid}")
         session['sid'] = request.sid
+        # Join a personal room for direct messages (e.g., submission marked notifications)
+        join_room(user_id)
+        print(f"User {username} ({user_id}) joined personal room: {user_id}")
     else:
         print(f"Unauthenticated client connected, SID: {request.sid}")
 
@@ -672,7 +831,7 @@ def disconnect(sid): # MODIFIED: Added 'sid' argument
     for room_id in rooms(sid):
         # Exclude the user's own SID room and the default Flask-SocketIO app room
         # A simple check: assume classroom IDs are UUIDs (or specific prefix)
-        if room_id != sid and room_id != request.sid:
+        if room_id != sid and room_id != request.sid and room_id != user_id: # Also exclude personal user_id room
             # Check if it's a classroom room (assuming UUID format for classroom IDs)
             if len(room_id) == 36 and '-' in room_id: # Rough check for UUID format
                 classroomId_to_leave = room_id
