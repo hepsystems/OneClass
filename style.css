@@ -624,7 +624,7 @@ h3 {
 }
 
 #whiteboard-canvas {
-    border: 1px solid #ccd6e0;
+    border: 5px solid #ccd6e0;
     background-color: var(--app-bg);
     cursor: crosshair;
     display: block;
