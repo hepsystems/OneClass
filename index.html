@@ -101,6 +101,28 @@
 
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <p id="whiteboard-role-message" class="role-message hidden"></p>
+                    
+                    <!-- Local Video Stream (Admin's own video) -->
+                    <div id="local-video-container" class="video-wrapper">
+                        <video id="local-video" autoplay muted></video>
+                        <div class="video-overlay">Click to zoom</div>
+                    </div>
+
+                    <!-- Remote Video Streams (Other participants' videos) -->
+                    <div id="remote-video-container">
+                        <!-- Remote video wrappers will be dynamically added here by JavaScript -->
+                        <!-- Example of a dynamically added remote video wrapper:
+                        <div class="remote-video-wrapper">
+                            <video id="remote-video-PEERID" autoplay></video>
+                            <p class="remote-username">Participant Name</p>
+                            <div class="video-overlay">Click to zoom</div>
+                        </div>
+                        -->
+                    </div>
+
+                    <canvas id="whiteboard-canvas"></canvas>
+
+                    <!-- Whiteboard Control Panel - MOVED BELOW CANVAS -->
                     <div id="whiteboard-control-panel">
                         <div id="whiteboard-tools-container">
                             <div class="tool-group">
@@ -131,31 +153,13 @@
                         </div>
                     </div>
 
+                    <!-- Whiteboard Navigation - MOVED BELOW CONTROL PANEL -->
                     <div id="whiteboard-navigation">
                         <button id="prev-whiteboard-page-btn" class="btn-secondary"><i class="fas fa-chevron-left"></i></button>
                         <span id="whiteboard-page-display">Page 1/1</span>
                         <button id="next-whiteboard-page-btn" class="btn-secondary"><i class="fas fa-chevron-right"></i></button>
                     </div>
 
-                    <!-- Local Video Stream (Admin's own video) -->
-                    <div id="local-video-container" class="video-wrapper">
-                        <video id="local-video" autoplay muted></video>
-                        <div class="video-overlay">Click to zoom</div>
-                    </div>
-
-                    <!-- Remote Video Streams (Other participants' videos) -->
-                    <div id="remote-video-container">
-                        <!-- Remote video wrappers will be dynamically added here by JavaScript -->
-                        <!-- Example of a dynamically added remote video wrapper:
-                        <div class="remote-video-wrapper">
-                            <video id="remote-video-PEERID" autoplay></video>
-                            <p class="remote-username">Participant Name</p>
-                            <div class="video-overlay">Click to zoom</div>
-                        </div>
-                        -->
-                    </div>
-
-                    <canvas id="whiteboard-canvas"></canvas>
                 </div>
 
                 <div id="chat-section" class="classroom-sub-section hidden">
