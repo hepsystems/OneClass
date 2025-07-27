@@ -27,125 +27,126 @@
     /* Spacing */
     --spacing-xs: 5px;
     --spacing-sm: 10px;
-    --spacing-md: 15px;
-    --spacing-lg: 20px;
-    --spacing-xl: 25px;
-    --spacing-xxl: 30px;
+    --spacing-md: 20px;
+    --spacing-lg: 30px;
+    --spacing-xl: 40px;
 
-    /* Border Radii */
-    --border-radius-sm: 5px;
-    --border-radius-md: 6px;
-    --border-radius-lg: 8px;
-    --border-radius-xl: 12px;
-
-    /* Transitions */
-    --transition-fast: 0.2s ease;
-    --transition-normal: 0.3s ease;
-    --transition-slow: 0.4s ease;
+    /* Borders and Shadows */
+    --border-radius: 8px;
+    --card-shadow: 0 4px 8px var(--subtle-shadow);
+    --button-shadow: 0 2px 4px var(--subtle-shadow);
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', sans-serif;
     margin: 0;
     padding: 0;
     background-color: var(--body-bg);
+    color: var(--text-color);
+    line-height: 1.6;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
     min-height: 100vh;
-    box-sizing: border-box;
-    color: var(--text-color);
 }
 
 #app {
     background-color: var(--app-bg);
-    padding: var(--spacing-xxl);
-    border-radius: var(--border-radius-xl);
-    box-shadow: 0 6px 20px var(--medium-shadow);
-    width: 95%;
-    max-width: 1400px;
-    margin-top: var(--spacing-xxl);
-    margin-bottom: var(--spacing-xxl);
-    box-sizing: border-box;
+    border-radius: var(--border-radius);
+    box-shadow: var(--strong-shadow);
+    width: 100%;
+    max-width: 1200px;
+    margin: var(--spacing-md);
+    padding: var(--spacing-md);
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 60px);
-    overflow: hidden;
 }
 
 section {
-    padding: var(--spacing-xl);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-xl);
-    flex-grow: 1;
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: var(--app-bg);
+    box-shadow: var(--card-shadow);
+    margin-bottom: var(--spacing-md);
+}
+
+section.hidden {
     display: none;
-    box-shadow: 0 2px 8px var(--subtle-shadow);
 }
 
-/* Headings */
-h2, h3, h4 {
-    color: var(--text-color);
-    font-weight: 600;
-    margin-bottom: var(--spacing-lg); /* Default margin for headings */
-}
-h2 {
-    border-bottom: 2px solid var(--body-bg);
-    padding-bottom: var(--spacing-sm);
-}
-h3 {
-    border-bottom: 1px dashed var(--border-color);
-    padding-bottom: var(--spacing-sm);
-}
-
-/* Visibility Classes */
-.hidden {
-    display: none !important;
-}
-
-.active {
-    display: block !important;
-}
-
-/* Role-specific highlights */
-.admin-feature-highlight {
-    border: 1px solid var(--primary-color);
-    background-color: #e6f7ff;
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-lg);
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-color);
+    margin-top: 0;
     margin-bottom: var(--spacing-md);
-    color: var(--primary-dark-color);
-    font-weight: 500;
 }
 
-.user-view-subtle {
-    border: 1px solid var(--success-color);
-    background-color: #e6ffe6;
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-lg);
+/* Forms and Inputs */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
     margin-bottom: var(--spacing-md);
-    color: #1e7e34;
-    font-weight: 500;
 }
 
-/* Base Button Styles */
-.btn-base {
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="datetime-local"],
+input[type="number"],
+textarea,
+select {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    font-size: 1em;
+    width: 100%; /* Full width by default */
+    box-sizing: border-box; /* Include padding in width */
+}
+
+input[type="file"] {
+    padding: var(--spacing-sm) 0;
+}
+
+label {
+    margin-bottom: var(--spacing-xs);
+    font-weight: bold;
+    color: var(--light-text-color);
+}
+
+/* Buttons */
+button {
+    padding: var(--spacing-sm) var(--spacing-md);
     border: none;
-    border-radius: var(--border-radius-md);
+    border-radius: var(--border-radius);
     cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
+    font-size: 1em;
+    font-weight: bold;
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+    box-shadow: var(--button-shadow);
 }
 
-.btn-base:hover {
-    transform: translateY(-2px);
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px var(--subtle-shadow);
 }
 
-/* Specific Button Variants */
+button:active {
+    transform: translateY(0);
+    box-shadow: var(--button-shadow);
+}
+
+button:disabled {
+    background-color: var(--secondary-color);
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+}
+
 .btn-primary {
     background-color: var(--primary-color);
     color: white;
 }
+
 .btn-primary:hover {
     background-color: var(--primary-dark-color);
 }
@@ -154,6 +155,7 @@ h3 {
     background-color: var(--success-color);
     color: white;
 }
+
 .btn-success:hover {
     background-color: var(--success-dark-color);
 }
@@ -162,6 +164,7 @@ h3 {
     background-color: var(--danger-color);
     color: white;
 }
+
 .btn-danger:hover {
     background-color: var(--danger-dark-color);
 }
@@ -170,6 +173,7 @@ h3 {
     background-color: var(--info-color);
     color: white;
 }
+
 .btn-info:hover {
     background-color: var(--info-dark-color);
 }
@@ -178,1702 +182,1013 @@ h3 {
     background-color: var(--secondary-color);
     color: white;
 }
+
 .btn-secondary:hover {
     background-color: var(--secondary-dark-color);
 }
 
-/* Base Input Styles */
-.input-base {
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+/* Messages and Notifications */
+.error {
+    color: var(--danger-color);
+    background-color: rgba(220, 53, 69, 0.1);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-sm);
+    border: 1px solid var(--danger-color);
 }
 
-.input-base:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
+.success {
+    color: var(--success-color);
+    background-color: rgba(40, 167, 69, 0.1);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-sm);
+    border: 1px solid var(--success-color);
+}
+
+.notification-message {
+    position: fixed;
+    top: var(--spacing-md);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--info-color);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    box-shadow: var(--medium-shadow);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none; /* Allows clicks to pass through */
+}
+
+.notification-message.show {
+    opacity: 1;
+}
+
+.notification-message.error-notification {
+    background-color: var(--danger-color);
+}
+
+.notification-message.success-notification {
+    background-color: var(--success-color);
 }
 
 /* Auth Section */
-#auth-section, #settings-section {
-    max-width: 550px;
-    margin: 40px auto;
+#auth-section {
+    max-width: 400px;
+    margin: var(--spacing-xl) auto;
     text-align: center;
-    background-color: var(--app-bg);
-    box-shadow: 0 4px 15px var(--medium-shadow);
-    border: none; /* Override default section border */
-    padding: var(--spacing-xxl); /* Add padding here for consistency */
-    border-radius: var(--border-radius-lg); /* Ensure rounded corners */
 }
 
-#auth-section h2, #auth-section h3 {
-    margin-bottom: var(--spacing-xl);
+#login-container, #register-container {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    margin-top: var(--spacing-md);
 }
 
-#auth-section form {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-xl);
-}
-
-#auth-section input[type="email"],
-#auth-section input[type="password"],
-#auth-section input[type="text"],
-#auth-section select {
-    /* Apply base input styles */
-    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-}
-#auth-section input[type="email"]:focus,
-#auth-section input[type="password"]:focus,
-#auth-section input[type="text"]:focus,
-#auth-section select:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-}
-
-#auth-section button {
-    /* Apply base button styles */
-    /* @extend is a Sass/Less feature. In plain CSS, you'd repeat properties or use utility classes in HTML. */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--primary-color);
-    color: white;
-    padding: 12px 20px;
-    font-size: 18px;
-    font-weight: 600;
-}
-#auth-section button:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-2px);
-}
-
-#auth-section p {
-    margin-top: var(--spacing-lg);
-    color: var(--light-text-color);
+#auth-section h3 {
+    color: var(--secondary-color);
+    margin-bottom: var(--spacing-md);
 }
 
 #auth-section a {
     color: var(--primary-color);
     text-decoration: none;
-    font-weight: 500;
 }
 
 #auth-section a:hover {
     text-decoration: underline;
 }
 
-#auth-message {
-    margin-top: var(--spacing-lg);
-    font-weight: bold;
-    color: var(--danger-color);
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
-}
-
 /* Dashboard Section */
-#dashboard-section {
-    display: flex;
-    flex-direction: column;
-    padding: var(--spacing-xxl); /* Slightly more padding for dashboard */
-    box-shadow: 0 8px 25px var(--medium-shadow); /* More prominent shadow */
-    background-color: #fcfdfe; /* Lighter background for a fresh look */
-    border: none; /* Remove default border */
-}
-
 #dashboard-section h2 {
+    text-align: center;
     margin-bottom: var(--spacing-lg);
-    color: #2c3e50; /* Darker heading color */
-}
-
-.main-nav {
-    display: flex;
-    justify-content: flex-start;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xxl);
-    padding-bottom: var(--spacing-md);
-    border-bottom: 1px solid var(--light-border-color);
-}
-
-.main-nav button {
-    background-color: transparent; /* Remove background */
-    border: none;
-    border-bottom: 2px solid transparent; /* For active state indicator */
-    border-radius: 0; /* Remove border-radius to make it a line */
-    cursor: pointer;
-    font-weight: 500;
-    transition: all var(--transition-normal); /* Transition for all properties */
-    color: var(--light-text-color); /* Default text color */
-    padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 16px;
-}
-
-.main-nav button:hover:not(.active-nav) {
-    color: var(--primary-color); /* Highlight text on hover */
-    border-color: var(--primary-color); /* Show border on hover */
-    transform: translateY(-2px); /* Slight lift on hover */
-    box-shadow: none; /* Ensure no shadow on hover */
-}
-
-.main-nav button.active-nav {
-    background-color: transparent; /* Keep background transparent */
-    color: var(--primary-color); /* Active state text color */
-    border-color: var(--primary-color); /* Active state border color */
-    font-weight: 600; /* Bolder text for active state */
-    box-shadow: none; /* No shadow for active state */
-    cursor: default;
-    transform: none; /* No transform for active state */
-}
-
-#dashboard-section p {
-    font-size: 1.1em;
-    margin-bottom: var(--spacing-md);
-    color: var(--light-text-color);
-}
-
-#current-username-display, #classroom-id-display {
-    font-weight: 600;
-    color: var(--primary-color);
 }
 
 #create-join-classroom {
-    display: grid; /* Use grid for layout */
-    grid-template-columns: 1fr 2fr; /* One column for creation, two for list */
-    gap: var(--spacing-xl); /* Gap between sections */
-    margin-top: var(--spacing-xxl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-lg);
 }
 
-#create-classroom-section {
-    background-color: #f9fbfd;
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-xl);
+#create-classroom-section, #join-classroom-section {
+    padding: var(--spacing-md);
     border: 1px solid var(--border-color);
-    box-shadow: 0 2px 10px var(--subtle-shadow); /* Add shadow to creation section */
-}
-
-#create-classroom-section h3 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    color: #444;
-}
-
-#new-classroom-name {
-    /* Apply base input styles */
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-
-    width: calc(100% - 22px);
-    margin-bottom: var(--spacing-md);
-}
-#new-classroom-name:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-}
-
-#create-classroom-btn {
-    /* Use success button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--success-color);
-    color: white;
-    padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 16px;
-    transform: none; /* Override base hover transform if not desired here */
-}
-#create-classroom-btn:hover {
-    background-color: var(--success-dark-color);
-    transform: translateY(-2px); /* Re-apply if needed */
-}
-
-
-#classroom-message {
-    margin-top: var(--spacing-md);
-    font-weight: bold;
-    color: var(--success-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
 }
 
 #classroom-list {
     list-style: none;
     padding: 0;
-    margin-top: 0; /* Remove top margin as it's now part of grid */
+    margin-top: var(--spacing-md);
 }
 
 #classroom-list li {
-    background-color: #fdfefe;
+    background-color: var(--light-border-color);
+    padding: var(--spacing-sm) var(--spacing-md);
     margin-bottom: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--border-radius);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    gap: var(--spacing-sm);
+    flex-wrap: wrap; /* Allow wrapping on small screens */
 }
 
-#classroom-list li:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--medium-shadow);
+#classroom-list li span {
+    flex-grow: 1;
+    word-break: break-all; /* Break long IDs */
+    padding-right: var(--spacing-sm);
 }
 
-#classroom-list button {
-    /* Use primary button variant to give it "more feel" */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--primary-color); /* Changed from secondary to primary */
-    color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 15px;
-    transform: none; /* Override base hover transform if not desired here */
+#classroom-list li button {
+    flex-shrink: 0;
+    min-width: 100px; /* Ensure buttons are readable */
 }
-#classroom-list button:hover {
-    background-color: var(--primary-dark-color); /* Darken primary color on hover */
-    transform: translateY(-2px); /* Re-apply if needed */
+
+.search-input {
+    margin-bottom: var(--spacing-md);
+}
+
+/* Main Navigation (Dashboard, Classroom, Settings) */
+.main-nav {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    background-color: var(--primary-color);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+}
+
+.main-nav button {
+    background-color: transparent;
+    color: var(--sidebar-text);
+    border: 1px solid transparent;
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.main-nav button:hover {
+    background-color: var(--primary-dark-color);
+}
+
+.main-nav button.active-nav {
+    background-color: var(--primary-dark-color);
+    border-color: var(--sidebar-text);
 }
 
 /* Classroom Section */
 #classroom-section {
     display: flex;
     flex-direction: column;
-    padding: 0;
-    border: none;
-    flex-grow: 1;
-    height: 100%;
+    height: calc(100vh - 2 * var(--spacing-md)); /* Adjust height for full view */
+    max-width: 100%; /* Override max-width of #app for this section */
+    margin: 0; /* Remove margin from #app for this section */
+    padding: 0; /* Remove padding from #app for this section */
+    box-shadow: none; /* Remove shadow for full layout */
+    background-color: var(--body-bg); /* Use body background for overall classroom area */
 }
 
 .classroom-header {
     display: flex;
     align-items: center;
-    padding: var(--spacing-md) var(--spacing-xl);
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
-    gap: var(--spacing-lg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    justify-content: space-between;
+    padding: var(--spacing-md);
+    background-color: var(--app-bg);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--subtle-shadow);
+    flex-shrink: 0; /* Don't shrink header */
 }
 
 .classroom-header h2 {
     margin: 0;
+    font-size: 1.5em;
     flex-grow: 1;
+    text-align: center;
 }
 
-.classroom-header p {
-    margin: 0;
-    font-size: 0.95em;
-    color: #666;
-}
-
-#class-code {
-    font-weight: bold;
-    color: var(--primary-color);
-}
-
-/* Hamburger Menu Icon */
-.hamburger-menu {
+.classroom-header .hamburger-menu {
+    display: none; /* Hidden by default on desktop */
+    font-size: 1.5em;
     background: none;
     border: none;
-    font-size: 28px;
-    cursor: pointer;
-    color: var(--light-text-color);
-    padding: var(--spacing-xs);
-    transition: color var(--transition-normal);
-}
-
-.hamburger-menu:hover {
     color: var(--primary-color);
+    cursor: pointer;
+    padding: 0;
 }
 
+.classroom-header .btn-secondary {
+    margin-left: var(--spacing-md);
+}
+
+.classroom-content-wrapper {
+    display: flex;
+    flex-grow: 1; /* Allows content to take remaining height */
+    overflow: hidden; /* Hide overflow from content */
+}
+
+/* Sidebar */
 .sidebar {
-    height: 65vh;
-    width: 200px;
-    position: fixed;
-    top: 60px;
-    left: 0;
-    z-index: 50;
+    width: 250px;
     background-color: var(--sidebar-bg);
-    overflow-x: hidden;
-    transition: transform var(--transition-slow);
-    padding-top: var(--spacing-lg);
     color: var(--sidebar-text);
-    box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+    padding: var(--spacing-md);
     display: flex;
     flex-direction: column;
-    transform: translateX(-100%);
-    border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;
-}
-
-.sidebar.active {
-    transform: translateX(0);
+    gap: var(--spacing-sm);
+    box-shadow: var(--medium-shadow);
+    flex-shrink: 0; /* Don't shrink sidebar */
+    transition: transform 0.3s ease-in-out;
+    position: relative; /* For close button positioning */
 }
 
 .sidebar button {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    padding: 18px 25px;
-    font-size: 17px;
+    background-color: transparent;
     color: var(--sidebar-text);
-    display: block;
-    background: none;
-    width: 100%;
+    border: none;
     text-align: left;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-    transform: none; /* Reset transform for sidebar buttons base state */
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: 1.1em;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
 }
 
 .sidebar button:hover {
     background-color: var(--sidebar-hover-bg);
-    color: #ffffff;
-    transform: none; /* No transform on hover for sidebar buttons */
-}
-
-.sidebar button:last-child {
-    border-bottom: none;
 }
 
 .sidebar button.active-nav {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: 600;
-    box-shadow: inset 5px 0 0 var(--success-color);
+    background-color: var(--sidebar-hover-bg);
+    border-left: 4px solid var(--primary-color);
+    padding-left: calc(var(--spacing-md) - 4px);
 }
 
 .sidebar .close-btn {
+    display: none; /* Hidden on desktop */
     position: absolute;
-    top: var(--spacing-lg);
-    right: var(--spacing-xl);
-    font-size: 40px;
-    color: var(--sidebar-text);
+    top: var(--spacing-sm);
+    right: var(--spacing-sm);
+    font-size: 2em;
     background: none;
     border: none;
+    color: var(--sidebar-text);
     cursor: pointer;
-    line-height: 1;
-    padding: 0;
-    margin: 0;
 }
 
-/* Classroom Content Wrapper */
-.classroom-content-wrapper {
-    display: flex;
-    flex-grow: 1;
-    position: relative;
-    height: calc(100vh - 180px);
-    padding-top: var(--spacing-lg);
+.sidebar h4 {
+    color: var(--primary-color);
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: var(--spacing-xs);
 }
 
-.classroom-sub-section {
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    margin: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
-    padding: var(--spacing-lg);
-    flex-grow: 1;
+.sidebar .broadcast-options {
     display: flex;
     flex-direction: column;
-    height: auto;
-    background-color: var(--app-bg);
-    box-shadow: 0 2px 8px var(--subtle-shadow);
-    overflow: auto;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
 }
 
-/* Whiteboard specific styles */
-#whiteboard-area {
-    position: relative;
+.sidebar .broadcast-options label {
+    color: var(--sidebar-text);
+    font-weight: normal;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    padding: 0;
-    border: none;
-    box-shadow: none;
-    margin: 0;
-    background-color: #fdfdfd;
+    gap: var(--spacing-xs);
 }
 
-#whiteboard-canvas {
-    border: 1px solid #ccd6e0;
+.sidebar .broadcast-options input[type="radio"] {
+    width: auto;
+    margin-right: 5px;
+}
+
+/* Classroom Sub-sections */
+.classroom-sub-section {
+    flex-grow: 1;
+    padding: var(--spacing-md);
     background-color: var(--app-bg);
-    cursor: crosshair;
-    display: block;
-    width: 98%;
-    max-width: 100%;
-    height: auto;
-    min-height: 400px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.07);
-    border-radius: var(--border-radius-lg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    margin: var(--spacing-md);
+    overflow-y: auto; /* Enable scrolling for content */
 }
 
-#whiteboard-role-message {
-    background-color: #fff3cd;
-    color: #856404;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid #ffeeba;
-    border-radius: var(--border-radius-sm);
+.classroom-sub-section.hidden {
+    display: none;
+}
+
+/* Chat Section */
+#chat-messages {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    height: 400px; /* Fixed height for chat scroll */
+    overflow-y: auto;
     margin-bottom: var(--spacing-md);
-    width: fit-content;
-    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
 }
 
-/* New Styles for Whiteboard Controls */
-#whiteboard-control-panel {
+.chat-message-item {
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    max-width: 80%;
+    word-wrap: break-word;
+    box-shadow: var(--subtle-shadow);
+}
+
+.chat-message-current-user {
+    background-color: var(--primary-color);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 0;
+}
+
+.chat-message-other-user {
+    background-color: var(--light-border-color);
+    color: var(--text-color);
+    align-self: flex-start;
+    border-bottom-left-radius: 0;
+}
+
+.chat-message-admin {
+    border: 2px solid var(--info-color); /* Highlight admin messages */
+    box-shadow: 0 0 5px rgba(23, 162, 184, 0.5);
+}
+
+.chat-sender-name {
+    font-weight: bold;
+    margin-right: var(--spacing-xs);
+}
+
+.chat-timestamp {
+    font-size: 0.8em;
+    color: var(--light-text-color);
+}
+
+.chat-message-current-user .chat-timestamp {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-input-area {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+#chat-input {
+    flex-grow: 1;
+}
+
+#send-chat-button {
+    flex-shrink: 0;
+}
+
+/* Whiteboard Section */
+#whiteboard-area {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
-    width: 98%;
-    max-width: 100%;
-    padding: var(--spacing-md) 0;
-    background-color: #f0f4f7;
-    border-radius: var(--border-radius-lg);
-    box-shadow: 0 2px 8px var(--subtle-shadow);
+    position: relative; /* For video positioning */
+}
+
+#whiteboard-control-panel {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--light-border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 #whiteboard-tools-container {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    background-color: #e9ecef;
-    border-radius: var(--border-radius-md);
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-    width: 95%; /* Adjust width within the control panel */
-    max-width: 700px;
-}
-
-#whiteboard-tools-container h4 {
-    display: none; /* Hide the heading as it's no longer in the sidebar */
+    align-items: center;
 }
 
 .tool-group {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    justify-content: center;
+    gap: var(--spacing-xs);
     align-items: center;
+    background-color: var(--app-bg);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
 }
 
-.tool-group.tool-settings {
-    background-color: #dcdfe6;
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--border-radius-md);
-}
-
-.tool-group.action-buttons {
-    background-color: #e6f7ff;
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--border-radius-md);
-}
-
-.tool-button,
-.action-button {
-    width: 48px; /* Fixed width for circular buttons */
-    height: 48px; /* Fixed height for circular buttons */
-    border-radius: 50%; /* Make them circular */
+.tool-button, .action-button {
+    width: 40px;
+    height: 40px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    font-size: 1.2em; /* Larger icon size */
+    align-items: center;
+    font-size: 1.2em;
+    background-color: var(--secondary-color);
     color: white;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.2); /* More prominent shadow */
-    transition: all var(--transition-fast) ease-in-out;
-    background-color: var(--primary-color); /* Default color for tools */
-    border: 2px solid transparent;
+    border-radius: 50%; /* Circular buttons */
+    padding: 0; /* Remove padding for fixed size */
 }
 
-.tool-button:hover,
-.action-button:hover {
-    transform: scale(1.1) translateY(-2px); /* Pop out slightly on hover */
-    box-shadow: 0 6px 15px rgba(0,0,0,0.3); /* Enhanced shadow on hover */
-    background-color: var(--primary-dark-color);
+.tool-button.active, .action-button:hover {
+    background-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
 }
 
-.tool-button.active {
-    background-color: var(--success-color); /* Highlight active tool */
-    border-color: white; /* White border for active tool */
-    box-shadow: 0 0 0 4px var(--success-dark-color), 0 6px 15px rgba(0,0,0,0.3);
-}
-
-.tool-button#toolEraser { background-color: var(--danger-color); }
-.tool-button#toolEraser.active { background-color: var(--danger-dark-color); }
-
-.action-button {
-    background-color: var(--secondary-color); /* Different color for action buttons */
-}
-
-.action-button:hover {
-    background-color: var(--secondary-dark-color);
-}
-
-.action-button.undo-button { background-color: #ffc107; color: #333; }
-.action-button.undo-button:hover { background-color: #e0a800; }
-.action-button.redo-button { background-color: #17a2b8; }
-.action-button.redo-button:hover { background-color: #138496; }
-.action-button.clear-button { background-color: #dc3545; }
-.action-button.clear-button:hover { background-color: #c82333; }
-.action-button.save-button { background-color: #28a745; }
-.action-button.save-button:hover { background-color: #218838; }
-
-#share-whiteboard-btn {
-    width: auto; /* Allow natural width for this button */
-    border-radius: var(--border-radius-md); /* Not circular */
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-top: var(--spacing-sm);
-    font-size: 1em;
-    background-color: var(--info-color);
-    color: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-}
-
-#share-whiteboard-btn:hover {
-    background-color: var(--info-dark-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-
-label {
-    color: var(--text-color);
-    font-weight: 500;
+.tool-settings label {
     margin-right: var(--spacing-xs);
-    font-size: 0.9em;
+    color: var(--text-color);
 }
 
-input[type="color"] {
-    width: 35px;
-    height: 35px;
-    border: 2px solid var(--border-color);
-    border-radius: 50%;
-    display: block;
-    margin: 0;
+.tool-settings input[type="color"] {
+    width: 40px;
+    height: 40px;
     padding: 0;
-    overflow: hidden;
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-input[type="color"]::-webkit-color-swatch-wrapper {
-    padding: 0;
-}
-
-input[type="color"]::-webkit-color-swatch {
     border: none;
     border-radius: 50%;
-}
-
-input[type="range"] {
-    width: 100px;
-    margin: 0;
-    -webkit-appearance: none;
-    appearance: none;
-    height: 6px;
-    background: var(--light-border-color);
-    outline: none;
-    border-radius: var(--border-radius-sm);
-    opacity: 0.9;
-    transition: opacity var(--transition-fast);
-    cursor: grab;
-}
-
-input[type="range"]:hover {
-    opacity: 1;
-}
-input[type="range"]:active {
-    cursor: grabbing;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--primary-color);
     cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
-input[type="range"]::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--primary-color);
-    cursor: pointer;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+.tool-settings input[type="range"] {
+    width: 80px;
+    margin-left: var(--spacing-xs);
 }
-
 
 #whiteboard-navigation {
     display: flex;
-    justify-content: center;
     align-items: center;
-    padding: var(--spacing-sm);
-    background-color: var(--app-bg);
-    border-top: 1px solid var(--border-color);
-    flex-shrink: 0;
-    width: 95%;
-    max-width: 500px;
-    border-radius: var(--border-radius-lg);
+    gap: var(--spacing-sm);
     margin-top: var(--spacing-md);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: var(--spacing-md);
+    background-color: var(--light-border-color);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
 }
 
 #whiteboard-navigation button {
-    /* Make buttons round */
-    width: 40px; /* Adjust size to be circular */
-    height: 40px; /* Adjust size to be circular */
-    border-radius: 50%; /* Make them circular */
-    padding: 0; /* Remove padding to allow content to center */
-    display: flex; /* Use flexbox to center icon/text */
-    align-items: center;
+    width: 40px;
+    height: 40px;
+    display: flex;
     justify-content: center;
-    font-size: 18px; /* Adjust icon size */
-    margin: 0 6px;
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-#whiteboard-navigation button:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-1px) scale(1.05); /* Slightly pop out on hover */
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    align-items: center;
+    border-radius: 50%;
+    font-size: 1.2em;
 }
 
 #whiteboard-page-display {
-    font-weight: 600;
-    margin: 0 var(--spacing-md);
+    font-weight: bold;
     color: var(--text-color);
-    font-size: 1.0em;
 }
 
-#share-link-display {
-    background-color: #e9f5ff;
-    border: 1px solid #b3d7ff;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: var(--border-radius-lg);
-    display: flex;
-    gap: var(--spacing-sm);
-    align-items: center;
-    margin-top: var(--spacing-lg);
-    width: 90%;
-    max-width: 600px;
-    box-shadow: 0 2px 5px var(--subtle-shadow);
+#whiteboard-canvas {
+    background-color: #000000; /* Black background for whiteboard */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    touch-action: none; /* Prevent browser default touch actions like scrolling/zooming */
+    max-width: 100%; /* Ensure canvas is responsive */
+    height: auto; /* Maintain aspect ratio */
+    display: block; /* Remove extra space below canvas */
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.1);
 }
 
-#share-link-input {
-    flex-grow: 1;
-    border: none;
-    background-color: transparent;
-    font-size: 16px;
-    color: var(--primary-dark-color);
-    padding: var(--spacing-xs);
-    cursor: text;
-}
-
-#copy-share-link-btn {
-    background-color: var(--success-color);
-    color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px;
-    border-radius: var(--border-radius-md);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-#copy-share-link-btn:hover {
-    background-color: var(--success-dark-color);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-}
-
-/* Video Broadcast controls inside sidebar */
-#video-broadcast-section {
-    padding: var(--spacing-lg);
-    border-top: 1px solid rgba(255,255,255,0.1);
-    text-align: center;
-    background-color: var(--sidebar-hover-bg);
-    border-radius: var(--border-radius-lg);
-    margin: var(--spacing-md);
-}
-
-#video-broadcast-section h4 {
-    margin-top: 0;
-    color: white;
-    margin-bottom: var(--spacing-md);
-}
-
-.broadcast-options {
-    display: flex;
-    justify-content: center;
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-lg);
-}
-
-.broadcast-options label {
-    color: var(--sidebar-text);
-    font-size: 1.05em;
-    cursor: pointer;
-}
-
-.broadcast-options input[type="radio"] {
-    margin-right: 8px;
-    accent-color: var(--primary-color);
-}
-
-#start-broadcast, #end-broadcast {
-    /* Use danger button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--danger-color);
-    color: white;
-    padding: var(--spacing-sm) 18px;
-    font-size: 15px;
-    margin: var(--spacing-xs);
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    transform: none; /* Override base hover transform if not desired here */
-}
-#start-broadcast:hover, #end-broadcast:hover:not(:disabled) {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-2px); /* Re-apply if needed */
-}
-
-#end-broadcast:disabled {
-    background-color: var(--secondary-color);
-    cursor: not-allowed;
-    opacity: 0.7;
-    transform: none;
-}
-
-.role-message {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid #f5c6cb;
-    border-radius: var(--border-radius-sm);
-    margin-top: var(--spacing-md);
-    font-size: 0.9em;
-    text-align: center;
-}
-
-/* Local and Remote Video Display */
-#local-video {
-    width: 160px;
-    height: 120px;
-    background-color: var(--text-color);
-    border: 2px solid var(--primary-color);
+/* Video Broadcast Styling */
+#local-video-container {
+    width: 200px; /* Smaller default size for local video */
+    height: 150px;
     position: absolute;
-    bottom: var(--spacing-lg);
-    left: var(--spacing-lg);
-    z-index: 10;
-    border-radius: var(--border-radius-sm);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    object-fit: cover;
+    bottom: var(--spacing-md);
+    right: var(--spacing-md);
+    z-index: 500; /* Ensure it's above canvas */
+    box-shadow: var(--medium-shadow);
+    border: 2px solid var(--primary-color);
+    background-color: black; /* Background for video area */
 }
+
 #remote-video-container {
     position: absolute;
-    top: var(--spacing-lg);
-    left: var(--spacing-lg);
+    top: var(--spacing-md);
+    left: var(--spacing-md);
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-md);
-    z-index: 5;
+    gap: var(--spacing-sm);
+    z-index: 500; /* Ensure it's above canvas */
+    max-height: 80%; /* Limit height to prevent overflow */
+    overflow-y: auto; /* Scroll if too many videos */
 }
-#remote-video-container video {
-    width: 180px;
-    height: 135px;
-    background-color: var(--text-color);
-    border: 2px solid var(--success-color);
-    border-radius: var(--border-radius-sm);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    object-fit: cover;
+
+.remote-video-wrapper {
+    width: 160px; /* Smaller default size for remote videos */
+    height: 120px;
+    box-shadow: var(--medium-shadow);
+    border: 1px solid var(--secondary-color);
+    background-color: black; /* Background for video area */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative; /* For username overlay */
 }
-/* Notifications within whiteboard area */
-#notifications-container {
+
+.remote-video-wrapper .remote-username {
     position: absolute;
-    top: var(--spacing-lg);
-    right: var(--spacing-lg);
-    z-index: 20;
+    bottom: var(--spacing-xs);
+    left: var(--spacing-xs);
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.7em;
+    z-index: 10;
+}
+
+/* Zoomable Video Specific Styles */
+.video-wrapper {
+    position: relative; /* Needed for positioning overlays and controlling overflow */
+    overflow: hidden; /* Crucial to clip content outside the normal bounds when zoomed */
+    cursor: zoom-in; /* Indicate it's zoomable */
+    transition: all 0.2s ease-in-out; /* Smooth transition for zoom */
+    border: 1px solid var(--border-color); /* Add a subtle border */
+    border-radius: var(--border-radius);
+    background-color: var(--app-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.video-wrapper video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensures video fits without cropping by default */
+    transform-origin: center center; /* Default zoom origin */
+    transition: transform 0.2s ease-in-out; /* Smooth transition for zoom */
+}
+
+/* Optional: Overlay text to indicate zoomability */
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3); /* Semi-transparent overlay */
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.9em;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s ease;
+    pointer-events: none; /* Allows clicks to pass through to the video */
+    border-radius: var(--border-radius); /* Match container */
+}
+
+.video-wrapper:hover .video-overlay {
+    opacity: 1; /* Show overlay on hover */
+}
+
+/* Zoomed state class */
+.video-zoomed {
+    cursor: zoom-out; /* Indicate it's zoom-outable */
+    /* When zoomed, the container might need to expand or be positioned differently
+       depending on desired UX. For now, it just changes cursor and applies transform. */
+}
+
+
+/* Library Section */
+#library-files-list {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    min-height: 150px;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
-    max-width: 300px;
-}
-.notification-message {
-    background-color: rgba(44, 62, 80, 0.9);
-    color: green;
-    padding: 12px 18px;
-    border-radius: var(--border-radius-lg);
-    opacity: 0;
-    transition: opacity 0.5s ease-in-out, transform var(--transition-normal);
-    min-width: 220px;
-    text-align: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    transform: translateY(-10px);
-}
-.notification-message.show {
-    opacity: 1;
-    transform: translateY(0);
-}
-/* Classroom Sub-section structure (Chat, Library, Assessments) */
-#chat-section, #library-section, #assessments-section {
-    /* These sections are expected to be children of .classroom-content-wrapper and inherit styles from .classroom-sub-section. Remove redundant border, padding, box-shadow, background-color that are already set by .classroom-sub-section. */
-    border: none; /* Already handled by classroom-sub-section */
-    padding: 0; /* Already handled by classroom-sub-section */
-    box-shadow: none; /* Already handled by classroom-sub-section */
-    background-color: var(--app-bg); /* Already handled by classroom-sub-section */
-}
-#chat-section h3, #library-section h3, #assessments-section h3 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-    padding-bottom: var(--spacing-sm);
-    border-bottom: 1px solid var(--light-border-color);
 }
 
-/* --- Chat Message Styling (Updated) --- */
-
-/* Container for all chat messages */
-#chat-messages {
-    flex-grow: 1; /* Allows the chat area to expand */
-    overflow-y: auto; /* Enables scrolling for messages */
-    padding: var(--spacing-md);
-    background-color: var(--app-bg); /* White background for the chat area */
-    border-radius: var(--border-radius-lg); /* More rounded container */
-    margin-bottom: var(--spacing-md); /* More space below */
-    display: flex; /* Use flexbox for messages */
-    flex-direction: column; /* Stack messages vertically */
-    gap: var(--spacing-sm); /* Space between messages */
-    box-shadow: inset 0 1px 5px rgba(0,0,0,0.05); /* Subtle inner shadow */
-}
-
-/* Base style for individual chat message items */
-.chat-message-item {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-radius: 18px; /* Rounded corners for chat bubbles */
-    max-width: 80%; /* Limit message width */
-    word-wrap: break-word; /* Ensure long words wrap */
-    line-height: 1.4;
-    font-size: 0.95em;
-    box-shadow: var(--subtle-shadow); /* Subtle shadow for depth */
-    position: relative; /* For potential absolute positioning of elements like timestamp */
-}
-
-/* Styling for messages sent by the current user */
-.chat-message-current-user {
-    align-self: flex-end; /* Align to the right */
-    background-color: var(--primary-color); /* Primary color background */
-    color: white; /* White text for contrast */
-    border-bottom-right-radius: 2px; /* Sharpen bottom-right corner for "tail" effect */
-    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2); /* Slightly stronger shadow for sent messages */
-}
-
-/* Styling for messages sent by other users */
-.chat-message-other-user {
-    align-self: flex-start; /* Align to the left */
-    background-color: var(--body-bg); /* Lighter background for other messages */
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-bottom-left-radius: 2px; /* Sharpen bottom-left corner for "tail" effect */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.08); /* Consistent shadow */
-}
-
-/* Styling for messages sent by admin users */
-.chat-message-admin {
-    border: 2px solid var(--info-color); /* Info color border for admin messages */
-    background-color: #e6f7ff; /* Light blue background */
-    color: var(--text-color);
-    box-shadow: 0 2px 5px rgba(23, 162, 184, 0.2); /* Shadow with info color tint */
-}
-
-/* Styling for the sender's name within a message */
-.chat-sender-name {
-    font-weight: bold;
-    margin-right: var(--spacing-xs);
-    color: var(--primary-dark-color); /* Default sender name color */
-}
-
-/* Override sender name color for current user messages */
-.chat-message-current-user .chat-sender-name {
-    color: rgba(255, 255, 255, 0.9); /* Lighter color for sender name on primary background */
-}
-
-/* Override sender name color for admin messages */
-.chat-message-admin .chat-sender-name {
-    color: var(--info-dark-color); /* Darker info color for admin sender name */
-}
-
-/* Styling for the timestamp within a message */
-.chat-timestamp {
-    font-size: 0.75em; /* Slightly larger timestamp */
-    color: rgba(0, 0, 0, 0.5); /* Slightly faded color for timestamp */
-    margin-left: var(--spacing-xs);
-    white-space: nowrap; /* Prevent timestamp from wrapping */
-}
-
-/* Override timestamp color for current user messages */
-.chat-message-current-user .chat-timestamp {
-    color: rgba(255, 255, 255, 0.6); /* Lighter color for timestamp on primary background */
-}
-
-/* Override timestamp color for admin messages */
-.chat-message-admin .chat-timestamp {
-    color: rgba(0, 0, 0, 0.6); /* Keep consistent with other users for admin */
-}
-
-
-/* Chat input area */
-.chat-input-area {
-    display: flex;
-    gap: var(--spacing-sm);
-    padding-top: var(--spacing-md);
-    border-top: 1px solid var(--border-color);
-}
-#chat-input {
-    /* Apply base input styles */
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-    flex-grow: 1;
-}
-#chat-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-}
-
-#send-chat-button {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--primary-color);
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    flex-shrink: 0;
-}
-#send-chat-button:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-2px);
-}
-
-/* Library Section */
-#library-items {
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    padding: var(--spacing-md);
-    overflow-y: auto;
-    margin-bottom: var(--spacing-md);
-    background-color: #fdfdfd;
-}
-
-#library-items p {
-    color: var(--light-text-color);
-    text-align: center;
-    margin-top: var(--spacing-xl);
-}
-
-#library-items ul {
-    list-style: none;
-    padding: 0;
-}
-
-#library-items li {
-    background-color: #f9fbfd;
-    margin-bottom: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
+#library-files-list div {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    background-color: var(--light-border-color);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
 }
 
-#library-items li:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--medium-shadow);
+#library-files-list a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: bold;
 }
 
-#library-items button {
-    /* Use danger button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--danger-color);
-    color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px;
-}
-#library-items button:hover {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-2px);
+#library-files-list a:hover {
+    text-decoration: underline;
 }
 
 #upload-library-files-btn {
-    /* Use success button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--success-color);
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    width: 100%;
     margin-top: var(--spacing-md);
 }
-#upload-library-files-btn:hover {
-    background-color: var(--success-dark-color);
-    transform: translateY(-2px);
-}
 
-/* Assessment Section */
+/* Assessments Section */
 #assessment-creation-container {
-    background-color: #f9fbfd;
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    margin-bottom: var(--spacing-xl);
-    border: 1px solid var(--border-color);
-}
-
-#assessment-creation-form label {
-    display: block;
-    margin-bottom: var(--spacing-xs);
-    font-weight: 500;
-    color: var(--text-color);
-}
-
-#assessment-creation-form input[type="text"],
-#assessment-creation-form textarea,
-#assessment-creation-form select,
-#assessment-creation-form input[type="datetime-local"], /* New style for datetime-local */
-#assessment-creation-form input[type="number"] { /* New style for number input */
-    /* Apply base input styles */
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-
-    width: calc(100% - 30px); /* Adjust width */
-    margin-bottom: var(--spacing-md);
-    display: block;
-}
-#assessment-creation-form input[type="text"]:focus,
-#assessment-creation-form textarea:focus,
-#assessment-creation-form select:focus,
-#assessment-creation-form input[type="datetime-local"]:focus,
-#assessment-creation-form input[type="number"]:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-}
-
-.question-block {
-    border: 1px dashed var(--border-color);
     padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     margin-bottom: var(--spacing-lg);
-    border-radius: var(--border-radius-md);
-    background-color: #fefefe;
+    box-shadow: var(--subtle-shadow);
 }
 
-.question-block label {
-    font-weight: 600;
-    margin-top: var(--spacing-sm);
-    margin-bottom: var(--spacing-xs);
-}
-
-.mcq-options {
-    margin-left: var(--spacing-md);
-    margin-top: var(--spacing-sm);
-}
-
-.mcq-options div {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
-}
-
-.mcq-options input[type="text"] {
-    flex-grow: 1;
-    width: auto; /* Override default width */
-    margin-bottom: 0;
-}
-
-.mcq-options input[type="radio"],
-.mcq-options input[type="checkbox"] {
-    accent-color: var(--primary-color);
-    transform: scale(1.2);
-}
-
-.add-option-btn, .remove-option-btn {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    padding: 6px 10px;
-    font-size: 0.85em;
-    margin-left: var(--spacing-xs);
-}
-
-.add-option-btn {
-    background-color: var(--info-color);
-    color: white;
-}
-.add-option-btn:hover {
-    background-color: var(--info-dark-color);
-    transform: translateY(-1px);
-}
-
-.remove-option-btn {
-    background-color: var(--danger-color);
-    color: white;
-}
-.remove-option-btn:hover {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-1px);
-}
-
-.remove-question-btn {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--danger-color);
-    color: white;
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 0.9em;
-    margin-top: var(--spacing-md);
-    display: block;
-    width: fit-content;
-}
-.remove-question-btn:hover {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-1px);
-}
-
-#add-question-btn, #submit-assessment-btn {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    padding: 10px 20px;
-    font-size: 16px;
-    margin-top: var(--spacing-md);
-}
-
-#add-question-btn {
-    background-color: var(--secondary-color);
-    color: white;
-}
-#add-question-btn:hover {
-    background-color: var(--secondary-dark-color);
-    transform: translateY(-2px);
-}
-
-#submit-assessment-btn {
-    background-color: var(--primary-color);
-    color: white;
-}
-#submit-assessment-btn:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-2px);
-}
-
-#assessment-list {
+#assessment-creation-form h5 {
     margin-top: var(--spacing-lg);
-}
-
-#no-assessments-message {
-    text-align: center;
-    color: var(--light-text-color);
-}
-
-#assessment-list div {
-    background-color: #fdfefe;
     margin-bottom: var(--spacing-sm);
-    padding: var(--spacing-md) var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    color: var(--secondary-color);
 }
 
-#assessment-list div:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--medium-shadow);
-}
-
-#assessment-list button {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 15px;
-    margin-left: var(--spacing-sm);
-}
-
-#assessment-list .btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-}
-#assessment-list .btn-primary:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-2px);
-}
-
-#assessment-list .btn-info {
-    background-color: var(--info-color);
-    color: white;
-}
-#assessment-list .btn-info:hover {
-    background-color: var(--info-dark-color);
-    transform: translateY(-2px);
-}
-
-#assessment-list .btn-danger {
-    background-color: var(--danger-color);
-    color: white;
-}
-#assessment-list .btn-danger:hover {
-    background-color: var(--danger-dark-color);
-    transform: translateY(-2px);
-}
-
-#take-assessment-container, #view-submissions-container {
-    background-color: #f9fbfd;
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    margin-top: var(--spacing-xl);
-    border: 1px solid var(--border-color);
-}
-
-#take-assessment-container h4, #view-submissions-container h4 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-md);
-}
-
-/* New: Timer styling */
-#assessment-timer {
-    font-size: 1.5em;
-    font-weight: bold;
-    color: var(--danger-color); /* Red for urgency */
-    text-align: center;
-    margin-bottom: var(--spacing-lg);
-    padding: var(--spacing-sm);
-    border: 2px solid var(--danger-color);
-    border-radius: var(--border-radius-md);
-    background-color: #fff0f0; /* Light red background */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-
-#take-assessment-form .question-display {
-    background-color: #fff;
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
-    border: 1px solid #eef1f4;
-}
-
-#take-assessment-form .question-display p {
-    font-weight: 600;
-    margin-bottom: var(--spacing-sm);
-    color: var(--text-color);
-}
-
-#take-assessment-form .mcq-option-label {
-    display: block;
-    margin-bottom: var(--spacing-xs);
-    cursor: pointer;
-}
-
-#take-assessment-form .mcq-option-label input[type="radio"],
-#take-assessment-form .mcq-option-label input[type="checkbox"] {
-    margin-right: var(--spacing-sm);
-    accent-color: var(--primary-color);
-    transform: scale(1.1);
-}
-
-#take-assessment-form textarea {
-    min-height: 80px;
-}
-
-#submit-answers-btn, #back-to-assessment-list-btn {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    padding: 10px 20px;
-    font-size: 16px;
-    margin-top: var(--spacing-md);
-}
-
-#submit-answers-btn {
-    background-color: var(--success-color);
-    color: white;
-}
-#submit-answers-btn:hover {
-    background-color: var(--success-dark-color);
-    transform: translateY(-2px);
-}
-
-#back-to-assessment-list-btn {
-    background-color: var(--secondary-color);
-    color: white;
-    margin-left: var(--spacing-md);
-}
-#back-to-assessment-list-btn:hover {
-    background-color: var(--secondary-dark-color);
-    transform: translateY(-2px);
-}
-
-#assessment-submission-message {
-    margin-top: var(--spacing-md);
-    font-weight: bold;
-    color: var(--success-color);
-    text-align: center;
-}
-
-#submissions-list .submission-item {
-    background-color: #fff;
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
-    border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
-
-#submissions-list .submission-item h5 {
-    margin-top: 0;
-    margin-bottom: var(--spacing-sm);
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-#submissions-list .submission-item p {
-    font-size: 0.95em;
-    margin-bottom: var(--spacing-xs);
-}
-
-#submissions-list .submission-item strong {
-    color: var(--text-color);
-}
-
-#back-to-assessment-list-from-submissions-btn {
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--secondary-color);
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    margin-top: var(--spacing-md);
-}
-#back-to-assessment-list-from-submissions-btn:hover {
-    background-color: var(--secondary-dark-color);
-    transform: translateY(-2px);
-}
-
-/* Settings Section */
-#settings-section {
-    max-width: 600px;
-    margin: 40px auto;
-}
-
-#update-profile-form {
+#questions-container {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
-    margin-top: var(--spacing-xl);
+    margin-bottom: var(--spacing-md);
 }
 
-#update-profile-form label {
-    font-weight: 500;
+.question-item {
+    border: 1px dashed var(--light-border-color);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: #f9f9f9;
+}
+
+.question-item label {
+    margin-bottom: var(--spacing-xs);
+    display: block;
+}
+
+.question-item input[type="text"],
+.question-item select {
+    margin-bottom: var(--spacing-sm);
+}
+
+.mcq-options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding-left: var(--spacing-md);
+    border-left: 2px solid var(--border-color);
+    margin-top: var(--spacing-sm);
+}
+
+.mcq-options input[type="text"] {
+    width: calc(100% - 10px); /* Adjust width for padding */
+}
+
+#add-question-btn {
+    margin-top: var(--spacing-md);
+    margin-right: var(--spacing-sm);
+}
+
+#assessment-list-container {
+    margin-top: var(--spacing-lg);
+}
+
+#assessment-list {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.assessment-item {
+    background-color: var(--light-border-color);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.assessment-item h4 {
+    margin: 0;
+    font-size: 1.2em;
+}
+
+.assessment-item p {
+    margin: 0;
+    font-size: 0.9em;
+    color: var(--light-text-color);
+}
+
+.assessment-item div:last-child { /* Buttons container */
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* Take Assessment View */
+#take-assessment-container {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
+}
+
+#take-assessment-form {
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.question-display {
+    border: 1px solid var(--light-border-color);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: #f9f9f9;
+}
+
+.question-display label {
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-sm);
+    display: block;
+}
+
+.question-display textarea {
+    width: 100%;
+    margin-top: var(--spacing-sm);
+}
+
+.mcq-option-radio {
+    margin-right: var(--spacing-xs);
+    width: auto; /* Override default input width */
+}
+
+.mcq-option-label {
+    display: inline-block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: normal;
     color: var(--text-color);
+}
+
+#assessment-timer {
+    font-size: 1.5em;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    background-color: var(--light-border-color);
+    color: var(--text-color);
+}
+
+#assessment-timer.upcoming {
+    background-color: #e0f2f7; /* Light blue */
+    color: #007bff;
+}
+
+#assessment-timer.active {
+    background-color: #e6ffe6; /* Light green */
+    color: #28a745;
+}
+
+#assessment-timer.warning {
+    background-color: #fff3cd; /* Light yellow */
+    color: #856404;
+}
+
+#assessment-timer.critical {
+    background-color: #f8d7da; /* Light red */
+    color: #dc3545;
+    animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(1.02); opacity: 0.9; }
+}
+
+#assessment-timer.ended {
+    background-color: #f8d7da; /* Light red */
+    color: #dc3545;
+}
+
+/* Submissions View (Admin Only) */
+#view-submissions-container {
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--subtle-shadow);
+}
+
+#submissions-list {
+    margin-top: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.submission-item {
+    border: 1px solid var(--light-border-color);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: #f9f9f9;
+    box-shadow: var(--subtle-shadow);
+}
+
+.submission-item h5 {
+    margin-top: 0;
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary-color);
+}
+
+.submission-item p {
     margin-bottom: var(--spacing-xs);
 }
 
-#update-profile-form input[type="text"],
-#update-profile-form input[type="email"] {
-    /* Apply base input styles */
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
-    border-radius: var(--border-radius-md);
-    font-size: 16px;
-    transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-
-    width: calc(100% - 30px);
-}
-#update-profile-form input[type="text"]:focus,
-#update-profile-form input[type="email"]:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
-}
-
-#update-profile-form input[type="email"]:disabled {
-    background-color: #e9ecef;
-    color: #888;
-    cursor: not-allowed;
-}
-
-#update-profile-form button[type="submit"] {
-    /* Apply primary button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--primary-color);
-    color: white;
-    padding: 12px 20px;
-    font-size: 18px;
-    margin-top: var(--spacing-md);
-}
-#update-profile-form button[type="submit"]:hover {
-    background-color: var(--primary-dark-color);
-    transform: translateY(-2px);
-}
-
-#back-to-dashboard-from-settings {
-    /* Apply secondary button variant */
-    /* Apply base button styles */
-    border: none;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color var(--transition-normal), transform var(--transition-fast);
-
-    background-color: var(--secondary-color);
-    color: white;
-    padding: 10px 20px;
-    font-size: 16px;
-    margin-top: var(--spacing-xl);
-    width: fit-content;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-}
-#back-to-dashboard-from-settings:hover {
-    background-color: var(--secondary-dark-color);
-    transform: translateY(-2px);
-}
-
-/* Search Input Styling */
-.search-input {
-    width: calc(100% - 30px); /* Adjust width to match other inputs */
-    margin-bottom: var(--spacing-md); /* Space below the search bar */
-    padding: 10px 15px;
+.question-answer-pair {
+    background-color: var(--app-bg);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-md);
-    font-size: 1em;
-    box-shadow: inset 0 1px 3px rgba(0,0,0,0.05); /* Inner shadow for depth */
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    margin-bottom: var(--spacing-sm);
 }
 
-.search-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
-    outline: none;
+.marking-area {
+    margin-top: var(--spacing-md);
+    border-top: 1px dashed var(--secondary-color);
+    padding-top: var(--spacing-md);
 }
 
+.marking-question-item {
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    border: 1px solid var(--light-border-color);
+    border-radius: var(--border-radius);
+    background-color: #fcfcfc;
+}
 
-/* Responsive adjustments */
-@media (max-width: 1024px) {
+.marking-question-item label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    margin-bottom: var(--spacing-sm);
+}
+
+.marking-question-item input[type="checkbox"] {
+    width: auto;
+    margin-right: 0;
+}
+
+.marking-question-item textarea {
+    margin-top: var(--spacing-sm);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.save-marks-btn, .cancel-marking-btn {
+    margin-top: var(--spacing-sm);
+    margin-right: var(--spacing-sm);
+}
+
+/* Admin/User Role Specific Styling (Visual Cues) */
+[data-admin-only].admin-feature-highlight {
+    border: 2px dashed var(--primary-color);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-md);
+    background-color: rgba(0, 123, 255, 0.05); /* Light blue tint */
+}
+
+[data-user-only].user-view-subtle {
+    border: 1px solid var(--info-color);
+    background-color: rgba(23, 162, 184, 0.05); /* Light info tint */
+}
+
+.role-message {
+    color: var(--danger-color);
+    font-style: italic;
+    text-align: center;
+    margin-top: var(--spacing-sm);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
     #app {
-        padding: var(--spacing-lg);
-        margin-top: var(--spacing-lg);
-        margin-bottom: var(--spacing-lg);
-        width: 98%;
-        min-height: calc(100vh - 40px);
+        margin: var(--spacing-sm);
+        padding: var(--spacing-sm);
     }
 
-    section {
-        padding: var(--spacing-lg);
-        margin-bottom: var(--spacing-lg);
+    .main-nav {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
     }
 
     .classroom-header {
-        flex-wrap: wrap;
-        padding: var(--spacing-md);
+        padding: var(--spacing-sm);
+    }
+
+    .classroom-header h2 {
+        font-size: 1.2em;
+        text-align: left;
+        flex-grow: 0;
+    }
+
+    .classroom-header .hamburger-menu {
+        display: block; /* Show hamburger on mobile */
     }
 
     .classroom-content-wrapper {
-        height: auto;
         flex-direction: column;
+        overflow-y: auto; /* Allow content to scroll */
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        transform: translateX(-100%); /* Hidden off-screen */
+        z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+        width: 200px; /* Smaller sidebar */
+    }
+
+    .sidebar.active {
+        transform: translateX(0); /* Slide in */
+    }
+
+    .sidebar .close-btn {
+        display: block; /* Show close button on mobile sidebar */
+    }
+
+    body.sidebar-open {
+        overflow: hidden; /* Prevent scrolling body when sidebar is open */
     }
 
     .classroom-sub-section {
         margin: var(--spacing-sm) 0;
-        min-height: 400px;
+        padding: var(--spacing-sm);
     }
 
-    #whiteboard-canvas {
-        min-height: 300px;
+    #whiteboard-control-panel {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    #local-video {
+    #whiteboard-tools-container {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+    }
+
+    .tool-group {
+        width: 100%;
+        justify-content: space-around;
+        padding: var(--spacing-xs);
+    }
+
+    .tool-settings {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .tool-settings input[type="range"] {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    #local-video-container {
         width: 120px;
         height: 90px;
         bottom: var(--spacing-sm);
+        right: var(--spacing-sm);
+    }
+
+    #remote-video-container {
+        padding: var(--spacing-sm); /* Reduce padding on smaller screens */
         left: var(--spacing-sm);
-    }
-
-    #remote-video-container video {
-        width: 100px;
-        height: 75px;
-    }
-
-    .sidebar {
-        width: 260px;
-        padding-top: 70px;
-    }
-
-    .sidebar button {
-        padding: var(--spacing-md) var(--spacing-lg);
-        font-size: 16px;
-    }
-
-    #whiteboard-tools-container,
-    #video-broadcast-section {
-        padding: var(--spacing-md);
-        margin: var(--spacing-sm);
-    }
-
-    .tool-button,
-    .action-button {
-        padding: 8px 12px;
-        font-size: 14px;
-        min-width: 70px;
-    }
-
-    input[type="color"] {
-        width: 30px;
-        height: 30px;
-    }
-
-    input[type="range"] {
-        width: 80px;
-    }
-
-    #whiteboard-navigation {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-        margin-top: var(--spacing-sm);
-        width: 98%;
-    }
-
-    #whiteboard-navigation button {
-        width: 40px; /* Keep circular on smaller screens */
-        height: 40px; /* Keep circular on smaller screens */
-        padding: 0; /* Keep padding 0 */
-        margin: 0; /* Remove margin to allow full width usage if necessary */
-    }
-
-    #share-link-display {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-        width: 98%;
-    }
-
-    #share-link-input {
-        text-align: center;
-        width: 100%;
-    }
-
-    #copy-share-link-btn {
-        width: 100%;
-    }
-
-    #local-video {
-        width: 120px;
-        height: 90px;
-        bottom: var(--spacing-md);
-        left: var(--spacing-md);
     }
 
     #remote-video-container video {
@@ -1913,9 +1228,7 @@ input[type="range"]::-moz-range-thumb {
 
     #assessment-creation-form input[type="text"],
     #assessment-creation-form textarea,
-    #assessment-creation-form select,
-    #assessment-creation-form input[type="datetime-local"],
-    #assessment-creation-form input[type="number"] {
+    #assessment-creation-form select {
         width: calc(100% - 20px);
     }
 
@@ -1933,12 +1246,12 @@ input[type="range"]::-moz-range-thumb {
         gap: var(--spacing-sm);
     }
 
-    #assessment-list button {
+    .assessment-item div:last-child {
         width: 100%;
+        justify-content: flex-start;
     }
 
-    #create-join-classroom {
-        grid-template-columns: 1fr; /* Stack columns on smaller screens */
-        gap: var(--spacing-md);
+    #take-assessment-container, #view-submissions-container {
+        padding: var(--spacing-sm);
     }
 }
