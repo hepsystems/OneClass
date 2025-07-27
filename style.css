@@ -27,17 +27,16 @@
     /* Spacing */
     --spacing-xs: 5px;
     --spacing-sm: 10px;
-    --spacing-md: 15px; /* Original was 20px, adjusted to match user's latest file */
-    --spacing-lg: 20px; /* Original was 30px, adjusted to match user's latest file */
-    --spacing-xl: 25px; /* New spacing variable */
-    --spacing-xxl: 30px; /* New spacing variable */
+    --spacing-md: 15px;
+    --spacing-lg: 20px;
+    --spacing-xl: 25px;
+    --spacing-xxl: 30px;
 
-    /* Borders and Shadows */
-    --border-radius: 8px; /* Original was 8px, kept consistent */
-    --border-radius-sm: 5px; /* New specific border radius */
-    --border-radius-md: 6px; /* New specific border radius */
-    --border-radius-lg: 8px; /* New specific border radius */
-    --border-radius-xl: 12px; /* New specific border radius */
+    /* Border Radii */
+    --border-radius-sm: 5px;
+    --border-radius-md: 6px;
+    --border-radius-lg: 8px;
+    --border-radius-xl: 12px;
 
     /* Transitions */
     --transition-fast: 0.2s ease;
@@ -46,13 +45,13 @@
 }
 
 body {
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; /* Original font family */
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     margin: 0;
     padding: 0;
     background-color: var(--body-bg);
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Aligns content to the top */
+    align-items: flex-start;
     min-height: 100vh;
     box-sizing: border-box;
     color: var(--text-color);
@@ -60,27 +59,27 @@ body {
 
 #app {
     background-color: var(--app-bg);
-    padding: var(--spacing-xxl); /* Uses new spacing variable */
-    border-radius: var(--border-radius-xl); /* Uses new border radius variable */
-    box-shadow: 0 6px 20px var(--medium-shadow); /* Stronger shadow */
+    padding: var(--spacing-xxl);
+    border-radius: var(--border-radius-xl);
+    box-shadow: 0 6px 20px var(--medium-shadow);
     width: 95%;
-    max-width: 1400px; /* Increased max-width */
+    max-width: 1400px;
     margin-top: var(--spacing-xxl);
     margin-bottom: var(--spacing-xxl);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 60px); /* Adjusted for top/bottom margins */
+    min-height: calc(100vh - 60px);
     overflow: hidden;
 }
 
 section {
-    padding: var(--spacing-xl); /* Uses new spacing variable */
+    padding: var(--spacing-xl);
     border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg); /* Uses new border radius variable */
-    margin-bottom: var(--spacing-xl); /* Uses new spacing variable */
+    border-radius: var(--border-radius-lg);
+    margin-bottom: var(--spacing-xl);
     flex-grow: 1;
-    display: none; /* Hidden by default, shown by .active */
+    display: none;
     box-shadow: 0 2px 8px var(--subtle-shadow);
 }
 
@@ -88,7 +87,7 @@ section {
 h2, h3, h4 {
     color: var(--text-color);
     font-weight: 600;
-    margin-bottom: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg); /* Default margin for headings */
 }
 h2 {
     border-bottom: 2px solid var(--body-bg);
@@ -920,7 +919,8 @@ h3 {
     text-align: center;
 }
 
-/* Video Broadcast Styling - NEW ZOOM-RELATED STYLES */
+/* --- NEW ZOOM-RELATED VIDEO STYLES --- */
+
 /* Base wrapper for all zoomable videos (local and remote) */
 .video-wrapper {
     position: relative; /* Needed for positioning overlays and controlling overflow */
@@ -974,32 +974,41 @@ h3 {
 }
 
 /* Specific positioning and sizing for local and remote video wrappers */
+/* These maintain your original layout for video positions and default sizes */
 #local-video-container {
-    width: 200px; /* Smaller default size for local video */
-    height: 150px;
+    width: 160px; /* Original width */
+    height: 120px; /* Original height */
     position: absolute;
-    bottom: var(--spacing-md);
-    right: var(--spacing-md);
-    z-index: 500; /* Ensure it's above canvas */
-    border: 2px solid var(--primary-color); /* Specific border for local */
+    bottom: var(--spacing-lg); /* Original position */
+    left: var(--spacing-lg); /* Original position */
+    z-index: 10; /* Original z-index */
+    border: 2px solid var(--primary-color); /* Original border */
+    /* background-color: var(--text-color); -- Removed, handled by .video-wrapper */
+    /* box-shadow: 0 4px 12px rgba(0,0,0,0.3); -- Removed, handled by .video-wrapper */
+    /* border-radius: var(--border-radius-sm); -- Removed, handled by .video-wrapper */
+    /* object-fit: cover; -- Removed, handled by .video-wrapper video */
 }
 
 #remote-video-container {
     position: absolute;
-    top: var(--spacing-md);
-    left: var(--spacing-md);
+    top: var(--spacing-lg);
+    left: var(--spacing-lg);
     display: flex;
     flex-wrap: wrap;
-    gap: var(--spacing-sm);
-    z-index: 500; /* Ensure it's above canvas */
+    gap: var(--spacing-md);
+    z-index: 5;
     max-height: 80%; /* Limit height to prevent overflow */
     overflow-y: auto; /* Scroll if too many videos */
 }
 
 .remote-video-wrapper {
-    width: 160px; /* Smaller default size for remote videos */
-    height: 120px;
-    border: 1px solid var(--secondary-color); /* Specific border for remote */
+    width: 180px; /* Original width */
+    height: 135px; /* Original height */
+    border: 2px solid var(--success-color); /* Original border */
+    /* background-color: var(--text-color); -- Removed, handled by .video-wrapper */
+    /* box-shadow: 0 4px 12px rgba(0,0,0,0.3); -- Removed, handled by .video-wrapper */
+    /* border-radius: var(--border-radius-sm); -- Removed, handled by .video-wrapper */
+    /* object-fit: cover; -- Removed, handled by .video-wrapper video */
     display: flex;
     flex-direction: column; /* To stack video and username */
     justify-content: center;
@@ -1702,17 +1711,17 @@ h3 {
         min-height: 300px;
     }
 
-    /* Video containers in responsive view */
+    /* Video containers in responsive view - adjusted to match original values */
     #local-video-container {
-        width: 120px;
-        height: 90px;
-        bottom: var(--spacing-sm);
-        right: var(--spacing-sm);
+        width: 140px; /* Original responsive width */
+        height: 105px; /* Original responsive height */
+        bottom: var(--spacing-sm); /* Original responsive position */
+        right: var(--spacing-sm); /* Original responsive position */
     }
 
     .remote-video-wrapper {
-        width: 100px;
-        height: 75px;
+        width: 140px; /* Original responsive width */
+        height: 105px; /* Original responsive height */
     }
 
     .sidebar {
