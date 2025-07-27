@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startBroadcastBtn = document.getElementById('start-broadcast');
     const endBroadcastBtn = document.getElementById('end-broadcast');
     const localVideo = document.getElementById('local-video');
+    const localVideoContainer = document.getElementById('local-video-container'); // New: Reference to the local video wrapper
     const remoteVideoContainer = document.getElementById('remote-video-container');
     const broadcastRoleMessage = document.getElementById('broadcast-role-message');
 
@@ -151,6 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const undoStack = []; // For local undo/redo of single actions on current page
     const redoStack = [];
     const MAX_HISTORY_STEPS = 50;
+
+    // Video Zoom States
+    const videoZoomStates = new Map(); // Map: videoElement.id -> { currentScale: 1, isZoomed: false, offsetX: 0, offsetY: 0 }
 
 
     // --- Utility Functions ---
@@ -653,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Admin: If I am the admin broadcaster and have a local stream, create an offer for the new participant
             if (currentUser && currentUser.role === 'admin' && localStream && localStream.active && data.sid !== socket.id) {
                 console.log(`[WebRTC] Admin (${socket.id}) broadcasting. Creating offer for new peer: ${data.sid}`);
-                createPeerConnection(data.sid, true); // true indicates caller (initiating offer)
+                createPeerConnection(data.sid, true, data.username); // true indicates caller (initiating offer)
             }
         });
 
@@ -669,9 +673,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (peerConnections[peerId]) {
                 peerConnections[peerId].close();
                 delete peerConnections[peerId];
-                const videoElement = document.getElementById(`remote-video-${peerId}`);
-                if (videoElement) {
-                    videoElement.remove();
+                // Remove the entire video wrapper
+                const videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
+                if (videoWrapper) {
+                    videoWrapper.remove();
                 }
             }
         });
@@ -747,8 +752,10 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`[WebRTC] Received WebRTC Offer from: ${data.sender_id} to ${socket.id}`);
 
             const peerId = data.sender_id;
+            // Pass username if available in the offer data, otherwise use a placeholder
+            const peerUsername = data.username || `Peer ${peerId.substring(0, 4)}`;
             if (!peerConnections[peerId]) {
-                createPeerConnection(peerId, false); // false: this peer is the receiver
+                createPeerConnection(peerId, false, peerUsername); // false: this peer is the receiver
             }
 
             try {
@@ -800,9 +807,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (peerConnections[peerId]) {
                 peerConnections[peerId].close();
                 delete peerConnections[peerId];
-                const videoElement = document.getElementById(`remote-video-${peerId}`);
-                if (videoElement) {
-                    videoElement.remove();
+                // Remove the entire video wrapper
+                const videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
+                if (videoWrapper) {
+                    videoWrapper.remove();
                 }
             }
         });
@@ -897,9 +905,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: peerId });
                 peerConnections[peerId].close();
                 delete peerConnections[peerId];
-                const videoElement = document.getElementById(`remote-video-${peerId}`);
-                if (videoElement) {
-                    videoElement.remove();
+                // Remove the entire video wrapper
+                const videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
+                if (videoWrapper) {
+                    videoWrapper.remove();
                 }
             }
         }
@@ -918,8 +927,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * Creates and configures an RTCPeerConnection for a given peer.
      * @param {string} peerId - The Socket.IO ID of the remote peer.
      * @param {boolean} isCaller - True if this peer initiates the offer (e.g., admin broadcasting).
+     * @param {string} peerUsername - The username of the remote peer (for display).
      */
-    async function createPeerConnection(peerId, isCaller) {
+    async function createPeerConnection(peerId, isCaller, peerUsername) {
         if (peerConnections[peerId]) {
             console.log(`[WebRTC] Peer connection to ${peerId} already exists.`);
             return;
@@ -941,16 +951,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         pc.ontrack = (event) => {
             console.log(`[WebRTC] Remote track received from: ${peerId}, kind: ${event.track.kind}`);
+            let videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
             let remoteVideo = document.getElementById(`remote-video-${peerId}`);
-            if (!remoteVideo) {
+
+            if (!videoWrapper) {
+                videoWrapper = document.createElement('div');
+                videoWrapper.className = 'remote-video-wrapper';
+                videoWrapper.id = `video-wrapper-${peerId}`;
+
                 remoteVideo = document.createElement('video');
                 remoteVideo.id = `remote-video-${peerId}`;
                 remoteVideo.autoplay = true;
                 remoteVideo.playsInline = true;
                 remoteVideo.controls = false; // Hide controls for a cleaner look
-                remoteVideoContainer.appendChild(remoteVideo);
-                console.log(`[WebRTC] Created remote video element for: ${peerId}`);
+
+                const usernameDisplay = document.createElement('p');
+                usernameDisplay.className = 'remote-username';
+                usernameDisplay.textContent = peerUsername; // Display the peer's username
+
+                const videoOverlay = document.createElement('div');
+                videoOverlay.className = 'video-overlay';
+                videoOverlay.textContent = 'Click to zoom';
+
+                videoWrapper.appendChild(remoteVideo);
+                videoWrapper.appendChild(usernameDisplay);
+                videoWrapper.appendChild(videoOverlay); // Add the overlay
+                remoteVideoContainer.appendChild(videoWrapper);
+
+                console.log(`[WebRTC] Created remote video element and wrapper for: ${peerId}`);
+                // Initialize zoom for the new remote video
+                initializeZoomableVideo(remoteVideo, videoWrapper);
             }
+
             if (event.streams && event.streams[0]) {
                 remoteVideo.srcObject = event.streams[0];
             } else {
@@ -980,9 +1012,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     peerConnections[peerId].close();
                     delete peerConnections[peerId];
                 }
-                const videoElement = document.getElementById(`remote-video-${peerId}`);
-                if (videoElement) {
-                    videoElement.remove();
+                const videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
+                if (videoWrapper) {
+                    videoWrapper.remove();
                 }
             }
         };
@@ -995,13 +1027,170 @@ document.addEventListener('DOMContentLoaded', () => {
                 socket.emit('webrtc_offer', {
                     classroomId: currentClassroom.id,
                     recipient_id: peerId,
-                    offer: pc.localDescription
+                    offer: pc.localDescription,
+                    username: currentUser.username // Send current user's username with offer
                 });
             } catch (error) {
                 console.error('[WebRTC] Error creating offer:', error);
             }
         }
     }
+
+    // --- Video Zoom Functions ---
+
+    /**
+     * Initializes zoom functionality for a given video element and its container.
+     * @param {HTMLVideoElement} videoElement - The actual <video> DOM element.
+     * @param {HTMLElement} containerElement - The wrapper div containing the video.
+     */
+    function initializeZoomableVideo(videoElement, containerElement) {
+        if (!videoElement || !containerElement) return;
+
+        // Ensure a unique ID for the video element for the map key
+        if (!videoElement.id) {
+            videoElement.id = `video-${Math.random().toString(36).substring(2, 9)}`;
+        }
+
+        // Initialize state for this specific video
+        videoZoomStates.set(videoElement.id, {
+            currentScale: 1,
+            isZoomed: false,
+            offsetX: 0, // For panning after zoom
+            offsetY: 0
+        });
+
+        const zoomStep = 0.5; // How much to zoom in/out each step
+        const maxZoom = 3.0;
+        const minZoom = 1.0;
+
+        let isDragging = false;
+        let startX, startY;
+
+        // Function to apply the transform based on current state
+        function applyTransform(vidId) {
+            const state = videoZoomStates.get(vidId);
+            if (!state) return;
+
+            // Apply transform to the video element itself
+            videoElement.style.transform = `scale(${state.currentScale}) translate(${state.offsetX}px, ${state.offsetY}px)`;
+            videoElement.style.transformOrigin = 'center center'; // Keep origin centered for simplicity
+
+            if (state.isZoomed) {
+                containerElement.classList.add('video-zoomed');
+            } else {
+                containerElement.classList.remove('video-zoomed');
+                // Reset offset when unzoomed
+                state.offsetX = 0;
+                state.offsetY = 0;
+                videoElement.style.transform = 'none'; // Ensure reset
+            }
+        }
+
+        // --- Click/Tap to Toggle Zoom ---
+        containerElement.addEventListener('click', (e) => {
+            const state = videoZoomStates.get(videoElement.id);
+            if (!state) return;
+
+            if (!state.isZoomed) {
+                // Zoom in
+                state.currentScale = 2.0; // Initial zoom level
+                state.isZoomed = true;
+            } else {
+                // Zoom out
+                state.currentScale = 1.0;
+                state.isZoomed = false;
+            }
+            applyTransform(videoElement.id);
+        });
+
+        // --- Optional: Panning when zoomed ---
+        containerElement.addEventListener('mousedown', (e) => {
+            const state = videoZoomStates.get(videoElement.id);
+            if (state && state.isZoomed && e.button === 0) { // Left mouse button
+                isDragging = true;
+                // Calculate start position relative to the video's current transformed position
+                startX = e.clientX - state.offsetX * state.currentScale;
+                startY = e.clientY - state.offsetY * state.currentScale;
+                containerElement.style.cursor = 'grabbing'; // Indicate dragging
+            }
+        });
+
+        containerElement.addEventListener('mousemove', (e) => {
+            const state = videoZoomStates.get(videoElement.id);
+            if (isDragging && state && state.isZoomed) {
+                e.preventDefault(); // Prevent text selection or other default behaviors
+                let newOffsetX = (e.clientX - startX) / state.currentScale;
+                let newOffsetY = (e.clientY - startY) / state.currentScale;
+
+                // Simple boundary check (prevents panning too far out)
+                const maxPanX = (videoElement.offsetWidth * state.currentScale - containerElement.offsetWidth) / (2 * state.currentScale);
+                const maxPanY = (videoElement.offsetHeight * state.currentScale - containerElement.offsetHeight) / (2 * state.currentScale);
+
+                state.offsetX = Math.max(-maxPanX, Math.min(maxPanX, newOffsetX));
+                state.offsetY = Math.max(-maxPanY, Math.min(maxPanY, newOffsetY));
+                
+                applyTransform(videoElement.id);
+            }
+        });
+
+        containerElement.addEventListener('mouseup', () => {
+            isDragging = false;
+            const state = videoZoomStates.get(videoElement.id);
+            if (state && state.isZoomed) {
+                 containerElement.style.cursor = 'zoom-out'; // Restore zoom-out cursor if still zoomed
+            } else {
+                containerElement.style.cursor = 'zoom-in';
+            }
+        });
+
+        containerElement.addEventListener('mouseleave', () => { // Stop drag if mouse leaves container
+            isDragging = false;
+            const state = videoZoomStates.get(videoElement.id);
+            if (state && state.isZoomed) {
+                 containerElement.style.cursor = 'zoom-out';
+            } else {
+                containerElement.style.cursor = 'zoom-in';
+            }
+        });
+
+
+        // --- Optional: Scroll Wheel for Finer Zoom ---
+        containerElement.addEventListener('wheel', (e) => {
+            e.preventDefault(); // Prevent page scrolling
+            const state = videoZoomStates.get(videoElement.id);
+            if (!state) return;
+
+            // Get mouse position relative to the video element
+            const rect = videoElement.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // Calculate current position of mouse relative to video's content
+            const currentContentX = (mouseX / state.currentScale) - state.offsetX;
+            const currentContentY = (mouseY / state.currentScale) - state.offsetY;
+
+            let newScale = state.currentScale;
+            if (e.deltaY < 0) { // Scroll up (zoom in)
+                newScale += zoomStep;
+            } else { // Scroll down (zoom out)
+                newScale -= zoomStep;
+            }
+
+            newScale = Math.max(minZoom, Math.min(maxZoom, newScale));
+
+            if (newScale !== state.currentScale) {
+                state.currentScale = newScale;
+                state.isZoomed = newScale > minZoom; // Update isZoomed based on scale
+
+                // Adjust offsets to zoom towards the mouse pointer
+                state.offsetX = (mouseX / newScale) - currentContentX;
+                state.offsetY = (mouseY / newScale) - currentContentY;
+
+                applyTransform(videoElement.id);
+            }
+        }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
+    }
+
 
     // --- Whiteboard Functions ---
 
@@ -2757,5 +2946,10 @@ async function submitAssessment() {
                 document.body.classList.remove('sidebar-open');
             }
         });
+    }
+
+    // Initialize zoom for local video once DOM is ready
+    if (localVideo && localVideoContainer) {
+        initializeZoomableVideo(localVideo, localVideoContainer);
     }
 });
