@@ -102,22 +102,25 @@
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <p id="whiteboard-role-message" class="role-message hidden"></p>
                     
-                    <!-- Local Video Stream (Admin's own video) -->
-                    <div id="local-video-container" class="video-wrapper">
-                        <video id="local-video" autoplay muted></video>
-                        <div class="video-overlay">Click to zoom</div>
-                    </div>
-
-                    <!-- Remote Video Streams (Other participants' videos) -->
-                    <div id="remote-video-container">
-                        <!-- Remote video wrappers will be dynamically added here by JavaScript -->
-                        <!-- Example of a dynamically added remote video wrapper:
-                        <div class="remote-video-wrapper">
-                            <video id="remote-video-PEERID" autoplay></video>
-                            <p class="remote-username">Participant Name</p>
+                    <!-- NEW: Wrapper for video streams, positioned separately from canvas -->
+                    <div id="video-streams-wrapper">
+                        <!-- Local Video Stream (Admin's own video) -->
+                        <div id="local-video-container" class="video-wrapper">
+                            <video id="local-video" autoplay muted></video>
                             <div class="video-overlay">Click to zoom</div>
                         </div>
-                        -->
+
+                        <!-- Remote Video Streams (Other participants' videos) -->
+                        <div id="remote-video-container">
+                            <!-- Remote video wrappers will be dynamically added here by JavaScript -->
+                            <!-- Example of a dynamically added remote video wrapper:
+                            <div class="remote-video-wrapper">
+                                <video id="remote-video-PEERID" autoplay></video>
+                                <p class="remote-username">Participant Name</p>
+                                <div class="video-overlay">Click to zoom</div>
+                            </div>
+                            -->
+                        </div>
                     </div>
 
                     <canvas id="whiteboard-canvas"></canvas>
