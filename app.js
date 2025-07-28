@@ -1986,10 +1986,11 @@ function handleMouseUp(e) {
         });
     }
 
-   /**
+    /**
  * Submits a new assessment created by an admin.
  */
 async function submitAssessment() {
+    // --- Security and Classroom Checks ---
     if (!currentUser || currentUser.role !== 'admin') {
         showNotification("Only administrators can create assessments.", true);
         return;
@@ -1999,18 +2000,20 @@ async function submitAssessment() {
         return;
     }
 
+    // --- Retrieve Input Values ---
     const title = assessmentTitleInput.value.trim();
     const description = assessmentDescriptionTextarea.value.trim();
-    const scheduledAt = assessmentScheduledAtInput.value;
+    const scheduledAtLocal = assessmentScheduledAtInput.value; // Get the local date/time string from the input
     const durationMinutes = parseInt(assessmentDurationMinutesInput.value, 10);
 
-    const questions = [];
+    const questions = []; // Initialize questions array
 
+    // --- Input Validation (Frontend) ---
     if (!title) {
         displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
         return;
     }
-    if (!scheduledAt) {
+    if (!scheduledAtLocal) { // Check for empty local date/time input
         displayMessage(assessmentCreationMessage, 'Please set a scheduled date and time.', true);
         return;
     }
@@ -2019,6 +2022,27 @@ async function submitAssessment() {
         return;
     }
 
+    // --- DATE/TIME CONVERSION TO UTC (CRUCIAL FIX) ---
+    let scheduledAtUTC = null; // Declare a variable to store the UTC ISO string
+
+    if (scheduledAtLocal) {
+        // Create a Date object from the local date/time string.
+        // The Date constructor will interpret this string in the user's local timezone.
+        const localDate = new Date(scheduledAtLocal);
+
+        // Convert the local Date object to an ISO 8601 string representing UTC time.
+        // .toISOString() always returns a UTC timestamp ending with 'Z'.
+        scheduledAtUTC = localDate.toISOString();
+    } else {
+        // Fallback or error handling if for some reason scheduledAtLocal is empty here
+        console.warn("scheduledAtLocal was empty during UTC conversion attempt.");
+        displayMessage(assessmentCreationMessage, 'Error converting scheduled time. Please ensure the date/time is correctly entered.', true);
+        return;
+    }
+    // --- END OF DATE/TIME CONVERSION ---
+
+
+    // --- Collect Questions ---
     const questionItems = questionsContainer.querySelectorAll('.question-item');
     questionItems.forEach((item, index) => {
         const questionText = item.querySelector('.question-text').value.trim();
@@ -2038,10 +2062,10 @@ async function submitAssessment() {
         if (questionText) {
             questions.push({
                 id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
-                question_text: questionText, // Ensure this key is used for backend
-                question_type: questionType, // Ensure this key is used for backend
-                options: options.length > 0 ? options : undefined, // Only include if options exist
-                correct_answer: correctAnswer || undefined // Only include if correct answer exists
+                question_text: questionText,
+                question_type: questionType,
+                options: options.length > 0 ? options : undefined,
+                correct_answer: correctAnswer || undefined
             });
         }
     });
@@ -2051,6 +2075,7 @@ async function submitAssessment() {
         return;
     }
 
+    // --- Submit Assessment to Backend ---
     try {
         const response = await fetch('/api/assessments', {
             method: 'POST',
@@ -2059,19 +2084,22 @@ async function submitAssessment() {
                 classroomId: currentClassroom.id,
                 title,
                 description,
-                scheduled_at: scheduledAt,         
+                scheduled_at: scheduledAtUTC, // <--- THIS IS THE CRITICAL UPDATED VALUE
                 duration_minutes: durationMinutes,
                 questions // Send the questions array
             })
         });
+
         const result = await response.json();
+
+        // --- Handle Response ---
         if (response.ok) {
             displayMessage(assessmentCreationMessage, result.message, false);
-            assessmentCreationForm.reset();
-            questionsContainer.innerHTML = ''; // Clear questions
-            questionCounter = 0; // Reset counter
-            addQuestionField(); // Add one empty question field back
-            loadAssessments(); // Reload the list of assessments
+            assessmentCreationForm.reset(); // Clear form inputs
+            questionsContainer.innerHTML = ''; // Clear question fields
+            questionCounter = 0; // Reset question counter
+            addQuestionField(); // Add one empty question field back for new assessment
+            loadAssessments(); // Reload the list of assessments to show the new one
             showNotification("Assessment created successfully!");
         } else {
             displayMessage(assessmentCreationMessage, result.error, true);
@@ -2082,7 +2110,8 @@ async function submitAssessment() {
         displayMessage(assessmentCreationMessage, 'An error occurred during submission.', true);
         showNotification('An error occurred during assessment creation.', true);
     }
-} 
+}
+
 
     /**
      * Loads and displays available assessments for the current classroom.
