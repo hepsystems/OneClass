@@ -14,7 +14,6 @@ from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
-from dateutil import parser # ADDED: Import parser from dateutil
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
@@ -299,7 +298,7 @@ def create_assessment():
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     try:
-        scheduled_at = parser.isoparse(scheduled_at_str) # MODIFIED: Using parser.isoparse
+        scheduled_at = datetime.fromisoformat(scheduled_at_str)
     except ValueError:
         return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM"}), 400
 
@@ -857,6 +856,7 @@ def disconnect(sid): # MODIFIED: Added 'sid' argument
         # Exclude the user's own SID room and the default Flask-SocketIO app room
         # A simple check: assume classroom IDs are UUIDs (or specific prefix)
         if room_id != sid and room_id != request.sid and room_id != user_id: # Also exclude personal user_id room
+            # Check if it's a classroom room (assuming UUID format for classroom IDs)
             if len(room_id) == 36 and '-' in room_id: # Rough check for UUID format
                 classroomId_to_leave = room_id
                 break
