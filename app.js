@@ -2001,15 +2001,7 @@ async function submitAssessment() {
 
     const title = assessmentTitleInput.value.trim();
     const description = assessmentDescriptionTextarea.value.trim();
-    
-    const localScheduledAt = new Date(assessmentScheduledAtInput.value);
-if (isNaN(localScheduledAt.getTime())) {
-    displayMessage(assessmentCreationMessage, 'Scheduled date is invalid.', true);
-    return;
-}
-const scheduledAt = localScheduledAt.toISOString(); // ✅ UTC time sent to backend
-
-
+    const scheduledAt = assessmentScheduledAtInput.value;
     const durationMinutes = parseInt(assessmentDurationMinutesInput.value, 10);
 
     const questions = [];
