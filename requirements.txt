@@ -8,3 +8,4 @@ gevent-websocket
 gunicorn
 Flask-SocketIO
 Flask-Cors
+python-dateutil
