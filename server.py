@@ -11,7 +11,13 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key_here' # Replace with a strong, random secret key
+# --- MODIFICATION START ---
+# Fetch SECRET_KEY from environment variable
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_fallback_secret_key') 
+# It's highly recommended to set this variable in your Render environment settings.
+# The 'default_fallback_secret_key' is just a placeholder for local development
+# and should NEVER be used in production.
+# --- MODIFICATION END ---
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1) # Session timeout
 
@@ -20,7 +26,6 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False, async_m
 
 # MongoDB Configuration
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
-# --- MODIFICATION START ---
 # To address the KeyError with gevent and PyMongo's monitoring threads,
 # try setting serverSelectionTimeoutMS and directConnection=True.
 # directConnection=True tells PyMongo to connect only to the specified hosts
@@ -35,7 +40,6 @@ except Exception as e:
     print(f"MongoDB connection failed: {e}")
     # You might want to exit or handle this error more robustly in production
     # sys.exit(1)
-# --- MODIFICATION END ---
 
 db = client.classroom_app
 
