@@ -22,12 +22,11 @@ socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False, async_m
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
 # --- MODIFICATION START ---
 # To address the KeyError with gevent and PyMongo's monitoring threads,
-# try setting serverSelectionTimeoutMS. This might help PyMongo's threads
-# interact more gracefully with gevent's monkey patching.
-# A value of 10000 (10 seconds) is common, adjust if needed.
-# If connecting to a single server and not a replica set, directConnection=True can also help.
+# try setting serverSelectionTimeoutMS and directConnection=True.
+# directConnection=True tells PyMongo to connect only to the specified hosts
+# and bypass server discovery, which often prevents the problematic threads.
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000, directConnection=True)
     # The ismaster command is cheap and does not require auth.
     # It forces PyMongo to try and connect and run server discovery, potentially exposing the threading issue early.
     client.admin.command('ismaster')
