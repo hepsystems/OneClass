@@ -15,11 +15,29 @@ app.config['SECRET_KEY'] = 'your_secret_key_here' # Replace with a strong, rando
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1) # Session timeout
 
-socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False) # manage_session=False to let Flask handle sessions
+# Explicitly set async_mode to 'gevent' for Flask-SocketIO
+socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False, async_mode='gevent') 
 
 # MongoDB Configuration
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
-client = MongoClient(MONGO_URI)
+# --- MODIFICATION START ---
+# To address the KeyError with gevent and PyMongo's monitoring threads,
+# try setting serverSelectionTimeoutMS. This might help PyMongo's threads
+# interact more gracefully with gevent's monkey patching.
+# A value of 10000 (10 seconds) is common, adjust if needed.
+# If connecting to a single server and not a replica set, directConnection=True can also help.
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
+    # The ismaster command is cheap and does not require auth.
+    # It forces PyMongo to try and connect and run server discovery, potentially exposing the threading issue early.
+    client.admin.command('ismaster')
+    print("MongoDB connection successful!")
+except Exception as e:
+    print(f"MongoDB connection failed: {e}")
+    # You might want to exit or handle this error more robustly in production
+    # sys.exit(1)
+# --- MODIFICATION END ---
+
 db = client.classroom_app
 
 users_collection = db.users
