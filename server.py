@@ -9,37 +9,37 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from bson.objectid import ObjectId
+import sys # Import sys for sys.exit()
 
 app = Flask(__name__)
-# --- MODIFICATION START ---
-# Fetch SECRET_KEY from environment variable
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_fallback_secret_key') 
-# It's highly recommended to set this variable in your Render environment settings.
-# The 'default_fallback_secret_key' is just a placeholder for local development
-# and should NEVER be used in production.
-# --- MODIFICATION END ---
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=1) # Session timeout
 
-# Explicitly set async_mode to 'gevent' for Flask-SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*", manage_session=False, async_mode='gevent') 
 
 # MongoDB Configuration
 MONGO_URI = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/')
-# To address the KeyError with gevent and PyMongo's monitoring threads,
-# try setting serverSelectionTimeoutMS and directConnection=True.
-# directConnection=True tells PyMongo to connect only to the specified hosts
-# and bypass server discovery, which often prevents the problematic threads.
+
+# --- MODIFICATION START ---
+# Initialize client to None so it's always defined
+client = None
 try:
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000, directConnection=True)
+    # Removed directConnection=True as it conflicts with multi-host URIs (like replica sets)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=10000)
     # The ismaster command is cheap and does not require auth.
-    # It forces PyMongo to try and connect and run server discovery, potentially exposing the threading issue early.
     client.admin.command('ismaster')
     print("MongoDB connection successful!")
 except Exception as e:
     print(f"MongoDB connection failed: {e}")
-    # You might want to exit or handle this error more robustly in production
-    # sys.exit(1)
+    # Exit if MongoDB connection fails to prevent NameError later
+    sys.exit(1)
+
+# Ensure client is established before proceeding
+if client is None:
+    print("FATAL: MongoDB client could not be initialized. Exiting.")
+    sys.exit(1)
+# --- MODIFICATION END ---
 
 db = client.classroom_app
 
