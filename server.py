@@ -1,3 +1,6 @@
+import gevent.monkey
+gevent.monkey.patch_all()
+
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -734,7 +737,7 @@ def handle_request_whiteboard_history(data):
 
     # If the requested page is beyond what's stored, ensure it's at least an empty array
     # This scenario should be handled by the client requesting existing pages or page 0 initially.
-    # However, if client requests page_index > max_page_index found, pad the array.
+    # But if client requests page_index > max_page_index found, pad the array.
     if page_index is not None and page_index >= len(whiteboard_history_structure):
         # Extend the array with empty lists up to the requested page_index
         for _ in range(len(whiteboard_history_structure), page_index + 1):
