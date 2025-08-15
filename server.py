@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 # --- Configuration and App Setup ---
 app = Flask(__name__, static_folder='.')
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "A_SUPER_SECRET_KEY_THAT_SHOULD_BE_CHANGED_IN_PROD")
+app.secret_key = os.environ.get("SECRET_KEY", "A_SUPER_SECRET_KEY_THAT_SHOULD_BE_CHANGED_IN_PROD")
 app.permanent_session_lifetime = timedelta(days=7)
 
 # Secure CORS configuration:
