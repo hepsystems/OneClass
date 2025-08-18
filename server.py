@@ -1222,6 +1222,62 @@ def handle_admin_action_update(data):
         print(f"Admin action update from {session.get('username')} in {classroomId}: {message}")
 
 
+# --- NEW BIDIRECTIONAL CONFERENCE HANDLERS ---
+@socketio.on('ready_for_conference_peers')
+def handle_ready_for_conference_peers(data):
+    classroomId = data.get('classroomId')
+    sender_sid = request.sid
+    username = session.get('username')
+    
+    if classroomId:
+        # Emit a signal to all other clients in the room that a new user is ready to connect
+        emit('user_ready_for_conference', {
+            'sid': sender_sid,
+            'username': username
+        }, room=classroomId, include_self=False)
+        print(f"User {username} ({sender_sid}) is ready for conference peers in classroom {classroomId}.")
+
+@socketio.on('webrtc_conference_offer')
+def handle_webrtc_conference_offer(data):
+    recipient_id = data.get('recipient_id')
+    offer = data.get('offer')
+    sender_id = request.sid
+
+    if not recipient_id or not offer:
+        print(f"Missing data for webrtc_conference_offer: {data}")
+        return
+    
+    emit('webrtc_conference_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Conference offer from {sender_id} to {recipient_id}")
+
+
+@socketio.on('webrtc_conference_answer')
+def handle_webrtc_conference_answer(data):
+    recipient_id = data.get('recipient_id')
+    answer = data.get('answer')
+    sender_id = request.sid
+
+    if not recipient_id or not answer:
+        print(f"Missing data for webrtc_conference_answer: {data}")
+        return
+    
+    emit('webrtc_conference_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Conference answer from {sender_id} to {recipient_id}")
+
+
+@socketio.on('webrtc_conference_ice_candidate')
+def handle_webrtc_conference_ice_candidate(data):
+    recipient_id = data.get('recipient_id')
+    candidate = data.get('candidate')
+    sender_id = request.sid
+
+    if not recipient_id or not candidate:
+        print(f"Missing data for webrtc_conference_ice_candidate: {data}")
+        return
+    
+    emit('webrtc_conference_ice_candidate', {'candidate': candidate, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Conference ICE Candidate from {sender_id} to {recipient_id}")
+
 # --- Main Run Block ---
 if __name__ == '__main__':
     print("Server running on http://localhost:5000 (with Socket.IO)")
