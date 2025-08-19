@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
+from pymongo.errors import ConnectionFailure # New import to handle connection errors
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
@@ -28,27 +29,33 @@ CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, sup
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
 
 # --- NEW: Fix for gevent/PyMongo threading conflict ---
+# By passing connect=False, PyMongo won't create background monitor threads
+# This is the direct fix for the KeyError.
+# A similar fix is to set the environment variable PYMONGO_DISABLE_MONITORING=1.
 mongo = PyMongo(app, connect=False)
 
 # --- NEW: Check for MongoDB Connection and Log Status ---
 try:
     # Attempt to access a collection to force a connection test
-    # This is an efficient way to check if the connection is active
+    # Note: connect=False means this command will establish the connection
     mongo.db.command('ping')
     print("MongoDB connection successful! 🚀")
+except ConnectionFailure as e:
+    print(f"MongoDB connection failed: {e} ❌. Please check your MONGO_URI and network settings.")
 except Exception as e:
-    print(f"MongoDB connection failed: {e} ❌")
+    print(f"An unexpected error occurred during MongoDB connection test: {e} ❌")
+
 
 # MongoDB Collections
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 library_files_collection = mongo.db.library_files
 assessments_collection = mongo.db.assessments
-assessment_questions_collection = mongo.db.assessment_questions # New
-assessment_submissions_collection = mongo.db.assessment_submissions # New
+assessment_questions_collection = mongo.db.assessment_questions
+assessment_submissions_collection = mongo.db.assessment_submissions
 # Modified whiteboard_collection to store drawings per page
 whiteboard_collection = mongo.db.whiteboard_drawings_pages
-chat_messages_collection = mongo.db.chat_messages # NEW: Collection for chat messages
+chat_messages_collection = mongo.db.chat_messages
 
 # Ensure necessary directories exist for file uploads
 UPLOAD_FOLDER = 'uploads'
@@ -864,54 +871,65 @@ def handle_whiteboard_draw(data):
     })
     
     # Broadcast the drawing to other clients in the room
-    emit('whiteboard_draw', {'drawingData': drawing_data, 'pageNumber': page_number}, room=classroomId, include_sid=False)
-
-# NEW: Clear whiteboard handler
-@socketio.on('clear_whiteboard')
-def handle_clear_whiteboard(data):
+    emit('whiteboard_draw_receive', {
+        'drawingData': drawing_data,
+        'pageNumber': page_number
+    }, room=classroomId, include_sid=False)
+    
+@socketio.on('get_whiteboard_drawings')
+def handle_get_whiteboard_drawings(data):
     classroomId = data.get('classroomId')
     page_number = data.get('pageNumber')
     
-    if not all([classroomId, page_number]):
+    if not classroomId or not page_number:
         return
     
-    # Delete all drawings for the specified page in the specified classroom
-    whiteboard_collection.delete_many({"classroomId": classroomId, "pageNumber": page_number})
+    # Fetch all drawings for the specific classroom and page
+    drawings = list(whiteboard_collection.find({
+        "classroomId": classroomId,
+        "pageNumber": page_number
+    }, {"_id": 0, "drawingData": 1}).sort("timestamp", 1))
     
-    # Broadcast the clear event to all clients in the room
-    emit('clear_whiteboard', {'pageNumber': page_number}, room=classroomId, include_sid=False)
-    print(f"Whiteboard page {page_number} in classroom {classroomId} cleared.")
-
-# NEW: Whiteboard page change handler
-@socketio.on('whiteboard_page_change')
-def handle_whiteboard_page_change(data):
-    classroomId = data.get('classroomId')
-    newPageNumber = data.get('newPageNumber')
-
-    if not all([classroomId, newPageNumber]):
-        return
+    # Extract only the drawingData from each document
+    drawing_data_list = [d['drawingData'] for d in drawings]
     
-    # Broadcast the page change to all other clients in the room
-    emit('whiteboard_page_change', {'newPageNumber': newPageNumber}, room=classroomId, include_sid=False)
-    print(f"Whiteboard page changed to {newPageNumber} in classroom {classroomId}.")
+    emit('load_whiteboard_drawings', {
+        'pageNumber': page_number,
+        'drawings': drawing_data_list
+    }, room=request.sid) # Send only to the requesting client
 
-# NEW: Handlers for video/audio (WebRTC) signaling
-@socketio.on('webrtc_signal')
-def handle_webrtc_signal(data):
+
+# NEW: Live video stream signaling handlers
+@socketio.on('webrtc_offer')
+def handle_webrtc_offer(data):
     recipient_id = data.get('recipient_id')
-    signal_data = data.get('signal_data')
-    sender_sid = request.sid
+    offer = data.get('offer')
+    classroomId = data.get('classroomId')
+    sender_id = request.sid
 
-    if not recipient_id or not signal_data:
-        print("Missing recipient or signal data")
+    if not recipient_id or not offer or not classroomId:
+        print(f"Missing data for webrtc_offer: {data}")
         return
 
-    # Forward the signal to the intended recipient
-    emit('webrtc_signal', {'signal_data': signal_data, 'sender_id': sender_sid}, room=recipient_id)
-    print(f"WEBRTC: Signal from {sender_sid} to {recipient_id}")
+    emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Offer from {sender_id} to {recipient_id} in classroom {classroomId}")
+
+@socketio.on('webrtc_answer')
+def handle_webrtc_answer(data):
+    recipient_id = data.get('recipient_id')
+    answer = data.get('answer')
+    classroomId = data.get('classroomId')
+    sender_id = request.sid
+
+    if not recipient_id or not answer or not classroomId:
+        print(f"Missing data for webrtc_answer: {data}")
+        return
+
+    emit('webrtc_answer', {'answer': answer, 'sender_id': sender_id}, room=recipient_id)
+    print(f"WEBRTC: Answer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
 @socketio.on('webrtc_ice_candidate')
-def handle_ice_candidate(data):
+def handle_webrtc_ice_candidate(data):
     recipient_id = data.get('recipient_id')
     candidate = data.get('candidate')
     classroomId = data.get('classroomId') # Added for context
@@ -949,5 +967,11 @@ def handle_admin_action_update(data):
         print(f"Admin action update from {session.get('username')} in classroom {classroomId}: {message}")
 
 
+# --- Alternative Run Block (for local development or if not using Gunicorn) ---
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=os.environ.get('PORT', 5000))
+    # You can choose to run with a Gunicorn command (preferred for deployment):
+    # gunicorn -k gevent -w 1 server:app  (This still requires `connect=False`)
+    # OR gunicorn -k eventlet -w 1 server:app (As suggested for better stability)
+    #
+    # Or, you can run directly with socketio.run for testing:
+    socketio.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
