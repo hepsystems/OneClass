@@ -27,11 +27,13 @@ app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
 CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True) # Allow all origins for dev
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
 
-mongo = PyMongo(app) # Initialize PyMongo after app config
+# --- NEW: Fix for gevent/PyMongo threading conflict ---
+mongo = PyMongo(app, connect=False)
 
 # --- NEW: Check for MongoDB Connection and Log Status ---
 try:
     # Attempt to access a collection to force a connection test
+    # This is an efficient way to check if the connection is active
     mongo.db.command('ping')
     print("MongoDB connection successful! 🚀")
 except Exception as e:
