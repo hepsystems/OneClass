@@ -9,3 +9,4 @@ gunicorn
 Flask-SocketIO
 Flask-Cors
 python-dateutil
+eventlet>=0.33.0
