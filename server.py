@@ -1,8 +1,8 @@
 # server.py
 
-# --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
-import gevent.monkey
-gevent.monkey.patch_all()
+# --- IMPORTANT: eventlet Monkey Patching MUST be at the very top ---
+import eventlet
+eventlet.monkey_patch()
 
 # --- Standard Imports ---
 from flask import Flask, request, jsonify, send_from_directory, session
@@ -26,9 +26,9 @@ app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
 # --- CORS and SocketIO Setup ---
 # CORS allows cross-origin requests, essential for frontend-backend communication in development
 CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True) # Allow all origins for dev
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True) # Use eventlet async_mode
 
-# --- NEW: Fix for gevent/PyMongo threading conflict ---
+# --- NEW: Fix for PyMongo threading conflict ---
 # By passing connect=False, PyMongo won't create background monitor threads
 # This is the direct fix for the KeyError.
 # A similar fix is to set the environment variable PYMONGO_DISABLE_MONITORING=1.
@@ -44,7 +44,6 @@ except ConnectionFailure as e:
     print(f"MongoDB connection failed: {e} ❌. Please check your MONGO_URI and network settings.")
 except Exception as e:
     print(f"An unexpected error occurred during MongoDB connection test: {e} ❌")
-
 
 # MongoDB Collections
 users_collection = mongo.db.users
