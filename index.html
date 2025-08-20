@@ -53,7 +53,7 @@
             <p>Classroom ID: <span id="classroom-id-display">N/A</span></p>
 
             <div id="create-join-classroom">
-                <div id="create-classroom-section">
+                <div id="create-classroom-section" data-admin-only>
                     <h3>Create New Classroom</h3>
                     <input type="text" id="new-classroom-name" placeholder="Classroom Name">
                     <button id="create-classroom-btn" class="btn-success">Create Classroom</button>
@@ -64,6 +64,7 @@
                     <h3>Your Classrooms & Available Classrooms</h3>
                     <input type="text" id="classroom-search-input" class="search-input" placeholder="Search classrooms...">
                     <ul id="classroom-list">
+                        <!-- Classrooms will be loaded here by JavaScript -->
                         <li>Loading classrooms...</li>
                     </ul>
                 </div>
@@ -83,7 +84,7 @@
                 <button id="nav-whiteboard"><i class="fas fa-chalkboard"></i> Whiteboard</button>
                 <button id="nav-library"><i class="fas fa-book"></i> Library</button>
                 <button id="nav-assessments"><i class="fas fa-clipboard-list"></i> Assessments</button>
-                <div>
+                <div id="video-broadcast-section" data-admin-only>
                     <h4>Video Broadcast</h4>
                     <div class="broadcast-options">
                         <label><input type="radio" name="broadcastType" value="audio_only" checked> Audio Only</label>
@@ -101,18 +102,30 @@
                 <div id="whiteboard-area" class="classroom-sub-section active">
                     <p id="whiteboard-role-message" class="role-message hidden"></p>
                     
+                    <!-- NEW: Wrapper for video streams, positioned separately from canvas -->
                     <div id="video-streams-wrapper">
+                        <!-- Local Video Stream (Admin's own video) -->
                         <div id="local-video-container" class="video-wrapper">
                             <video id="local-video" autoplay muted></video>
                             <div class="video-overlay">Click to zoom</div>
                         </div>
 
+                        <!-- Remote Video Streams (Other participants' videos) -->
                         <div id="remote-video-container">
+                            <!-- Remote video wrappers will be dynamically added here by JavaScript -->
+                            <!-- Example of a dynamically added remote video wrapper:
+                            <div class="remote-video-wrapper">
+                                <video id="remote-video-PEERID" autoplay></video>
+                                <p class="remote-username">Participant Name</p>
+                                <div class="video-overlay">Click to zoom</div>
                             </div>
+                            -->
+                        </div>
                     </div>
 
                     <canvas id="whiteboard-canvas"></canvas>
 
+                    <!-- Whiteboard Control Panel - MOVED BELOW CANVAS -->
                     <div id="whiteboard-control-panel">
                         <div id="whiteboard-tools-container">
                             <div class="tool-group">
@@ -143,6 +156,7 @@
                         </div>
                     </div>
 
+                    <!-- Whiteboard Navigation - MOVED BELOW CONTROL PANEL -->
                     <div id="whiteboard-navigation">
                         <button id="prev-whiteboard-page-btn" class="btn-secondary"><i class="fas fa-chevron-left"></i></button>
                         <span id="whiteboard-page-display">Page 1/1</span>
@@ -154,7 +168,8 @@
                 <div id="chat-section" class="classroom-sub-section hidden">
                     <h3>Classroom Chat</h3>
                     <div id="chat-messages">
-                        </div>
+                        <!-- Chat messages will be loaded here -->
+                    </div>
                     <div class="chat-input-area">
                         <input type="text" id="chat-input" placeholder="Type your message...">
                         <button id="send-chat-button" class="btn-primary">Send</button>
@@ -165,10 +180,11 @@
                     <h3>Classroom Library</h3>
                     <input type="text" id="library-search-input" class="search-input" placeholder="Search library files...">
                     <div id="library-files-list">
+                        <!-- Library files will be loaded here -->
                         <p>No files uploaded yet.</p>
                     </div>
                     <p id="library-role-message" class="role-message hidden"></p>
-                    <div>
+                    <div data-admin-only>
                         <input type="file" id="library-file-input" multiple class="hidden">
                         <button id="upload-library-files-btn" class="btn-success">Upload Files</button>
                     </div>
@@ -176,7 +192,7 @@
 
                 <div id="assessments-section" class="classroom-sub-section hidden">
                     <h3>Assessments</h3>
-                    <div id="assessment-creation-container">
+                    <div id="assessment-creation-container" data-admin-only>
                         <h4>Create New Assessment</h4>
                         <form id="assessment-creation-form">
                             <label for="assessment-title">Title:</label>
@@ -190,7 +206,8 @@
                             
                             <h5>Questions:</h5>
                             <div id="questions-container">
-                                </div>
+                                <!-- Question fields will be added here by JavaScript -->
+                            </div>
                             <button type="button" id="add-question-btn" class="btn-secondary">Add Question</button>
                             <button type="submit" id="submit-assessment-btn" class="btn-primary">Create Assessment</button>
                         </form>
@@ -201,22 +218,24 @@
                         <h4>Available Assessments</h4>
                         <input type="text" id="assessment-search-input" class="search-input" placeholder="Search assessments...">
                         <div id="assessment-list">
+                            <!-- Assessments will be loaded here by JavaScript -->
                             <p id="no-assessments-message">No assessments available.</p>
                         </div>
                     </div>
 
-                    <div id="take-assessment-container" class="hidden">
+                    <div id="take-assessment-container" class="hidden" data-user-only>
                         <h4 id="take-assessment-title"></h4>
                         <p id="take-assessment-description"></p>
                         <div id="assessment-timer">Time Left: --:--:--</div>
                         <form id="take-assessment-form">
-                            </form>
+                            <!-- Questions for taking assessment will be loaded here -->
+                        </form>
                         <button id="submit-answers-btn" class="btn-success">Submit Answers</button>
                         <p id="assessment-submission-message"></p>
                         <button id="back-to-assessment-list-btn" class="btn-secondary">Back to Assessments</button>
                     </div>
 
-                    <div id="view-submissions-container" class="hidden">
+                    <div id="view-submissions-container" class="hidden" data-admin-only>
                         <h4 id="submissions-assessment-title"></h4>
                         <div id="submissions-list"></div>
                         <button id="back-to-assessment-list-from-submissions-btn" class="btn-secondary">Back to Assessments</button>
