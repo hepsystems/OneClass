@@ -899,10 +899,12 @@ document.addEventListener('DOMContentLoaded', () => {
             localStream = null;
             localVideo.srcObject = null;
         }
-
         for (const peerId in peerConnections) {
             if (peerConnections[peerId]) {
-                socket.emit('webrtc_peer_disconnected', { classroomId: currentClassroom.id, peer_id: peerId });
+                socket.emit('webrtc_peer_disconnected', {
+                    classroomId: currentClassroom.id,
+                    peer_id: peerId
+                });
                 peerConnections[peerId].close();
                 delete peerConnections[peerId];
                 // Remove the entire video wrapper
@@ -912,11 +914,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-
         showNotification('Broadcast ended.');
         startBroadcastBtn.disabled = false;
         endBroadcastBtn.disabled = true;
-
         socket.emit('admin_action_update', {
             classroomId: currentClassroom.id,
             message: `Admin ${currentUser.username} ended the broadcast.`
@@ -934,7 +934,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log(`[WebRTC] Peer connection to ${peerId} already exists.`);
             return;
         }
-
         const pc = new RTCPeerConnection(iceServers);
         peerConnections[peerId] = pc;
         console.log(`[WebRTC] Created RTCPeerConnection for peer: ${peerId}. Is caller: ${isCaller}`);
@@ -976,8 +975,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 videoWrapper.appendChild(remoteVideo);
                 videoWrapper.appendChild(usernameDisplay);
                 videoWrapper.appendChild(videoOverlay); // Add the overlay
-                remoteVideoContainer.appendChild(videoWrapper);
 
+                remoteVideoContainer.appendChild(videoWrapper);
                 console.log(`[WebRTC] Created remote video element and wrapper for: ${peerId}`);
                 // Initialize zoom for the new remote video
                 initializeZoomableVideo(remoteVideo, videoWrapper);
@@ -1062,7 +1061,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const zoomStep = 0.5; // How much to zoom in/out each step
         const maxZoom = 3.0;
         const minZoom = 1.0;
-
         let isDragging = false;
         let startX, startY;
 
@@ -1076,1691 +1074,648 @@ document.addEventListener('DOMContentLoaded', () => {
             videoElement.style.transformOrigin = 'center center'; // Keep origin centered for simplicity
 
             if (state.isZoomed) {
-                containerElement.classList.add('video-zoomed');
+                containerElement.classList.add('zoomed');
             } else {
-                containerElement.classList.remove('video-zoomed');
-                // Reset offset when unzoomed
-                state.offsetX = 0;
-                state.offsetY = 0;
-                videoElement.style.transform = 'none'; // Ensure reset
+                containerElement.classList.remove('zoomed');
             }
         }
 
-        // --- Click/Tap to Toggle Zoom ---
         containerElement.addEventListener('click', (e) => {
             const state = videoZoomStates.get(videoElement.id);
             if (!state) return;
 
-            if (!state.isZoomed) {
-                // Zoom in
-                state.currentScale = 2.0; // Initial zoom level
-                state.isZoomed = true;
-            } else {
-                // Zoom out
-                state.currentScale = 1.0;
+            // Simple click to toggle zoom
+            if (state.isZoomed) {
+                state.currentScale = 1;
                 state.isZoomed = false;
+                state.offsetX = 0;
+                state.offsetY = 0;
+                containerElement.style.transform = 'none';
+            } else {
+                state.currentScale = maxZoom;
+                state.isZoomed = true;
+                // Calculate offset to zoom in on the clicked point
+                const rect = containerElement.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+                const normalizedX = (clickX / rect.width) - 0.5;
+                const normalizedY = (clickY / rect.height) - 0.5;
+                state.offsetX = -normalizedX * rect.width * (state.currentScale - 1);
+                state.offsetY = -normalizedY * rect.height * (state.currentScale - 1);
+                containerElement.style.transform = `scale(${state.currentScale}) translate(${state.offsetX}px, ${state.offsetY}px)`;
             }
-            applyTransform(videoElement.id);
+
+            videoZoomStates.set(videoElement.id, state);
         });
 
-        // --- Optional: Panning when zoomed ---
+        containerElement.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const state = videoZoomStates.get(videoElement.id);
+            if (!state) return;
+
+            const direction = e.deltaY > 0 ? 1 : -1;
+            const newScale = Math.max(minZoom, Math.min(maxZoom, state.currentScale + direction * zoomStep));
+
+            if (newScale !== state.currentScale) {
+                // Adjust pan to keep centered on mouse position
+                const rect = containerElement.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const factor = (newScale - state.currentScale) / (state.currentScale - 1);
+                const newOffsetX = state.offsetX - (mouseX - rect.width / 2 - state.offsetX) * factor;
+                const newOffsetY = state.offsetY - (mouseY - rect.height / 2 - state.offsetY) * factor;
+
+                state.currentScale = newScale;
+                state.isZoomed = newScale > 1;
+
+                if (state.isZoomed) {
+                    state.offsetX = newOffsetX;
+                    state.offsetY = newOffsetY;
+                } else {
+                    state.offsetX = 0;
+                    state.offsetY = 0;
+                }
+
+                applyTransform(videoElement.id);
+                videoZoomStates.set(videoElement.id, state);
+            }
+        });
+
+        // Panning logic
         containerElement.addEventListener('mousedown', (e) => {
             const state = videoZoomStates.get(videoElement.id);
-            if (state && state.isZoomed && e.button === 0) { // Left mouse button
+            if (state && state.isZoomed) {
                 isDragging = true;
-                // Calculate start position relative to the video's current transformed position
-                startX = e.clientX - state.offsetX * state.currentScale;
-                startY = e.clientY - state.offsetY * state.currentScale;
-                containerElement.style.cursor = 'grabbing'; // Indicate dragging
+                startX = e.clientX;
+                startY = e.clientY;
+                containerElement.style.cursor = 'grabbing';
             }
         });
 
         containerElement.addEventListener('mousemove', (e) => {
             const state = videoZoomStates.get(videoElement.id);
             if (isDragging && state && state.isZoomed) {
-                e.preventDefault(); // Prevent text selection or other default behaviors
-                let newOffsetX = (e.clientX - startX) / state.currentScale;
-                let newOffsetY = (e.clientY - startY) / state.currentScale;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
 
-                // Simple boundary check (prevents panning too far out)
-                const maxPanX = (videoElement.offsetWidth * state.currentScale - containerElement.offsetWidth) / (2 * state.currentScale);
-                const maxPanY = (videoElement.offsetHeight * state.currentScale - containerElement.offsetHeight) / (2 * state.currentScale);
+                state.offsetX += dx;
+                state.offsetY += dy;
 
-                state.offsetX = Math.max(-maxPanX, Math.min(maxPanX, newOffsetX));
-                state.offsetY = Math.max(-maxPanY, Math.min(maxPanY, newOffsetY));
-                
+                startX = e.clientX;
+                startY = e.clientY;
+
                 applyTransform(videoElement.id);
+                videoZoomStates.set(videoElement.id, state);
             }
         });
 
         containerElement.addEventListener('mouseup', () => {
             isDragging = false;
-            const state = videoZoomStates.get(videoElement.id);
-            if (state && state.isZoomed) {
-                 containerElement.style.cursor = 'zoom-out'; // Restore zoom-out cursor if still zoomed
-            } else {
-                containerElement.style.cursor = 'zoom-in';
-            }
+            containerElement.style.cursor = 'grab';
         });
 
-        containerElement.addEventListener('mouseleave', () => { // Stop drag if mouse leaves container
+        containerElement.addEventListener('mouseleave', () => {
             isDragging = false;
-            const state = videoZoomStates.get(videoElement.id);
-            if (state && state.isZoomed) {
-                 containerElement.style.cursor = 'zoom-out';
-            } else {
-                containerElement.style.cursor = 'zoom-in';
-            }
+            containerElement.style.cursor = 'grab';
         });
-
-
-        // --- Optional: Scroll Wheel for Finer Zoom ---
-        containerElement.addEventListener('wheel', (e) => {
-            e.preventDefault(); // Prevent page scrolling
-            const state = videoZoomStates.get(videoElement.id);
-            if (!state) return;
-
-            // Get mouse position relative to the video element
-            const rect = videoElement.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // Calculate current position of mouse relative to video's content
-            const currentContentX = (mouseX / state.currentScale) - state.offsetX;
-            const currentContentY = (mouseY / state.currentScale) - state.offsetY;
-
-            let newScale = state.currentScale;
-            if (e.deltaY < 0) { // Scroll up (zoom in)
-                newScale += zoomStep;
-            } else { // Scroll down (zoom out)
-                newScale -= zoomStep;
-            }
-
-            newScale = Math.max(minZoom, Math.min(maxZoom, newScale));
-
-            if (newScale !== state.currentScale) {
-                state.currentScale = newScale;
-                state.isZoomed = newScale > minZoom; // Update isZoomed based on scale
-
-                // Adjust offsets to zoom towards the mouse pointer
-                state.offsetX = (mouseX / newScale) - currentContentX;
-                state.offsetY = (mouseY / newScale) - currentContentY;
-
-                applyTransform(videoElement.id);
-            }
-        }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
-    }
-
-
-    // --- Whiteboard Functions ---
-
-    /**
-     * Sets up the whiteboard canvas and its controls.
-     */
-    function setupWhiteboardControls() {
-        if (!whiteboardCanvas) {
-             console.warn("[Whiteboard] Canvas element not found. Whiteboard controls not set up.");
-             return;
-        }
-        whiteboardCtx = whiteboardCanvas.getContext('2d');
-        if (!whiteboardCtx) {
-            console.error("[Whiteboard] 2D context failed to initialize. Whiteboard will not function.");
-            return;
-        }
-
-        // Set initial drawing properties for the context
-        whiteboardCtx.lineJoin = 'round';
-        whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.lineWidth = currentBrushSize;
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.fillStyle = currentColor; // For text
-
-        resizeCanvas(); // Set initial size
-        window.addEventListener('resize', resizeCanvas);
-
-        // Event Listeners for Drawing
-        whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
-        whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
-        whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
-        whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
-
-        // Touch/Stylus Optimization: Use passive: false for touchmove to allow preventDefault
-        whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
-        whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
-        whiteboardCanvas.addEventListener('touchend', handleMouseUp);
-        whiteboardCanvas.addEventListener('touchcancel', handleMouseUp);
-
-        // Tool selection
-        toolButtons.forEach(button => {
-            button.addEventListener('click', () => selectTool(button.dataset.tool));
-        });
-
-        // Color and Size
-        if (colorPicker) colorPicker.addEventListener('input', updateColor);
-        if (brushSizeSlider) brushSizeSlider.addEventListener('input', updateBrushSize);
-
-        // Actions
-        if (undoButton) undoButton.addEventListener('click', undo);
-        if (redoButton) redoButton.addEventListener('click', redo);
-        if (clearButton) clearButton.addEventListener('click', () => clearCanvas(true));
-        if (saveButton) saveButton.addEventListener('click', saveImage);
-
-        // Page Navigation
-        if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
-        if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
-        
-        // Initial render and page display update
-        renderCurrentWhiteboardPage();
-        updateWhiteboardPageDisplay();
-        updateUndoRedoButtons(); // Initialize undo/redo button states
-    }
-
-    /**
-     * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
-     */
-    function resizeCanvas() {
-        const container = whiteboardCanvas.parentElement;
-        
-        const aspectRatio = 1200 / 800; // Original design aspect ratio
-        let newWidth = container.clientWidth - 40; // Account for padding/margins
-        let newHeight = newWidth / aspectRatio;
-
-        // Ensure it doesn't exceed viewport height significantly
-        if (newHeight > window.innerHeight * 0.9) {
-            newHeight = window.innerHeight * 0.9;
-            newWidth = newHeight * aspectRatio;
-        }
-
-        whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
-        whiteboardCanvas.height = Math.max(newHeight, 700); // Minimum height
-
-        // Reapply styles as context state can be reset on dimension change
-        whiteboardCtx.lineJoin = 'round';
-        whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.lineWidth = currentBrushSize;
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.fillStyle = currentColor;
-        renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
-    }
-
-    /**
-     * Handles the start of a drawing action (mousedown or touchstart).
-     */
-    function handleMouseDown(e) {
-        if (currentUser.role !== 'admin') return;
-        isDrawing = true;
-        const coords = getCoords(e);
-        startX = coords.x;
-        startY = coords.y;
-        lastX = coords.x;
-        lastY = coords.y; // Initialize lastY as well
-
-        // Save snapshot for temporary drawing of shapes
-        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
-            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        }
-
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
-            whiteboardCtx.beginPath(); // Start a new path for pen/eraser
-            whiteboardCtx.moveTo(startX, startY);
-        } else if (currentTool === 'text') {
-            const textInput = prompt("Enter text:");
-            if (textInput !== null && textInput.trim() !== '') {
-                whiteboardCtx.save();
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillStyle = currentColor;
-                whiteboardCtx.fillText(textInput, startX, startY);
-                whiteboardCtx.restore();
-
-                saveState(); // Save the state after drawing text
-                const textData = {
-                    startX: startX,
-                    startY: startY,
-                    endX: startX, // For text, endX/Y are same as start
-                    endY: startY,
-                    text: textInput,
-                    color: currentColor,
-                    width: currentBrushSize,
-                    tool: 'text',
-                    pageIndex: currentPageIndex
-                };
-                socket.emit('whiteboard_data', {
-                    action: 'draw',
-                    classroomId: currentClassroom.id,
-                    data: textData
-                });
-                // Add to local page data
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
-            }
-            isDrawing = false; // Text drawing is a single click action
-        }
-    }
-
-    /**
-     * Handles the movement during a drawing action (mousemove or touchmove).
-     * Includes stroke smoothing and line interpolation for pen/eraser.
-     */
-    function handleMouseMove(e) {
-        if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
-        e.preventDefault(); // Prevent scrolling on touch devices during drawing
-
-        const coords = getCoords(e);
-        const currentX = coords.x;
-        const currentY = coords.y;
-
-        whiteboardCtx.save();
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.lineWidth = currentBrushSize;
-
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            if (currentTool === 'eraser') {
-                whiteboardCtx.globalCompositeOperation = 'destination-out';
-            } else {
-                whiteboardCtx.globalCompositeOperation = 'source-over';
-            }
-
-            // Add current point to the stroke points array
-            currentStrokePoints.push({ x: currentX, y: currentY });
-
-            // Stroke Smoothing and Line Interpolation using Quadratic Bezier Curve
-            // Draw a segment from the last point to the current point,
-            // using the last point as the control point for a smoother curve.
-            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
-            whiteboardCtx.stroke();
-            
-            // Move to the midpoint for the start of the next segment
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
-
-            lastX = currentX;
-            lastY = currentY;
-            
-        } else {
-            // For shapes, restore snapshot and redraw preview
-            if (snapshot) {
-                whiteboardCtx.putImageData(snapshot, 0, 0);
-            } else {
-                // Fallback if snapshot is somehow missing (shouldn't happen)
-                renderCurrentWhiteboardPage();
-            }
-            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
-        }
-        whiteboardCtx.restore();
-    }
-
-    /**
- * Handles the end of a drawing action (mouseup or touchend).
- */
-function handleMouseUp(e) {
-    if (!isDrawing || currentUser.role !== 'admin') return;
-    isDrawing = false;
-
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-        // Finish the last segment of the stroke
-        whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
-        whiteboardCtx.stroke();
-        whiteboardCtx.closePath(); // Close the current path for pen/eraser
-
-        // Create stroke object
-        const strokeData = {
-            points: currentStrokePoints, // Array of all points in the stroke
-            color: currentColor,
-            width: currentBrushSize,
-            tool: currentTool
-        };
-
-        // Emit to others
-        socket.emit('whiteboard_data', {
-            action: 'draw',
-            classroomId: currentClassroom.id,
-            data: strokeData,
-            pageIndex: currentPageIndex
-        });
-
-        // Save locally
-        whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
-        currentStrokePoints = []; // Clear for next stroke
-
-    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-        const finalCoords = getCoords(e);
-        const currentX = finalCoords.x;
-        const currentY = finalCoords.y;
-
-        // Redraw existing to reset canvas state
-        renderCurrentWhiteboardPage();
-        
-        whiteboardCtx.save();
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.lineWidth = currentBrushSize;
-
-        const shapeData = {
-            startX, startY,
-            endX: currentX,
-            endY: currentY,
-            color: currentColor,
-            width: currentBrushSize,
-            tool: currentTool
-        };
-
-        drawWhiteboardItem(shapeData);
-        whiteboardCtx.restore();
-
-        socket.emit('whiteboard_data', {
-            action: 'draw',
-            classroomId: currentClassroom.id,
-            data: shapeData,
-            pageIndex: currentPageIndex
-        });
-
-        whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
-    }
-
-    // Reset eraser mode if it was active
-    if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
-        whiteboardCtx.globalCompositeOperation = 'source-over';
-    }
-
-    saveState(); // Save for undo/redo
-}
-
-
-    /**
-     * Draws a specific whiteboard item (line, rectangle, circle, text, or smoothed pen/eraser stroke).
-     * @param {object} commandData - The data object for the drawing command.
-     * @param {string} commandData.tool - The drawing tool.
-     * @param {number} [commandData.startX] - Start X coordinate (for shapes/text).
-     * @param {number} [commandData.startY] - Start Y coordinate (for shapes/text).
-     * @param {number} [commandData.endX] - End X coordinate (for shapes).
-     * @param {number} [commandData.endY] - End Y coordinate (for shapes).
-     * @param {string} [commandData.text] - Text content for the 'text' tool.
-     * @param {Array<object>} [commandData.points] - Array of {x, y} points for 'pen'/'eraser' strokes.
-     * @param {string} commandData.color - Stroke/fill color.
-     * @param {number} commandData.width - Stroke width.
-     */
-    function drawWhiteboardItem(commandData) {
-        const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
-
-        // Apply properties before drawing
-        whiteboardCtx.strokeStyle = color;
-        whiteboardCtx.lineWidth = width;
-        whiteboardCtx.fillStyle = color;
-
-        if (tool === 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'destination-out';
-        } else {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-
-        switch (tool) {
-            case 'pen':
-            case 'eraser':
-                // Re-render smoothed stroke from points
-                if (points && points.length > 1) {
-                    whiteboardCtx.beginPath();
-                    whiteboardCtx.moveTo(points[0].x, points[0].y);
-
-                    for (let i = 1; i < points.length - 1; i++) {
-                        const p0 = points[i - 1];
-                        const p1 = points[i];
-                        const p2 = points[i + 1];
-
-                        // Calculate control point for quadratic bezier curve
-                        // Simple midpoint average for smoothing
-                        const controlX = (p0.x + p1.x) / 2;
-                        const controlY = (p0.y + p1.y) / 2;
-                        const endX_segment = (p1.x + p2.x) / 2;
-                        const endY_segment = (p1.y + p2.y) / 2;
-
-                        whiteboardCtx.quadraticCurveTo(p1.x, p1.y, endX_segment, endY_segment);
-                    }
-                    // Draw the last segment
-                    whiteboardCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-                    whiteboardCtx.stroke();
-                    whiteboardCtx.closePath();
-                }
-                break;
-            case 'line':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(startX, startY);
-                whiteboardCtx.lineTo(endX, endY);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'rectangle':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.rect(startX, startY, endX - startX, endY - startY);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'circle':
-                // For circles, startX, startY is center, endX, endY defines radius
-                const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-                whiteboardCtx.beginPath();
-                whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'text':
-                whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Use 'width' as brush size for text scaling
-                whiteboardCtx.fillText(text, startX, startY);
-                break;
-        }
-    }
-
-    /**
-     * Gets mouse/touch coordinates relative to the canvas.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     * @returns {object} An object with x and y coordinates.
-     */
-    function getCoords(e) {
-        const rect = whiteboardCanvas.getBoundingClientRect();
-        let clientX, clientY;
-
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
-    }
-
-    /**
-     * Changes the active drawing tool.
-     * @param {string} tool - The tool to activate.
-     */
-    function selectTool(tool) {
-        currentTool = tool;
-        toolButtons.forEach(button => {
-            if (button.dataset.tool === tool) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-        // Reset globalCompositeOperation when changing from eraser
-        if (whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-    }
-
-    /**
-     * Updates the drawing color.
-     */
-    function updateColor() {
-        currentColor = colorPicker.value;
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.fillStyle = currentColor;
-    }
-
-    /**
-     * Updates the brush/stroke size.
-     */
-    function updateBrushSize() {
-        currentBrushSize = parseInt(brushSizeSlider.value);
-        whiteboardCtx.lineWidth = currentBrushSize;
-    }
-
-    /**
-     * Clears the current whiteboard page and emits the clear event.
-     * @param {boolean} [emitEvent=true] - Whether to emit the clear event to the server.
-     */
-    function clearCanvas(emitEvent = true) {
-        if (currentUser.role !== 'admin') {
-            showNotification("Only administrators can clear the whiteboard.", true);
-            return;
-        }
-        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
-        whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        
-        whiteboardPages[currentPageIndex] = []; // Clear local data for current page
-        saveState(); // Save the cleared state
-
-        if (emitEvent && socket && currentClassroom && currentClassroom.id) {
-            socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id, data: { pageIndex: currentPageIndex } });
-        }
-        showNotification(`Whiteboard page ${currentPageIndex + 1} cleared.`);
-    }
-
-    /**
-     * Saves the current canvas content as a PNG image.
-     */
-    function saveImage() {
-        if (currentUser.role !== 'admin') {
-            showNotification("Only administrators can save the whiteboard image.", true);
-            return;
-        }
-        const dataURL = whiteboardCanvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = dataURL;
-        a.download = `whiteboard-page-${currentPageIndex + 1}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        showNotification(`Whiteboard page ${currentPageIndex + 1} saved as image.`);
-    }
-
-    /**
-     * Saves the current canvas state to the undo stack.
-     * Clears the redo stack when a new state is saved.
-     */
-    function saveState() {
-        if (undoStack.length >= MAX_HISTORY_STEPS) {
-            undoStack.shift();
-        }
-        undoStack.push(whiteboardCanvas.toDataURL());
-        redoStack.length = 0;
-        updateUndoRedoButtons();
-    }
-
-    /**
-     * Loads a canvas state from a data URL.
-     * @param {string} dataURL - The data URL of the canvas image.
-     */
-    function loadState(dataURL) {
-        const img = new Image();
-        img.onload = () => {
-            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            whiteboardCtx.fillStyle = '#000000';
-            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            whiteboardCtx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        };
-        img.src = dataURL;
-    }
-
-    /**
-     * Performs an undo operation.
-     */
-    function undo() {
-        if (undoStack.length > 1) {
-            const lastState = undoStack.pop();
-            redoStack.push(lastState);
-            loadState(undoStack[undoStack.length - 1]);
-        } else if (undoStack.length === 1) {
-            const lastState = undoStack.pop();
-            redoStack.push(lastState);
-            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            whiteboardCtx.fillStyle = '#000000';
-            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        }
-        updateUndoRedoButtons();
-    }
-
-    /**
-     * Performs a redo operation.
-     */
-    function redo() {
-        if (redoStack.length > 0) {
-            const nextState = redoStack.pop();
-            undoStack.push(nextState);
-            loadState(nextState);
-        }
-        updateUndoRedoButtons();
-    }
-
-    /**
-     * Updates the enabled/disabled state of the undo and redo buttons.
-     */
-    function updateUndoRedoButtons() {
-        if (undoButton) undoButton.disabled = undoStack.length <= 1;
-        if (redoButton) redoButton.disabled = redoStack.length === 0;
-    }
-
-    /**
-     * Fetches whiteboard history for all pages from the server.
-     */
-    async function fetchWhiteboardHistory() {
-        if (!currentClassroom || !currentClassroom.id) {
-            console.warn("Cannot fetch whiteboard history: No current classroom.");
-            return;
-        }
-        try {
-            const response = await fetch(`/api/whiteboard-history/${currentClassroom.id}`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log("No whiteboard history found for this classroom. Starting fresh.");
-                    whiteboardPages = [[]];
-                    currentPageIndex = 0;
-                    renderCurrentWhiteboardPage();
-                    updateWhiteboardPageDisplay();
-                    return;
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            whiteboardPages = data.history || [[]];
-            if (whiteboardPages.length === 0) {
-                whiteboardPages = [[]];
-            }
-            currentPageIndex = 0; // Always reset to first page when loading history
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            showNotification("Whiteboard history loaded.");
-        } catch (error) {
-            console.error("Error fetching whiteboard history:", error);
-            whiteboardPages = [[]];
-            currentPageIndex = 0;
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            showNotification("Failed to load whiteboard history.", true);
-        }
-    }
-
-    /**
-     * Renders the drawing commands for the current page onto the canvas.
-     */
-    function renderCurrentWhiteboardPage() {
-        if (!whiteboardCtx) return;
-        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
-        whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-
-        const currentPage = whiteboardPages[currentPageIndex];
-        if (currentPage) {
-            currentPage.forEach(command => {
-                whiteboardCtx.save();
-                // Apply properties based on the command data
-                whiteboardCtx.strokeStyle = command.data.color;
-                whiteboardCtx.lineWidth = command.data.width;
-                whiteboardCtx.fillStyle = command.data.color;
-                if (command.data.tool === 'eraser') {
-                    whiteboardCtx.globalCompositeOperation = 'destination-out';
-                } else {
-                    whiteboardCtx.globalCompositeOperation = 'source-over';
-                }
-                // Pass the entire data object to drawWhiteboardItem
-                drawWhiteboardItem(command.data);
-                whiteboardCtx.restore();
-            });
-        }
-        updateWhiteboardPageDisplay();
-    }
-
-    /**
-     * Updates the whiteboard page display and navigation button states.
-     */
-    function updateWhiteboardPageDisplay() {
-        if (whiteboardPageDisplay) {
-            whiteboardPageDisplay.textContent = `Page ${currentPageIndex + 1}/${whiteboardPages.length}`;
-        }
-        if (prevWhiteboardPageBtn) {
-            prevWhiteboardPageBtn.disabled = currentPageIndex === 0;
-        }
-        if (nextWhiteboardPageBtn) {
-            // Next button is disabled if at last page AND not admin (cannot create new pages)
-            nextWhiteboardPageBtn.disabled = currentPageIndex === whiteboardPages.length - 1 && currentUser.role !== 'admin';
-        }
-    }
-
-    /**
-     * Navigates to the next whiteboard page. Creates a new page if at the end (admin only).
-     */
-    function goToNextWhiteboardPage() {
-        if (currentPageIndex < whiteboardPages.length - 1) {
-            currentPageIndex++;
-        } else if (currentUser.role === 'admin') {
-            whiteboardPages.push([]); // Add a new empty page
-            currentPageIndex = whiteboardPages.length - 1;
-            socket.emit('whiteboard_page_change', {
-                classroomId: currentClassroom.id,
-                newPageIndex: currentPageIndex,
-                action: 'add_page'
-            });
-        } else {
-            showNotification("No next page available.", true);
-            return;
-        }
-        renderCurrentWhiteboardPage();
-        updateWhiteboardPageDisplay();
-        socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
-        showNotification(`Moved to whiteboard page ${currentPageIndex + 1}`);
-    }
-
-    /**
-     * Navigates to the previous whiteboard page.
-     */
-    function goToPreviousWhiteboardPage() {
-        if (currentPageIndex > 0) {
-            currentPageIndex--;
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
-            showNotification(`Moved to whiteboard page ${currentPageIndex + 1}`);
-        } else {
-            showNotification("Already on the first page.", true);
-        }
-    }
-
-
-    // --- Chat Functions ---
-
-    /**
-     * Sets up chat message sending controls.
-     */
-    function setupChatControls() {
-        if (sendMessageBtn) {
-            sendMessageBtn.addEventListener('click', () => {
-                const message = chatInput.value.trim();
-                if (message && socket && currentClassroom && currentClassroom.id) {
-                    socket.emit('message', {
-                        classroomId: currentClassroom.id,
-                        message: message,
-                        username: currentUser.username,
-                        role: currentUser.role,
-                        user_id: sessionStorage.getItem('user_id') // Ensure user_id is sent
-                    });
-                    chatInput.value = '';
-                }
-            });
-        }
-
-        if (chatInput) {
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    sendMessageBtn.click();
-                }
-            });
-        }
     }
 
     // --- Library Functions ---
 
     /**
-     * Loads and displays files in the classroom library.
-     * Filters files based on the search input.
+     * Fetches and displays the list of files for the current classroom.
      */
     async function loadLibraryFiles() {
         if (!currentClassroom || !currentClassroom.id) {
-            if (libraryFilesList) libraryFilesList.innerHTML = '<p>Select a classroom to view library files.</p>';
+            console.error("No classroom selected to load files from.");
             return;
         }
 
         try {
-            const response = await fetch(`/api/library-files/${currentClassroom.id}`);
-            let files = await response.json();
+            const response = await fetch(`/api/classrooms/${currentClassroom.id}/files`);
+            const files = await response.json();
 
             const searchTerm = librarySearchInput.value.toLowerCase();
-            if (searchTerm) {
-                files = files.filter(file =>
-                    (file.original_filename && file.original_filename.toLowerCase().includes(searchTerm)) ||
-                    (file.filename && file.filename.toLowerCase().includes(searchTerm))
-                );
-            }
+            const filteredFiles = files.filter(file => file.filename.toLowerCase().includes(searchTerm));
 
-            if (libraryFilesList) libraryFilesList.innerHTML = '';
-
-            if (files.length === 0) {
-                if (libraryFilesList) libraryFilesList.innerHTML = '<p>No files in this library yet or no files matching your search.</p>';
-            } else {
-                files.forEach(file => {
-                    const fileDiv = document.createElement('div');
-                    fileDiv.innerHTML = `
-                        <span><a href="${file.url}" target="_blank">${file.original_filename || file.filename}</a></span>
-                        ${currentUser && currentUser.role === 'admin' ? `<button class="delete-file-btn" data-file-id="${file.id}">Delete</button>` : ''}
-                    `;
-                    if (libraryFilesList) libraryFilesList.appendChild(fileDiv);
-                });
-                if (currentUser && currentUser.role === 'admin') {
-                    document.querySelectorAll('.delete-file-btn').forEach(button => {
-                        button.addEventListener('click', async (e) => {
-                            const fileId = e.target.dataset.fileId;
-                            // Using a custom modal/notification instead of confirm()
-                            showNotification("Are you sure you want to delete this file? (Click again to confirm)", false);
-                            // Simple double-click confirmation for now, or implement a proper modal
-                            e.target.dataset.confirmDelete = 'true';
-                            setTimeout(() => {
-                                delete e.target.dataset.confirmDelete; // Reset after a short delay
-                            }, 3000); // 3 seconds to confirm
-                            
-                            if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') { // Check for double click and confirmation flag
-                                try {
-                                    const response = await fetch(`/api/library-files/${fileId}`, {
-                                        method: 'DELETE'
-                                    });
-                                    const result = await response.json();
-                                    if (response.ok) {
-                                        showNotification(result.message);
-                                        loadLibraryFiles();
-                                    } else {
-                                        showNotification(`Error deleting file: ${result.error}`, true);
-                                    }
-                                } catch (error) {
-                                    console.error('Error deleting file:', error);
-                                    showNotification('Error deleting file.', true);
-                                }
-                            }
-                        });
+            if (libraryFilesList) {
+                libraryFilesList.innerHTML = '';
+                if (filteredFiles.length === 0) {
+                    libraryFilesList.innerHTML = '<li>No files found.</li>';
+                } else {
+                    filteredFiles.forEach(file => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span><a href="/uploads/${file.filename}" target="_blank">${file.filename}</a></span>
+                            <span class="file-size">(${file.size} KB)</span>
+                            <span class="file-upload-date">${new Date(file.upload_date).toLocaleDateString()}</span>
+                            <button class="delete-file-btn" data-filename="${file.filename}">Delete</button>
+                        `;
+                        libraryFilesList.appendChild(li);
                     });
                 }
             }
+
+            document.querySelectorAll('.delete-file-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const filename = e.target.dataset.filename;
+                    if (confirm(`Are you sure you want to delete ${filename}?`)) {
+                        try {
+                            const response = await fetch('/api/delete-file', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ filename, classroomId: currentClassroom.id })
+                            });
+                            const result = await response.json();
+                            if (response.ok) {
+                                showNotification(result.message);
+                                loadLibraryFiles(); // Reload the list
+                            } else {
+                                showNotification(result.error, true);
+                            }
+                        } catch (error) {
+                            console.error('Error deleting file:', error);
+                            showNotification('An error occurred while deleting the file.', true);
+                        }
+                    }
+                });
+            });
         } catch (error) {
-            console.error('Error loading library files:', error);
-            if (libraryFilesList) libraryFilesList.innerHTML = '<p>Failed to load library files.</p>';
+            console.error('Error fetching library files:', error);
         }
     }
-
 
     // --- Assessment Functions ---
 
-    let questionCounter = 0; // To keep track of questions in the creation form
-
     /**
-     * Adds a new question input field to the assessment creation form.
-     */
-    function addQuestionField() {
-        questionCounter++;
-        const questionItem = document.createElement('div');
-        questionItem.classList.add('question-item');
-        questionItem.innerHTML = `
-            <label>Question ${questionCounter}:</label>
-            <input type="text" class="question-text" placeholder="Enter question text" required>
-            <select class="question-type">
-                <option value="text">Text Answer</option>
-                <option value="mcq">Multiple Choice</option>
-            </select>
-            <div class="mcq-options hidden">
-                <input type="text" class="mcq-option" placeholder="Option A">
-                <input type="text" class="mcq-option" placeholder="Option B">
-                <input type="text" class="mcq-option" placeholder="Option C">
-                <input type="text" class="mcq-option" placeholder="Option D">
-                <input type="text" class="mcq-correct-answer" placeholder="Correct Option (e.g., A, B)">
-            </div>
-        `;
-        questionsContainer.appendChild(questionItem);
-
-        const questionTypeSelect = questionItem.querySelector('.question-type');
-        const mcqOptionsDiv = questionItem.querySelector('.mcq-options');
-
-        questionTypeSelect.addEventListener('change', (e) => {
-            if (e.target.value === 'mcq') {
-                mcqOptionsDiv.classList.remove('hidden');
-            } else {
-                mcqOptionsDiv.classList.add('hidden');
-            }
-        });
-    }
-
-    /**
- * Submits a new assessment created by an admin.
- */
-async function submitAssessment() {
-    // --- Security and Classroom Checks ---
-    if (!currentUser || currentUser.role !== 'admin') {
-        showNotification("Only administrators can create assessments.", true);
-        return;
-    }
-    if (!currentClassroom || !currentClassroom.id) {
-        showNotification("Please select a classroom first.", true);
-        return;
-    }
-
-    // --- Retrieve Input Values ---
-    const title = assessmentTitleInput.value.trim();
-    const description = assessmentDescriptionTextarea.value.trim();
-    const scheduledAtLocal = assessmentScheduledAtInput.value; // Get the local date/time string from the input
-    const durationMinutes = parseInt(assessmentDurationMinutesInput.value, 10);
-
-    const questions = []; // Initialize questions array
-
-    // --- Input Validation (Frontend) ---
-    if (!title) {
-        displayMessage(assessmentCreationMessage, 'Please enter an assessment title.', true);
-        return;
-    }
-    if (!scheduledAtLocal) { // Check for empty local date/time input
-        displayMessage(assessmentCreationMessage, 'Please set a scheduled date and time.', true);
-        return;
-    }
-    if (isNaN(durationMinutes) || durationMinutes <= 0) {
-        displayMessage(assessmentCreationMessage, 'Please enter a valid duration in minutes (a positive number).', true);
-        return;
-    }
-
-    // --- DATE/TIME CONVERSION TO UTC (CRUCIAL FIX) ---
-    let scheduledAtUTC = null; // Declare a variable to store the UTC ISO string
-
-    if (scheduledAtLocal) {
-        // Create a Date object from the local date/time string.
-        // The Date constructor will interpret this string in the user's local timezone.
-        const localDate = new Date(scheduledAtLocal);
-
-        // Convert the local Date object to an ISO 8601 string representing UTC time.
-        // .toISOString() always returns a UTC timestamp ending with 'Z'.
-        scheduledAtUTC = localDate.toISOString();
-    } else {
-        // Fallback or error handling if for some reason scheduledAtLocal is empty here
-        console.warn("scheduledAtLocal was empty during UTC conversion attempt.");
-        displayMessage(assessmentCreationMessage, 'Error converting scheduled time. Please ensure the date/time is correctly entered.', true);
-        return;
-    }
-    // --- END OF DATE/TIME CONVERSION ---
-
-
-    // --- Collect Questions ---
-    const questionItems = questionsContainer.querySelectorAll('.question-item');
-    questionItems.forEach((item, index) => {
-        const questionText = item.querySelector('.question-text').value.trim();
-        const questionType = item.querySelector('.question-type').value;
-        let options = [];
-        let correctAnswer = '';
-
-        if (questionType === 'mcq') {
-            item.querySelectorAll('.mcq-option').forEach(input => {
-                if (input.value.trim() !== '') {
-                    options.push(input.value.trim());
-                }
-            });
-            correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
-        }
-
-        if (questionText) {
-            questions.push({
-                id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
-                question_text: questionText,
-                question_type: questionType,
-                options: options.length > 0 ? options : undefined,
-                correct_answer: correctAnswer || undefined
-            });
-        }
-    });
-
-    if (questions.length === 0) {
-        displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
-        return;
-    }
-
-    // --- Submit Assessment to Backend ---
-    try {
-        const response = await fetch('/api/assessments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                classroomId: currentClassroom.id,
-                title,
-                description,
-                scheduled_at: scheduledAtUTC, // <--- THIS IS THE CRITICAL UPDATED VALUE
-                duration_minutes: durationMinutes,
-                questions // Send the questions array
-            })
-        });
-
-        const result = await response.json();
-
-        // --- Handle Response ---
-        if (response.ok) {
-            displayMessage(assessmentCreationMessage, result.message, false);
-            assessmentCreationForm.reset(); // Clear form inputs
-            questionsContainer.innerHTML = ''; // Clear question fields
-            questionCounter = 0; // Reset question counter
-            addQuestionField(); // Add one empty question field back for new assessment
-            loadAssessments(); // Reload the list of assessments to show the new one
-            showNotification("Assessment created successfully!");
-        } else {
-            displayMessage(assessmentCreationMessage, result.error, true);
-            showNotification(`Error creating assessment: ${result.error}`, true);
-        }
-    } catch (error) {
-        console.error('Error submitting assessment:', error);
-        displayMessage(assessmentCreationMessage, 'An error occurred during submission.', true);
-        showNotification('An error occurred during assessment creation.', true);
-    }
-}
-
-
-    /**
-     * Loads and displays available assessments for the current classroom.
-     * Filters assessments based on the search input.
+     * Loads and displays assessments for the current classroom, filtering by search term.
      */
     async function loadAssessments() {
-        if (!currentClassroom || !currentClassroom.id) {
-            assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
-            return;
-        }
-
-        takeAssessmentContainer.classList.add('hidden');
-        viewSubmissionsContainer.classList.add('hidden');
-        assessmentListContainer.classList.remove('hidden');
-
-        if (currentUser && currentUser.role === 'admin') {
-            assessmentCreationForm.classList.remove('hidden');
-            assessmentCreationForm.classList.add('admin-feature-highlight');
-            if (questionsContainer.children.length === 0) {
-                addQuestionField();
-            }
-        } else {
-            assessmentCreationForm.classList.add('hidden');
-            assessmentCreationForm.classList.remove('admin-feature-highlight');
-        }
-
+        if (!currentClassroom || !currentClassroom.id) return;
         try {
-            const response = await fetch(`/api/assessments/${currentClassroom.id}`);
-            let assessments = await response.json();
-
+            const response = await fetch(`/api/classrooms/${currentClassroom.id}/assessments`);
+            const assessments = await response.json();
             const searchTerm = assessmentSearchInput.value.toLowerCase();
-            if (searchTerm) {
-                assessments = assessments.filter(assessment =>
-                    assessment.title.toLowerCase().includes(searchTerm) ||
-                    (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
-                );
-            }
+            const filteredAssessments = assessments.filter(a => a.title.toLowerCase().includes(searchTerm));
 
             assessmentListDiv.innerHTML = '';
-
-            if (assessments.length === 0) {
-                assessmentListDiv.innerHTML = '<p>No assessments available in this classroom or no assessments matching your search.</p>';
-            } else {
-                const now = new Date();
-                assessments.forEach(assessment => {
-                    // Defensive parsing for scheduled_at and duration_minutes
-                    const scheduledTime = new Date(assessment.scheduled_at);
-                    const durationMinutes = parseInt(assessment.duration_minutes, 10);
-                    
-                    let status = '';
-                    let actionButton = '';
-
-                    if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
-                        status = `<span style="color: orange;">(Invalid Schedule Data)</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
-                        showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
-                    } else {
-                        const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
-
-                        if (now < scheduledTime) {
-                            status = `<span style="color: blue;">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
-                        } else if (now >= scheduledTime && now <= endTime) {
-                            status = `<span style="color: green;">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
-                        } else {
-                            status = `<span style="color: red;">(Ended: ${endTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
-                        }
-                    }
-
-                    const assessmentItem = document.createElement('div');
-                    assessmentItem.classList.add('assessment-item');
-                    assessmentItem.innerHTML = `
-                        <div>
-                            <h4>${assessment.title} ${status}</h4>
-                            <p>${assessment.description || 'No description'}</p>
-                            <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                            ${currentUser.role === 'admin' ?
-                                `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
-                                <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
-                                actionButton
-                            }
-                        </div>
-                    `;
-                    assessmentListDiv.appendChild(assessmentItem);
-                });
-
-                document.querySelectorAll('.take-assessment-btn').forEach(button => {
-                    if (!button.disabled) { // Only add listener if not disabled
-                        button.addEventListener('click', (e) => {
-                            const assessmentId = e.target.dataset.assessmentId;
-                            const assessmentTitle = e.target.dataset.assessmentTitle;
-                            const assessmentDescription = e.target.dataset.assessmentDescription;
-                            takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
-                        });
-                    }
-                });
-
-                document.querySelectorAll('.view-submissions-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const assessmentId = e.target.dataset.assessmentId;
-                        const assessmentTitle = e.target.dataset.assessmentTitle;
-                        viewSubmissions(assessmentId, assessmentTitle);
-                    });
-                });
-
-                document.querySelectorAll('.delete-assessment-btn').forEach(button => {
-                    button.addEventListener('click', async (e) => {
-                        const assessmentId = e.target.dataset.assessmentId;
-                        // Using a custom modal/notification instead of confirm()
-                        showNotification("Are you sure you want to delete this assessment? (Click again to confirm)", false);
-                        e.target.dataset.confirmDelete = 'true';
-                        setTimeout(() => {
-                            delete e.target.dataset.confirmDelete;
-                        }, 3000);
-
-                        if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') {
-                            try {
-                                const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
-                                const result = await response.json();
-                                if (response.ok) {
-                                    showNotification(result.message);
-                                    loadAssessments();
-                                } else {
-                                    showNotification(`Error deleting assessment: ${result.error}`, true);
-                                }
-                            } catch (error) {
-                                console.error('Error deleting assessment:', error);
-                                showNotification('An error occurred during deletion.', true);
-                            }
-                        }
-                    });
-                });
-            }
-        } catch (error) {
-            console.error('Error loading assessments:', error);
-            assessmentListDiv.innerHTML = '<p>Failed to load assessments.</p>';
-        }
-        updateUIBasedOnRole();
-    }
-
-    /**
-     * Displays an assessment for a user to take.
-     * @param {string} assessmentId - The ID of the assessment.
-     * @param {string} title - The title of the assessment.
-     * @param {string} description - The description of the assessment.
-     */
-    async function takeAssessment(assessmentId, title, description) {
-        // Clear any previous timer
-        if (assessmentTimerInterval) {
-            clearInterval(assessmentTimerInterval);
-            assessmentTimerInterval = null;
-        }
-        if (assessmentTimerDisplay) {
-            assessmentTimerDisplay.textContent = 'Time Left: --:--:--';
-            assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
-        }
-
-        assessmentListContainer.classList.add('hidden');
-        assessmentCreationForm.classList.add('hidden');
-        takeAssessmentContainer.classList.remove('hidden');
-        takeAssessmentContainer.classList.add('user-view-subtle');
-        viewSubmissionsContainer.classList.add('hidden');
-
-        takeAssessmentTitle.textContent = title;
-        takeAssessmentDescription.textContent = description;
-        takeAssessmentForm.innerHTML = '';
-        assessmentSubmissionMessage.textContent = '';
-        submitAnswersBtn.disabled = true; // Disable until assessment is active or questions loaded
-
-        try {
-            const response = await fetch(`/api/assessments/${assessmentId}`);
-            const assessment = await response.json();
-            currentAssessmentToTake = assessment; // Update with full object
-
-            console.log("Fetched assessment details:", assessment); // Debugging: Check received assessment object
-
-            const now = new Date();
-            const scheduledTime = new Date(assessment.scheduled_at);
-            const durationMinutes = parseInt(assessment.duration_minutes, 10);
-
-            // Validate scheduledTime and durationMinutes
-            if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
-                console.error("Invalid scheduled_at or duration_minutes:", assessment.scheduled_at, assessment.duration_minutes);
-                takeAssessmentForm.innerHTML = '<p style="color:red;">Error: Assessment scheduling data is invalid. Please contact an administrator.</p>';
-                assessmentTimerDisplay.textContent = 'Error: Invalid Time Data';
-                assessmentTimerDisplay.classList.add('error');
-                submitAnswersBtn.disabled = true;
-                showNotification("Assessment time data is invalid. Please contact an administrator.", true);
-                return; // Exit function if data is invalid
-            }
-
-            assessmentEndTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
-
-            if (now < scheduledTime) {
-                takeAssessmentForm.innerHTML = `<p>This assessment starts on: <strong>${scheduledTime.toLocaleString()}</strong></p>`;
-                assessmentTimerDisplay.textContent = `Starts in: ${formatTime(scheduledTime.getTime() - now.getTime())}`;
-                assessmentTimerDisplay.classList.add('upcoming');
-                showNotification("This assessment has not started yet.", true);
-                submitAnswersBtn.disabled = true;
-                return;
-            } else if (now > assessmentEndTime) {
-                takeAssessmentForm.innerHTML = `<p>This assessment has already ended on: <strong>${assessmentEndTime.toLocaleString()}</strong></p>`;
-                assessmentTimerDisplay.textContent = 'Assessment Ended';
-                assessmentTimerDisplay.classList.add('ended');
-                showNotification("This assessment has already ended.", true);
-                submitAnswersBtn.disabled = true;
+            if (filteredAssessments.length === 0) {
+                assessmentListDiv.innerHTML = '<p>No assessments found.</p>';
                 return;
             }
 
-            // If we reach here, the assessment is active
-            submitAnswersBtn.disabled = false;
-            startAssessmentTimer(assessmentEndTime); // Start the timer
-
-            if (!assessment.questions || assessment.questions.length === 0) {
-                takeAssessmentForm.innerHTML = '<p>No questions found for this assessment.</p>';
-                submitAnswersBtn.disabled = true;
-                return;
-            }
-
-            assessment.questions.forEach((question, index) => {
-                const questionDiv = document.createElement('div');
-                questionDiv.classList.add('question-display');
-                questionDiv.dataset.questionId = question.id;
-                // Use question.question_text directly as backend now stores it consistently
-                questionDiv.innerHTML = `<label>Question ${index + 1}: ${question.question_text}</label>`;
-
-                // Use question.question_type directly
-                if (question.question_type === 'text') {
-                    const textarea = document.createElement('textarea');
-                    textarea.name = `question_${question.id}`;
-                    textarea.placeholder = 'Your answer here...';
-                    textarea.rows = 3;
-                    questionDiv.appendChild(textarea);
-                } else if (question.question_type === 'mcq' && question.options) {
-                    question.options.forEach((option, optIndex) => {
-                        const optionId = `q${question.id}-opt${optIndex}`;
-                        const radioInput = document.createElement('input');
-                        radioInput.type = 'radio';
-                        radioInput.name = `question_${question.id}`;
-                        radioInput.id = optionId;
-                        radioInput.value = option;
-                        radioInput.classList.add('mcq-option-radio');
-
-                        const label = document.createElement('label');
-                        label.htmlFor = optionId;
-                        label.textContent = option;
-                        label.classList.add('mcq-option-label');
-
-                        questionDiv.appendChild(radioInput);
-                        questionDiv.appendChild(label);
-                        questionDiv.appendChild(document.createElement('br'));
-                    });
-                }
-                takeAssessmentForm.appendChild(questionDiv);
-            });
-        } catch (error) {
-            console.error('Error loading assessment questions:', error);
-            takeAssessmentForm.innerHTML = '<p>Failed to load questions. An error occurred.</p>';
-            submitAnswersBtn.disabled = true;
-            showNotification('Failed to load assessment questions.', true);
-        }
-    }
-
-    /**
-     * Starts the countdown timer for an assessment.
-     * @param {Date} endTime - The exact Date object when the assessment should end.
-     */
-    function startAssessmentTimer(endTime) {
-        if (assessmentTimerInterval) {
-            clearInterval(assessmentTimerInterval);
-        }
-
-        assessmentEndTime = endTime; // Store the end time globally
-
-        function updateTimer() {
-            const now = new Date().getTime();
-            const timeLeft = assessmentEndTime.getTime() - now;
-
-            if (timeLeft <= 0) {
-                clearInterval(assessmentTimerInterval);
-                assessmentTimerDisplay.textContent = 'Time Left: 00:00:00 - Automatically Submitted!';
-                assessmentTimerDisplay.classList.remove('warning', 'critical');
-                assessmentTimerDisplay.classList.add('ended');
-                showNotification("Time's up! Your assessment has been automatically submitted.", false);
-                submitAnswers(true); // Automatically submit
-                takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
-                submitAnswersBtn.disabled = true;
-                return;
-            }
-
-            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-            const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            assessmentTimerDisplay.textContent = `Time Left: ${displayTime}`;
-
-            // Add visual cues for remaining time
-            if (timeLeft < 60 * 1000) { // Less than 1 minute
-                assessmentTimerDisplay.classList.add('critical');
-                assessmentTimerDisplay.classList.remove('warning');
-            } else if (timeLeft < 5 * 60 * 1000) { // Less than 5 minutes
-                assessmentTimerDisplay.classList.add('warning');
-                assessmentTimerDisplay.classList.remove('critical');
-            } else {
-                assessmentTimerDisplay.classList.remove('warning', 'critical');
-            }
-        }
-
-        updateTimer(); // Initial call to display immediately
-        assessmentTimerInterval = setInterval(updateTimer, 1000);
-        assessmentTimerDisplay.classList.add('active');
-    }
-
-    /**
-     * Helper to format milliseconds into HH:MM:SS string.
-     * @param {number} ms - Milliseconds.
-     * @returns {string} Formatted time string.
-     */
-    function formatTime(ms) {
-        // Ensure ms is a valid number before calculations
-        if (isNaN(ms) || ms < 0) {
-            return '--:--:--'; // Return a default invalid time string
-        }
-        const totalSeconds = Math.floor(ms / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
-        const minutes = Math.floor((totalSeconds % 3600) / 60);
-        const seconds = totalSeconds % 60;
-        return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    }
-
-
-    /**
-     * Submits the user's answers for an assessment.
-     * @param {boolean} [isAutoSubmit=false] - True if this is an automatic submission due to timer.
-     */
-    async function submitAnswers(isAutoSubmit = false) {
-        if (!currentAssessmentToTake || !currentClassroom || !currentClassroom.id) {
-            showNotification('No assessment selected for submission.', true);
-            return;
-        }
-
-        // Prevent double submission or submission after manual disable
-        if (submitAnswersBtn.disabled && !isAutoSubmit) {
-            showNotification('Assessment already submitted or ended.', true);
-            return;
-        }
-
-        // Stop the timer if it's running
-        if (assessmentTimerInterval) {
-            clearInterval(assessmentTimerInterval);
-            assessmentTimerInterval = null;
-        }
-        if (assessmentTimerDisplay) {
-            assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
-        }
-
-        const answers = [];
-        const questionDivs = takeAssessmentForm.querySelectorAll('.question-display');
-
-        questionDivs.forEach(qDiv => {
-            const questionId = qDiv.dataset.questionId;
-            let userAnswer = '';
-            const questionData = currentAssessmentToTake.questions.find(q => q.id === questionId);
-
-            const textarea = qDiv.querySelector('textarea');
-            const radioInputs = qDiv.querySelectorAll('input[type="radio"]:checked');
-
-            if (textarea) {
-                userAnswer = textarea.value.trim();
-            } else if (radioInputs.length > 0) {
-                userAnswer = radioInputs[0].value;
-            }
-            
-            answers.push({
-                question_id: questionId,
-                question_text: questionData.question_text, // Use consistent key
-                question_type: questionData.question_type, // Use consistent key
-                user_answer: userAnswer,
-                correct_answer: questionData.correct_answer // Pass correct answer for server-side scoring
-            });
-        });
-
-        try {
-            const response = await fetch(`/api/assessments/${currentAssessmentToTake.id}/submit`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    assessmentId: currentAssessmentToTake.id,
-                    classroomId: currentClassroom.id,
-                    answers: answers,
-                    is_auto_submit: isAutoSubmit // Indicate if it's an auto-submission
-                })
-            });
-            const result = await response.json();
-            if (response.ok) {
-                displayMessage(assessmentSubmissionMessage, `Assessment submitted! Your score: ${result.score}/${result.total_questions}`, false);
-                submitAnswersBtn.disabled = true;
-                takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true); // Disable form after submission
-                showNotification(`Assessment submitted! Score: ${result.score}/${result.total_questions}`);
-                setTimeout(() => {
-                    loadAssessments(); // Go back to assessment list
-                }, 2000);
-            } else {
-                displayMessage(assessmentSubmissionMessage, result.error, true);
-                showNotification(`Error submitting assessment: ${result.error}`, true);
-            }
-        } catch (error) {
-            console.error('Error submitting assessment:', error);
-            displayMessage(assessmentSubmissionMessage, 'An error occurred during submission.', true);
-            showNotification('An error occurred during assessment submission.', true);
-        }
-    }
-
-    /**
-     * Views submissions for a specific assessment (admin only).
-     * @param {string} assessmentId - The ID of the assessment.
-     * @param {string} title - The title of the assessment.
-     */
-    async function viewSubmissions(assessmentId, title) {
-        if (!currentUser || currentUser.role !== 'admin') {
-            showNotification("Only administrators can view submissions.", true);
-            return;
-        }
-        submissionsAssessmentTitle.textContent = `Submissions for: ${title}`;
-        submissionsList.innerHTML = 'Loading submissions...';
-        assessmentListContainer.classList.add('hidden');
-        takeAssessmentContainer.classList.add('hidden'); // Ensure take assessment is hidden
-        viewSubmissionsContainer.classList.remove('hidden');
-        viewSubmissionsContainer.classList.add('admin-feature-highlight');
-
-        try {
-            const response = await fetch(`/api/assessments/${assessmentId}/submissions`);
-            const submissions = await response.json();
-
-            submissionsList.innerHTML = '';
-            if (submissions.length === 0) {
-                submissionsList.innerHTML = '<p>No submissions for this assessment yet.</p>';
-                return;
-            }
-
-            submissions.forEach(submission => {
-                const submissionItem = document.createElement('div');
-                submissionItem.classList.add('submission-item');
-                const studentDisplayName = getDisplayName(submission.username, submission.student_role || 'user');
-                submissionItem.innerHTML = `
-                    <h5>Submitted by: ${studentDisplayName} on ${new Date(submission.submitted_at).toLocaleString()}</h5>
-                    <p>Score: ${submission.score}/${submission.total_questions}</p>
-                    <button class="mark-submission-btn btn-info" data-submission-id="${submission.id}" data-assessment-id="${assessmentId}">Mark Submission</button>
-                    <div id="marking-area-${submission.id}" class="marking-area hidden"></div>
-                `;
-                
-                submission.answers.forEach(answer => {
-                    const answerPair = document.createElement('div');
-                    answerPair.classList.add('question-answer-pair');
-                    answerPair.innerHTML = `
-                        <p><strong>Q:</strong> ${answer.question_text}</p>
-                        <p><strong>User Answer:</strong> ${answer.user_answer || 'N/A'}</p>
-                    `;
-                    if (answer.is_correct !== undefined && answer.is_correct !== null) {
-                        answerPair.innerHTML += `<p><strong>Correct:</strong> <span style="color: ${answer.is_correct ? 'green' : 'red'};">${answer.is_correct ? 'Yes' : 'No'}</span> (Expected: ${answer.correct_answer || 'N/A'})</p>`;
-                        answerPair.style.backgroundColor = answer.is_correct ? '#e6ffe6' : '#ffe6e6';
-                    } else if (answer.correct_answer) {
-                        answerPair.innerHTML += `<p><strong>Expected Answer:</strong> ${answer.correct_answer}</p>`;
-                    }
-                    if (answer.admin_feedback) {
-                        answerPair.innerHTML += `<p><strong>Admin Feedback:</strong> ${answer.admin_feedback}</p>`;
-                    }
-                    submissionItem.appendChild(answerPair);
-                });
-                submissionsList.appendChild(submissionItem);
-            });
-
-            document.querySelectorAll('.mark-submission-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const submissionId = e.target.dataset.submissionId;
-                    const assessmentId = e.target.dataset.assessmentId;
-                    markSubmission(submissionId, assessmentId);
-                });
-            });
-
-        } catch (error) {
-            console.error('Error loading submissions:', error);
-            submissionsList.innerHTML = '<p>Failed to load submissions.</p>';
-            showNotification('Failed to load submissions.', true);
-        }
-    }
-
-    /**
-     * Displays a specific submission for admin to mark.
-     * @param {string} submissionId - The ID of the submission to mark.
-     * @param {string} assessmentId - The ID of the parent assessment.
-     */
-    async function markSubmission(submissionId, assessmentId) {
-        const markingArea = document.getElementById(`marking-area-${submissionId}`);
-        if (!markingArea) return;
-
-        markingArea.classList.remove('hidden');
-        markingArea.innerHTML = '<p>Loading submission for marking...</p>';
-
-        try {
-            const response = await fetch(`/api/submissions/${submissionId}`);
-            const submission = await response.json();
-
-            if (!response.ok) {
-                throw new Error(submission.error || 'Failed to load submission for marking.');
-            }
-
-            let markingHtml = `
-                <h5>Marking Submission from ${getDisplayName(submission.student_username, submission.student_role || 'user')}</h5>
-                <form id="marking-form-${submission.id}">
-            `;
-
-            submission.answers.forEach((answer, index) => {
-                markingHtml += `
-                    <div class="marking-question-item">
-                        <p><strong>Q${index + 1}:</strong> ${answer.question_text}</p>
-                        <p><strong>User Answer:</strong> ${answer.user_answer || 'N/A'}</p>
-                        ${answer.correct_answer ? `<p><strong>Expected:</strong> ${answer.correct_answer}</p>` : ''}
-                        
-                        <label>
-                            <input type="checkbox" class="is-correct-checkbox" data-question-id="${answer.question_id}" ${answer.is_correct ? 'checked' : ''}> Mark as Correct
-                        </label>
-                        <textarea class="admin-feedback-comment" data-question-id="${answer.question_id}" placeholder="Add feedback comment (optional)">${answer.admin_feedback || ''}</textarea>
+            filteredAssessments.forEach(assessment => {
+                const assessmentItem = document.createElement('div');
+                assessmentItem.className = 'assessment-item';
+                assessmentItem.innerHTML = `
+                    <h3>${assessment.title}</h3>
+                    <p>${assessment.description}</p>
+                    <p><strong>Status:</strong> ${assessment.is_active ? 'Active' : 'Not Started'}</p>
+                    <div class="assessment-actions">
+                        ${currentUser.role === 'admin' ?
+                        `<button class="start-assessment-btn" data-id="${assessment.id}" ${assessment.is_active ? 'disabled' : ''}>Start</button>
+                         <button class="view-submissions-btn" data-id="${assessment.id}">View Submissions</button>
+                         <button class="delete-assessment-btn" data-id="${assessment.id}">Delete</button>`
+                        : `<button class="take-assessment-btn" data-id="${assessment.id}" ${!assessment.is_active ? 'disabled' : ''}>Take Assessment</button>`}
                     </div>
                 `;
+                assessmentListDiv.appendChild(assessmentItem);
             });
 
-            markingHtml += `
-                    <button type="button" class="save-marks-btn btn-success" data-submission-id="${submission.id}" data-assessment-id="${assessmentId}">Save Marks</button>
-                    <button type="button" class="cancel-marking-btn btn-secondary">Cancel</button>
-                </form>
-            `;
-            markingArea.innerHTML = markingHtml;
+            // Add event listeners for new buttons
+            document.querySelectorAll('.start-assessment-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const assessmentId = btn.dataset.id;
+                    const response = await fetch('/api/start-assessment', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ classroomId: currentClassroom.id, assessmentId })
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                        showNotification(result.message);
+                        loadAssessments(); // Reload the list
+                    } else {
+                        showNotification(result.error, true);
+                    }
+                });
+            });
 
-            markingArea.querySelector('.save-marks-btn').addEventListener('click', () => saveMarkedSubmission(submissionId, assessmentId));
-            markingArea.querySelector('.cancel-marking-btn').addEventListener('click', () => markingArea.classList.add('hidden'));
+            document.querySelectorAll('.view-submissions-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    viewSubmissions(btn.dataset.id);
+                });
+            });
 
+            document.querySelectorAll('.delete-assessment-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const assessmentId = btn.dataset.id;
+                    if (confirm('Are you sure you want to delete this assessment?')) {
+                        const response = await fetch('/api/delete-assessment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ classroomId: currentClassroom.id, assessmentId })
+                        });
+                        const result = await response.json();
+                        if (response.ok) {
+                            showNotification(result.message);
+                            loadAssessments(); // Reload the list
+                        } else {
+                            showNotification(result.error, true);
+                        }
+                    }
+                });
+            });
+
+            document.querySelectorAll('.take-assessment-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    await fetchAssessmentToTake(btn.dataset.id);
+                });
+            });
         } catch (error) {
-            console.error('Error loading submission for marking:', error);
-            markingArea.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
-            showNotification(`Error loading submission for marking: ${error.message}`, true);
+            console.error('Error fetching assessments:', error);
+            assessmentListDiv.innerHTML = '<p>Failed to load assessments.</p>';
         }
     }
 
-    /**
-     * Saves the marked submission data to the backend.
-     * @param {string} submissionId - The ID of the submission being marked.
-     * @param {string} assessmentId - The ID of the parent assessment.
-     */
-    async function saveMarkedSubmission(submissionId, assessmentId) {
-        const markingArea = document.getElementById(`marking-area-${submissionId}`);
-        const updatedAnswers = [];
+    // --- Whiteboard Functions ---
 
-        markingArea.querySelectorAll('.marking-question-item').forEach(qItem => {
-            const questionId = qItem.querySelector('.is-correct-checkbox').dataset.questionId;
-            const isCorrect = qItem.querySelector('.is-correct-checkbox').checked;
-            const adminFeedback = qItem.querySelector('.admin-feedback-comment').value.trim();
+    function setupWhiteboardControls() {
+        if (!whiteboardCanvas) return;
 
-            updatedAnswers.push({
-                question_id: questionId,
-                is_correct: isCorrect,
-                admin_feedback: adminFeedback || undefined // Only include if not empty
+        whiteboardCtx = whiteboardCanvas.getContext('2d');
+        resizeCanvas();
+
+        // Whiteboard drawing loop
+        // This is primarily for visual feedback (e.g., drawing the current line)
+        // and doesn't affect the final saved drawing on the server
+        let animationFrameId = null;
+        const drawingLoop = () => {
+            if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
+                // This is where you would draw the live preview of the current stroke.
+                // However, since we're now just pushing points, a simpler approach is to
+                // draw a line segment from the last point to the current one.
+                if (currentStrokePoints.length > 1) {
+                    const p1 = currentStrokePoints[currentStrokePoints.length - 2];
+                    const p2 = currentStrokePoints[currentStrokePoints.length - 1];
+                    whiteboardCtx.strokeStyle = currentTool === 'eraser' ? '#000000' : currentColor;
+                    whiteboardCtx.lineWidth = currentBrushSize;
+                    whiteboardCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(p1.x, p1.y);
+                    whiteboardCtx.lineTo(p2.x, p2.y);
+                    whiteboardCtx.stroke();
+                }
+            }
+            animationFrameId = requestAnimationFrame(drawingLoop);
+        };
+        drawingLoop();
+
+        // Event listeners
+        const getMousePos = (e) => {
+            const rect = whiteboardCanvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        };
+
+        const throttledAddPoint = throttle((point) => {
+            if (isDrawing && (currentTool === 'pen' || currentTool === 'eraser')) {
+                currentStrokePoints.push(point);
+            }
+        }, 15); // Adjust this value to change drawing smoothness vs. network traffic
+
+        whiteboardCanvas.addEventListener('mousedown', (e) => {
+            if (currentUser && currentUser.role !== 'admin') return;
+            isDrawing = true;
+            const pos = getMousePos(e);
+            startX = pos.x;
+            startY = pos.y;
+            lastX = pos.x;
+            lastY = pos.y;
+            currentStrokePoints = [{ x: startX, y: startY }];
+
+            if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle' || currentTool === 'text') {
+                snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            }
+            e.preventDefault();
+        });
+
+        whiteboardCanvas.addEventListener('mousemove', (e) => {
+            if (!isDrawing || (currentUser && currentUser.role !== 'admin')) return;
+            const pos = getMousePos(e);
+
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                throttledAddPoint(pos);
+            } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+                whiteboardCtx.putImageData(snapshot, 0, 0);
+                whiteboardCtx.strokeStyle = currentColor;
+                whiteboardCtx.fillStyle = currentColor;
+                whiteboardCtx.lineWidth = currentBrushSize;
+                whiteboardCtx.globalCompositeOperation = 'source-over';
+                drawShape(currentTool, startX, startY, pos.x, pos.y);
+            }
+        });
+
+        whiteboardCanvas.addEventListener('mouseup', (e) => {
+            if (!isDrawing || (currentUser && currentUser.role !== 'admin')) return;
+            isDrawing = false;
+            const endPos = getMousePos(e);
+
+            const drawingItem = {
+                tool: currentTool,
+                color: currentColor,
+                width: currentBrushSize,
+                points: currentStrokePoints,
+                x1: startX,
+                y1: startY,
+                x2: endPos.x,
+                y2: endPos.y,
+            };
+
+            // Reset for the next stroke
+            currentStrokePoints = [];
+            
+            // Only emit to the server on mouseup for pen and eraser
+            // Shapes and text are handled differently
+            if (currentTool === 'pen' || currentTool === 'eraser') {
+                socket.emit('whiteboard_data', {
+                    classroomId: currentClassroom.id,
+                    action: 'draw',
+                    pageIndex: currentPageIndex,
+                    data: {
+                        tool: drawingItem.tool,
+                        color: drawingItem.color,
+                        width: drawingItem.width,
+                        points: currentStrokePoints // Points array should be included for drawing a line
+                    }
+                });
+                // Add to local history for undo
+                undoStack.push(drawingItem);
+                redoStack.length = 0; // Clear redo stack on new action
+            } else if (currentTool === 'line') {
+                socket.emit('whiteboard_data', {
+                    classroomId: currentClassroom.id,
+                    action: 'draw',
+                    pageIndex: currentPageIndex,
+                    data: { tool: 'line', color: currentColor, width: currentBrushSize, x1: startX, y1: startY, x2: endPos.x, y2: endPos.y }
+                });
+            } else if (currentTool === 'rectangle') {
+                socket.emit('whiteboard_data', {
+                    classroomId: currentClassroom.id,
+                    action: 'draw',
+                    pageIndex: currentPageIndex,
+                    data: { tool: 'rectangle', color: currentColor, width: currentBrushSize, x1: startX, y1: startY, x2: endPos.x, y2: endPos.y }
+                });
+            } else if (currentTool === 'circle') {
+                socket.emit('whiteboard_data', {
+                    classroomId: currentClassroom.id,
+                    action: 'draw',
+                    pageIndex: currentPageIndex,
+                    data: { tool: 'circle', color: currentColor, width: currentBrushSize, x1: startX, y1: startY, x2: endPos.x, y2: endPos.y }
+                });
+            }
+            updateUndoRedoButtons();
+            e.preventDefault();
+        });
+
+        // Other event listeners
+        toolButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                toolButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentTool = button.dataset.tool;
+                if (currentTool === 'text') {
+                    const text = prompt("Enter text:");
+                    if (text) {
+                        const pos = getMousePos(e);
+                        // TODO: Implement text drawing logic here
+                    }
+                }
             });
         });
 
-        try {
-            const response = await fetch(`/api/assessments/${assessmentId}/mark-submission/${submissionId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    updated_answers: updatedAnswers
-                })
+        colorPicker.addEventListener('input', (e) => {
+            currentColor = e.target.value;
+        });
+
+        brushSizeSlider.addEventListener('input', (e) => {
+            currentBrushSize = parseInt(e.target.value);
+        });
+
+        if (undoButton) {
+            undoButton.addEventListener('click', undo);
+        }
+
+        if (redoButton) {
+            redoButton.addEventListener('click', redo);
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener('click', () => {
+                if (confirm('Are you sure you want to clear the whiteboard?')) {
+                    socket.emit('whiteboard_data', {
+                        classroomId: currentClassroom.id,
+                        action: 'clear',
+                        pageIndex: currentPageIndex,
+                        data: {}
+                    });
+                }
             });
-            const result = await response.json();
-            if (response.ok) {
-                showNotification(result.message);
-                markingArea.classList.add('hidden');
-                viewSubmissions(assessmentId, submissionsAssessmentTitle.textContent.replace('Submissions for: ', '')); // Refresh submissions list
-            } else {
-                showNotification(`Error saving marks: ${result.error}`, true);
-            }
-        } catch (error) {
-            console.error('Error saving marked submission:', error);
-            showNotification('An error occurred while saving marks.', true);
         }
     }
 
-    /**
-     * Displays feedback for a user's own submitted assessment.
-     * This function is a placeholder and would need a dedicated UI section
-     * for a user to view their past submissions.
-     * @param {object} submission - The submission object with marking feedback.
-     */
-    function displaySubmissionFeedback(submission) {
-        // This would typically be called when a user navigates to "My Submissions"
-        // and clicks on a specific submission to view its feedback.
-        // For now, it just logs to console and shows a notification.
-        console.log("Displaying feedback for submission:", submission);
-        showNotification(`Feedback for "${submission.assessment_title}" is available.`);
 
-        // Example of how you might render it in a modal or dedicated section:
-        // const feedbackModal = document.getElementById('feedback-modal'); // Assume you have this
-        // feedbackModal.innerHTML = `
-        //     <h3>Feedback for ${submission.assessment_title}</h3>
-        //     <p>Your Score: ${submission.score}/${submission.total_questions}</p>
-        //     ${submission.answers.map(answer => `
-        //         <div class="feedback-question-item">
-        //             <p><strong>Q:</strong> ${answer.question_text}</p>
-        //             <p><strong>Your Answer:</strong> ${answer.user_answer}</p>
-        //             <p><strong>Correct:</strong> <span style="color: ${answer.is_correct ? 'green' : 'red'};">${answer.is_correct ? 'Yes' : 'No'}</span></p>
-        //             ${answer.admin_feedback ? `<p><strong>Admin Comment:</strong> ${answer.admin_feedback}</p>` : ''}
-        //         </div>
-        //     `).join('')}
-        // `;
-        // feedbackModal.classList.remove('hidden');
+    /**
+     * Draws a single drawing item on the canvas.
+     * @param {object} drawingItem - The drawing command object.
+     */
+    function drawWhiteboardItem(drawingItem) {
+        whiteboardCtx.save(); // Save the current state
+        whiteboardCtx.strokeStyle = drawingItem.color;
+        whiteboardCtx.fillStyle = drawingItem.color;
+        whiteboardCtx.lineWidth = drawingItem.width;
+
+        if (drawingItem.tool === 'pen' || drawingItem.tool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = drawingItem.tool === 'eraser' ? 'destination-out' : 'source-over';
+            whiteboardCtx.lineCap = 'round';
+            whiteboardCtx.lineJoin = 'round';
+            if (drawingItem.points && drawingItem.points.length > 1) {
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(drawingItem.points[0].x, drawingItem.points[0].y);
+                for (let i = 1; i < drawingItem.points.length; i++) {
+                    whiteboardCtx.lineTo(drawingItem.points[i].x, drawingItem.points[i].y);
+                }
+                whiteboardCtx.stroke();
+            }
+        } else if (drawingItem.tool === 'line') {
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(drawingItem.x1, drawingItem.y1);
+            whiteboardCtx.lineTo(drawingItem.x2, drawingItem.y2);
+            whiteboardCtx.stroke();
+        } else if (drawingItem.tool === 'rectangle') {
+            const width = drawingItem.x2 - drawingItem.x1;
+            const height = drawingItem.y2 - drawingItem.y1;
+            whiteboardCtx.beginPath();
+            whiteboardCtx.strokeRect(drawingItem.x1, drawingItem.y1, width, height);
+        } else if (drawingItem.tool === 'circle') {
+            const dx = drawingItem.x2 - drawingItem.x1;
+            const dy = drawingItem.y2 - drawingItem.y1;
+            const radius = Math.sqrt(dx * dx + dy * dy);
+            whiteboardCtx.beginPath();
+            whiteboardCtx.arc(drawingItem.x1, drawingItem.y1, radius, 0, 2 * Math.PI);
+            whiteboardCtx.stroke();
+        } else if (drawingItem.tool === 'text') {
+            whiteboardCtx.font = `${drawingItem.width}px sans-serif`;
+            whiteboardCtx.fillText(drawingItem.text, drawingItem.x, drawingItem.y);
+        }
+        whiteboardCtx.restore(); // Restore to the previous state
     }
 
+    /**
+     * Clears the canvas and re-draws all commands for the current page.
+     */
+    function renderCurrentWhiteboardPage() {
+        if (!whiteboardCtx || !whiteboardCanvas) return;
+        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        whiteboardCtx.fillStyle = '#000000'; // Fill with black after clearing
+        whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
 
-    // --- Event Listeners ---
+        const drawingsOnPage = whiteboardPages[currentPageIndex] || [];
+        drawingsOnPage.forEach(drawWhiteboardItem);
+    }
 
-    // Auth Section
-    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginContainer.classList.add('hidden'); registerContainer.classList.remove('hidden'); authMessage.textContent = ''; });
-    if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerContainer.classList.add('hidden'); loginContainer.classList.remove('hidden'); authMessage.textContent = ''; });
+    /**
+     * Fetches the whiteboard history for the current classroom.
+     */
+    async function fetchWhiteboardHistory() {
+        if (!currentClassroom || !currentClassroom.id) return;
+        try {
+            const response = await fetch(`/api/classrooms/${currentClassroom.id}/whiteboard-history`);
+            if (response.ok) {
+                const history = await response.json();
+                whiteboardPages = history.length > 0 ? history : [
+                    []
+                ];
+                currentPageIndex = 0; // Reset to the first page on load
+                renderCurrentWhiteboardPage();
+                updateWhiteboardPageDisplay();
+            } else {
+                console.error("Failed to fetch whiteboard history.");
+            }
+        } catch (error) {
+            console.error("Error fetching whiteboard history:", error);
+        }
+    }
 
+    // --- Page Navigation Functions ---
+
+    function updateWhiteboardPageDisplay() {
+        if (whiteboardPageDisplay) {
+            whiteboardPageDisplay.textContent = `Page ${currentPageIndex + 1} of ${whiteboardPages.length}`;
+        }
+        if (prevWhiteboardPageBtn) {
+            prevWhiteboardPageBtn.disabled = currentPageIndex === 0;
+        }
+        if (nextWhiteboardPageBtn) {
+            nextWhiteboardPageBtn.disabled = currentPageIndex === whiteboardPages.length - 1;
+        }
+    }
+
+    if (prevWhiteboardPageBtn) {
+        prevWhiteboardPageBtn.addEventListener('click', () => {
+            if (currentPageIndex > 0) {
+                currentPageIndex--;
+                socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
+            }
+        });
+    }
+
+    if (nextWhiteboardPageBtn) {
+        nextWhiteboardPageBtn.addEventListener('click', () => {
+            if (currentPageIndex < whiteboardPages.length - 1) {
+                currentPageIndex++;
+                socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
+            } else {
+                // Create a new page if we are at the last one
+                whiteboardPages.push([]);
+                currentPageIndex++;
+                socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
+            }
+        });
+    }
+
+    // --- Utility Functions ---
+
+    /**
+     * Throttling utility function.
+     * @param {Function} func - The function to throttle.
+     * @param {number} limit - The time in milliseconds to wait before allowing the function to be called again.
+     */
+    function throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // --- Chat Functions ---
+
+    function setupChatControls() {
+        if (sendMessageBtn) {
+            sendMessageBtn.addEventListener('click', sendChatMessage);
+        }
+        if (chatInput) {
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    sendChatMessage();
+                }
+            });
+        }
+    }
+
+    function sendChatMessage() {
+        if (!socket || !currentClassroom || !currentClassroom.id || !chatInput) return;
+        const message = chatInput.value.trim();
+        if (message) {
+            socket.emit('message', {
+                classroomId: currentClassroom.id,
+                message: message
+            });
+            chatInput.value = '';
+        }
+    }
+
+    // --- Event Listeners and Initial State ---
+
+    // The main entry point
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            try {
-                const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-                const result = await response.json();
-                if (response.ok) {
-                    currentUser = result.user;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    sessionStorage.setItem('user_id', currentUser.id); // Store user_id in sessionStorage
-                    displayMessage(authMessage, result.message, false);
-                    checkLoginStatus();
-                } else {
-                    displayMessage(authMessage, result.error, true);
-                }
-            } catch (error) {
-                console.error('Error during login:', error);
-                displayMessage(authMessage, 'An error occurred during login.', true);
+            const username = loginForm.username.value;
+            const password = loginForm.password.value;
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                localStorage.setItem('currentUser', JSON.stringify(result.user));
+                sessionStorage.setItem('user_id', result.user.id); // Store user_id in sessionStorage
+                currentUser = result.user;
+                showNotification(result.message);
+                checkLoginStatus();
+            } else {
+                displayMessage(authMessage, result.error, true);
             }
         });
     }
@@ -2768,66 +1723,71 @@ async function submitAssessment() {
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = document.getElementById('register-username').value;
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            const role = document.getElementById('register-role').value;
-            try {
-                const response = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, email, password, role }) });
-                const result = await response.json();
-                if (response.ok) {
-                    displayMessage(authMessage, result.message + " Please log in.", false);
-                    registerForm.reset();
-                    loginContainer.classList.remove('hidden');
-                    registerContainer.classList.add('hidden');
-                } else {
-                    displayMessage(authMessage, result.error, true);
-                }
-            } catch (error) {
-                console.error('Error during registration:', error);
-                displayMessage(authMessage, 'An error occurred during registration.', true);
+            const username = registerForm.username.value;
+            const password = registerForm.password.value;
+            const role = registerForm.role.value;
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+            const result = await response.json();
+            displayMessage(authMessage, result.message || result.error, !response.ok);
+            if (response.ok) {
+                // Switch back to login after successful registration
+                loginContainer.classList.remove('hidden');
+                registerContainer.classList.add('hidden');
             }
+        });
+    }
+
+    if (showRegisterLink) {
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginContainer.classList.add('hidden');
+            registerContainer.classList.remove('hidden');
+            authMessage.textContent = '';
+        });
+    }
+
+    if (showLoginLink) {
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerContainer.classList.add('hidden');
+            loginContainer.classList.remove('hidden');
+            authMessage.textContent = '';
         });
     }
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/logout', { method: 'POST' });
-                if (response.ok) {
-                    localStorage.removeItem('currentUser');
-                    sessionStorage.removeItem('user_id'); // Clear user_id from sessionStorage
-                    currentUser = null;
-                    cleanupClassroomResources(); // Clean up all classroom-related state
-                    showSection(authSection);
-                    showNotification("Logged out successfully.");
-                } else {
-                    showNotification('Failed to logout.', true);
-                }
-            } catch (error) {
-                console.error('Error during logout:', error);
-                showNotification('An error occurred during logout.', true);
-            }
+            await fetch('/api/logout', { method: 'POST' });
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('currentClassroom');
+            sessionStorage.removeItem('user_id');
+            currentUser = null;
+            cleanupClassroomResources();
+            showNotification("Logged out successfully.");
+            checkLoginStatus();
         });
     }
 
-    // Dashboard Section
     if (createClassroomBtn) {
         createClassroomBtn.addEventListener('click', async () => {
-            const classroomName = newClassroomNameInput.value;
-            if (!classroomName) {
+            const name = newClassroomNameInput.value.trim();
+            if (!name) {
                 displayMessage(classroomMessage, 'Please enter a classroom name.', true);
                 return;
             }
-            if (currentUser.role !== 'admin') {
-                displayMessage(classroomMessage, 'Only administrators can create classrooms.', true);
-                return;
-            }
             try {
-                const response = await fetch('/api/classrooms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: classroomName }) });
+                const response = await fetch('/api/create-classroom', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
                 const result = await response.json();
                 if (response.ok) {
-                    displayMessage(classroomMessage, result.message, false);
+                    displayMessage(classroomMessage, `Classroom "${result.name}" created with ID: ${result.id}`, false);
                     newClassroomNameInput.value = '';
                     loadAvailableClassrooms();
                 } else {
@@ -2835,111 +1795,456 @@ async function submitAssessment() {
                 }
             } catch (error) {
                 console.error('Error creating classroom:', error);
-                displayMessage(classroomMessage, 'An error occurred.', true);
+                displayMessage(classroomMessage, 'An error occurred. Please try again.', true);
             }
         });
     }
 
-    // Classroom Search Input
-    if (classroomSearchInput) {
-        classroomSearchInput.addEventListener('input', loadAvailableClassrooms);
+    if (backToDashboardBtn) {
+        backToDashboardBtn.addEventListener('click', () => {
+            cleanupClassroomResources();
+            showSection(dashboardSection);
+            loadAvailableClassrooms(); // Refresh the list
+            updateNavActiveState(navDashboard);
+        });
     }
 
-    // Navigation
-    if (navDashboard) navDashboard.addEventListener('click', () => { showSection(dashboardSection); updateNavActiveState(navDashboard); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
-    if (navClassroom) navClassroom.addEventListener('click', () => { if (currentClassroom && currentClassroom.id) { enterClassroom(currentClassroom.id, currentClassroom.name); } else { showNotification('Please create or join a classroom first!', true); } });
-    if (navSettings) navSettings.addEventListener('click', () => { showSection(settingsSection); updateNavActiveState(navSettings); if (currentUser) { settingsUsernameInput.value = currentUser.username; settingsEmailInput.value = currentUser.email; } cleanupClassroomResources(); });
-    if (backToDashboardBtn) backToDashboardBtn.addEventListener('click', () => { showSection(dashboardSection); updateNavActiveState(navDashboard); loadAvailableClassrooms(); updateUIBasedOnRole(); cleanupClassroomResources(); });
-    if (backToDashboardFromSettingsBtn) backToDashboardFromSettingsBtn.addEventListener('click', () => { showSection(dashboardSection); updateNavActiveState(navDashboard); loadAvailableClassrooms(); updateUIBasedOnRole(); });
+    if (navDashboard) {
+        navDashboard.addEventListener('click', () => {
+            if (currentClassroom) {
+                cleanupClassroomResources();
+            }
+            showSection(dashboardSection);
+            loadAvailableClassrooms();
+            updateNavActiveState(navDashboard);
+        });
+    }
 
-    // Classroom Sub-section Navigation
-    if (navChat) navChat.addEventListener('click', () => { showClassroomSubSection(chatSection); updateNavActiveState(navChat); setupChatControls(); });
-    if (navWhiteboard) navWhiteboard.addEventListener('click', () => { showClassroomSubSection(whiteboardArea); updateNavActiveState(navWhiteboard); setupWhiteboardControls(); });
-    if (navLibrary) navLibrary.addEventListener('click', () => { showClassroomSubSection(librarySection); updateNavActiveState(navLibrary); loadLibraryFiles(); });
-    if (navAssessments) navAssessments.addEventListener('click', () => { showClassroomSubSection(assessmentsSection); updateNavActiveState(navAssessments); loadAssessments(); });
+    if (navSettings) {
+        navSettings.addEventListener('click', () => {
+            showSection(settingsSection);
+            updateNavActiveState(navSettings);
+            if (currentUser) {
+                settingsUsernameInput.value = currentUser.username;
+                settingsEmailInput.value = currentUser.email || '';
+            }
+        });
+    }
 
-    // Settings Section
+    if (backToDashboardFromSettingsBtn) {
+        backToDashboardFromSettingsBtn.addEventListener('click', () => {
+            showSection(dashboardSection);
+            updateNavActiveState(navDashboard);
+        });
+    }
+
     if (updateProfileForm) {
         updateProfileForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const username = settingsUsernameInput.value;
-            if (!username) { showNotification('Username cannot be empty.', true); return; }
+            const newUsername = settingsUsernameInput.value.trim();
+            const newEmail = settingsEmailInput.value.trim();
             try {
-                const response = await fetch('/api/update-profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: username }) });
+                const response = await fetch('/api/update-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: newUsername, email: newEmail })
+                });
                 const result = await response.json();
                 if (response.ok) {
-                    showNotification(result.message);
-                    currentUser.username = username;
+                    currentUser = result.user;
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showNotification("Profile updated successfully!");
                     currentUsernameDisplay.textContent = getDisplayName(currentUser.username, currentUser.role);
                 } else {
-                    showNotification('Error updating profile: ' + (result.error || 'Unknown error'), true);
+                    showNotification(result.error, true);
                 }
             } catch (error) {
                 console.error('Error updating profile:', error);
-                showNotification('An error occurred during profile update.', true);
+                showNotification("An error occurred while updating profile.", true);
             }
         });
     }
 
-    // Share Link
-    if (shareLinkInput && copyShareLinkBtn) { // Ensure elements exist before adding listeners
-        // The share button is now on the whiteboard section
-        const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn');
-        if (shareWhiteboardBtn) {
-            shareWhiteboardBtn.addEventListener('click', async () => {
-                const classroomId = currentClassroom ? currentClassroom.id : null;
-                if (classroomId) {
-                    try {
-                        const response = await fetch(`/api/generate-share-link/${classroomId}`);
-                        const data = await response.json();
-                        if (response.ok) {
-                            shareLinkInput.value = data.share_link;
-                            shareLinkDisplay.classList.remove('hidden');
-                            shareLinkInput.select(); // Select the text for easy copying
-                            showNotification("Share link generated. Click 'Copy Link' to copy.");
-                        } else {
-                            showNotification('Error generating share link: ' + (data.error || 'Unknown error'), true);
-                        }
-                    } catch (error) {
-                        console.error('Error generating share link:', error);
-                        showNotification('An error occurred while generating the share link.', true);
-                    }
+    // Share Link Functionality
+    if (copyShareLinkBtn) {
+        copyShareLinkBtn.addEventListener('click', () => {
+            const link = shareLinkInput.value;
+            if (link) {
+                navigator.clipboard.writeText(link).then(() => {
+                    showNotification("Classroom link copied to clipboard!");
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                    showNotification("Failed to copy link.", true);
+                });
+            }
+        });
+    }
+
+    // Video Broadcast Event Listeners
+    if (startBroadcastBtn) {
+        startBroadcastBtn.addEventListener('click', startBroadcast);
+    }
+    if (endBroadcastBtn) {
+        endBroadcastBtn.addEventListener('click', endBroadcast);
+    }
+
+    // Library Event Listeners
+    if (uploadLibraryFilesBtn) {
+        uploadLibraryFilesBtn.addEventListener('click', async () => {
+            if (!currentClassroom || !currentClassroom.id) {
+                showNotification("Please enter a classroom first.", true);
+                return;
+            }
+            const file = libraryFileInput.files[0];
+            if (!file) {
+                showNotification("Please select a file to upload.", true);
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('classroomId', currentClassroom.id);
+            try {
+                const response = await fetch('/api/upload-file', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    showNotification(result.message);
+                    libraryFileInput.value = '';
+                    loadLibraryFiles(); // Refresh the list
                 } else {
-                    showNotification('Please create or join a classroom first to get a shareable link.', true);
+                    showNotification(result.error, true);
                 }
-            });
-        }
-        copyShareLinkBtn.addEventListener('click', () => { shareLinkInput.select(); document.execCommand('copy'); showNotification('Link copied to clipboard!'); });
-    }
-
-    // Broadcast Controls (already handled in setupWhiteboardControls, but ensure listeners are attached)
-    if (startBroadcastBtn) startBroadcastBtn.addEventListener('click', startBroadcast);
-    if (endBroadcastBtn) endBroadcastBtn.addEventListener('click', endBroadcast);
-    broadcastTypeRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            // If broadcast is active and type changes, restart it
-            if (localStream && localStream.active) {
-                showNotification("Broadcast type changed. Restarting broadcast...");
-                endBroadcast();
-                setTimeout(() => startBroadcast(), 500); // Small delay for cleanup
+            } catch (error) {
+                console.error('Error uploading file:', error);
+                showNotification('An error occurred during file upload.', true);
             }
         });
-    });
+    }
 
-    // Library Search Input
+    // Whiteboard Sub-section navigation
+    if (navWhiteboard) {
+        navWhiteboard.addEventListener('click', () => {
+            showClassroomSubSection(whiteboardArea);
+            updateNavActiveState(navWhiteboard);
+        });
+    }
+    // Chat Sub-section navigation
+    if (navChat) {
+        navChat.addEventListener('click', () => {
+            showClassroomSubSection(chatSection);
+            updateNavActiveState(navChat);
+            // Request chat history when switching to the chat tab
+            if (socket && currentClassroom && currentClassroom.id) {
+                socket.emit('request_chat_history', { classroomId: currentClassroom.id });
+            }
+        });
+    }
+    // Library Sub-section navigation
+    if (navLibrary) {
+        navLibrary.addEventListener('click', () => {
+            showClassroomSubSection(librarySection);
+            updateNavActiveState(navLibrary);
+            loadLibraryFiles();
+        });
+    }
+    // Assessments Sub-section navigation
+    if (navAssessments) {
+        navAssessments.addEventListener('click', () => {
+            showClassroomSubSection(assessmentsSection);
+            updateNavActiveState(navAssessments);
+            loadAssessments(); // Load initial assessment list
+        });
+    }
+
+    // New assessment form handling
+    if (assessmentCreationForm) {
+        assessmentCreationForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const questions = [];
+            document.querySelectorAll('.question-block').forEach(qBlock => {
+                const type = qBlock.querySelector('select[name="question-type"]').value;
+                const text = qBlock.querySelector('textarea[name="question-text"]').value;
+                const options = [];
+                qBlock.querySelectorAll('.option-input').forEach(opt => {
+                    options.push(opt.value);
+                });
+                const correctAnswer = qBlock.querySelector('input[name="correct-answer"]').value;
+                questions.push({ type, text, options, correctAnswer });
+            });
+
+            const newAssessment = {
+                classroomId: currentClassroom.id,
+                title: assessmentTitleInput.value,
+                description: assessmentDescriptionTextarea.value,
+                scheduled_at: assessmentScheduledAtInput.value,
+                duration_minutes: assessmentDurationMinutesInput.value,
+                questions: questions
+            };
+
+            try {
+                const response = await fetch('/api/create-assessment', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newAssessment)
+                });
+                const result = await response.json();
+                displayMessage(assessmentCreationMessage, result.message || result.error, !response.ok);
+                if (response.ok) {
+                    assessmentCreationForm.reset();
+                    questionsContainer.innerHTML = '';
+                    loadAssessments(); // Refresh the list
+                }
+            } catch (error) {
+                console.error('Error creating assessment:', error);
+                displayMessage(assessmentCreationMessage, 'An error occurred.', true);
+            }
+        });
+    }
+
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', () => {
+            const questionBlock = document.createElement('div');
+            questionBlock.className = 'question-block';
+            questionBlock.innerHTML = `
+                <h4>New Question</h4>
+                <label>Question Type:</label>
+                <select name="question-type">
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="short-answer">Short Answer</option>
+                </select>
+                <label>Question Text:</label>
+                <textarea name="question-text" required></textarea>
+                <div class="options-container">
+                    <label>Options (for Multiple Choice):</label>
+                    <input type="text" class="option-input" placeholder="Option A">
+                    <input type="text" class="option-input" placeholder="Option B">
+                    <button type="button" class="add-option-btn">Add Option</button>
+                </div>
+                <label>Correct Answer:</label>
+                <input type="text" name="correct-answer" required>
+                <button type="button" class="remove-question-btn">Remove</button>
+            `;
+            questionsContainer.appendChild(questionBlock);
+
+            questionBlock.querySelector('.add-option-btn').addEventListener('click', (e) => {
+                const optionsContainer = e.target.closest('.options-container');
+                const newOptionInput = document.createElement('input');
+                newOptionInput.type = 'text';
+                newOptionInput.className = 'option-input';
+                newOptionInput.placeholder = `Option ${String.fromCharCode(65 + optionsContainer.querySelectorAll('.option-input').length)}`;
+                optionsContainer.insertBefore(newOptionInput, e.target);
+            });
+
+            questionBlock.querySelector('.remove-question-btn').addEventListener('click', (e) => {
+                e.target.closest('.question-block').remove();
+            });
+        });
+    }
+
+    // Function to fetch a specific assessment to take
+    async function fetchAssessmentToTake(assessmentId) {
+        try {
+            const response = await fetch(`/api/assessments/${assessmentId}`);
+            if (response.ok) {
+                const assessment = await response.json();
+                currentAssessmentToTake = assessment;
+                displayAssessmentForTaking(assessment);
+            } else {
+                showNotification("Could not load assessment details.", true);
+            }
+        } catch (error) {
+            console.error('Error fetching assessment:', error);
+            showNotification("Error loading assessment.", true);
+        }
+    }
+
+    // Function to display the assessment form
+    function displayAssessmentForTaking(assessment) {
+        takeAssessmentTitle.textContent = assessment.title;
+        takeAssessmentDescription.textContent = assessment.description;
+        takeAssessmentForm.innerHTML = '';
+        assessment.questions.forEach((q, index) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = 'take-assessment-question';
+            qDiv.innerHTML = `
+                <p><strong>${index + 1}. ${q.text}</strong></p>
+                <div class="answers-container" data-question-type="${q.type}">
+                    ${q.type === 'multiple-choice' ?
+                    q.options.map((opt, i) =>
+                        `<label><input type="radio" name="question-${index}" value="${opt}" required>${opt}</label>`
+                    ).join('') :
+                    `<textarea name="question-${index}" rows="3" required></textarea>`
+                }
+                </div>
+            `;
+            takeAssessmentForm.appendChild(qDiv);
+        });
+        showClassroomSubSection(takeAssessmentContainer);
+        // If the assessment is already active, start the timer
+        if (assessment.is_active) {
+            startAssessmentTimer(new Date(assessment.end_time));
+        } else {
+            assessmentTimerDisplay.textContent = 'Awaiting start by administrator...';
+            assessmentTimerDisplay.classList.remove('active');
+        }
+    }
+
+    // Function to start the countdown timer
+    function startAssessmentTimer(endTime) {
+        if (assessmentTimerInterval) {
+            clearInterval(assessmentTimerInterval);
+        }
+        assessmentEndTime = endTime.getTime();
+        assessmentTimerDisplay.classList.add('active');
+
+        function updateTimer() {
+            const now = new Date().getTime();
+            const distance = assessmentEndTime - now;
+
+            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            assessmentTimerDisplay.textContent = `Time Left: ${hours}h ${minutes}m ${seconds}s`;
+
+            if (distance < 300000) { // 5 minutes warning
+                assessmentTimerDisplay.classList.remove('warning');
+                assessmentTimerDisplay.classList.add('critical');
+            } else if (distance < 600000) { // 10 minutes warning
+                assessmentTimerDisplay.classList.add('warning');
+            } else {
+                assessmentTimerDisplay.classList.remove('warning', 'critical');
+            }
+
+            if (distance < 0) {
+                clearInterval(assessmentTimerInterval);
+                assessmentTimerDisplay.textContent = "Time's up!";
+                assessmentTimerDisplay.classList.add('critical');
+                submitAnswers(); // Automatically submit answers
+            }
+        }
+        assessmentTimerInterval = setInterval(updateTimer, 1000);
+        updateTimer(); // Initial call to display immediately
+    }
+
+    // Function to handle submission of answers
+    if (submitAnswersBtn) {
+        submitAnswersBtn.addEventListener('click', submitAnswers);
+    }
+
+    async function submitAnswers() {
+        if (!currentAssessmentToTake) return;
+        const answers = [];
+        currentAssessmentToTake.questions.forEach((q, index) => {
+            const questionElement = takeAssessmentForm.querySelector(`.take-assessment-question:nth-child(${index + 1})`);
+            let answer;
+            if (q.type === 'multiple-choice') {
+                const selected = questionElement.querySelector(`input[name="question-${index}"]:checked`);
+                answer = selected ? selected.value : null;
+            } else {
+                answer = questionElement.querySelector(`textarea[name="question-${index}"]`).value;
+            }
+            answers.push({ question_text: q.text, answer });
+        });
+
+        try {
+            const response = await fetch('/api/submit-assessment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    classroomId: currentClassroom.id,
+                    assessmentId: currentAssessmentToTake.id,
+                    answers: answers
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showNotification(result.message);
+                clearInterval(assessmentTimerInterval);
+                assessmentTimerInterval = null;
+                showClassroomSubSection(assessmentsSection); // Go back to the list
+            } else {
+                showNotification(result.error, true);
+            }
+        } catch (error) {
+            console.error('Error submitting answers:', error);
+            showNotification('An error occurred during submission.', true);
+        }
+    }
+
+    // Function to view submissions as an admin
+    async function viewSubmissions(assessmentId) {
+        if (currentUser.role !== 'admin') {
+            showNotification("You do not have permission to view submissions.", true);
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/assessments/${assessmentId}/submissions`);
+            if (response.ok) {
+                const submissions = await response.json();
+                submissionsAssessmentTitle.textContent = `Submissions for: ${submissions.assessment_title}`;
+                submissionsList.innerHTML = '';
+                submissions.submissions.forEach(sub => {
+                    const li = document.createElement('li');
+                    li.className = 'submission-item';
+                    li.innerHTML = `
+                        <h4>Submitted by: ${sub.username}</h4>
+                        <p>Score: ${sub.score !== undefined ? `${sub.score}/${sub.total_questions}` : 'Not Marked'}</p>
+                        <button class="view-submission-details-btn" data-submission-id="${sub.id}">View Details</button>
+                    `;
+                    submissionsList.appendChild(li);
+                });
+                showClassroomSubSection(viewSubmissionsContainer);
+            } else {
+                showNotification("Could not load submissions.", true);
+            }
+        } catch (error) {
+            console.error('Error fetching submissions:', error);
+            showNotification("Error loading submissions.", true);
+        }
+    }
+
+    // Event listener for viewing submission details
+    if (submissionsList) {
+        submissionsList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('view-submission-details-btn')) {
+                const submissionId = e.target.dataset.submissionId;
+                // TODO: Implement a function to fetch and display a single submission's details for marking
+                // showSubmissionDetails(submissionId);
+                showNotification("Viewing submission details is not yet implemented.", false);
+            }
+        });
+    }
+
+    // Back button from submissions view
+    if (backToAssessmentListFromSubmissionsBtn) {
+        backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => {
+            showClassroomSubSection(assessmentsSection);
+            loadAssessments();
+        });
+    }
+
+    // Back button from taking assessment
+    if (backToAssessmentListBtn) {
+        backToAssessmentListBtn.addEventListener('click', () => {
+            if (assessmentTimerInterval) {
+                clearInterval(assessmentTimerInterval);
+                assessmentTimerInterval = null;
+            }
+            showClassroomSubSection(assessmentsSection);
+        });
+    }
+
+
+    if (classroomSearchInput) {
+        classroomSearchInput.addEventListener('input', loadAvailableClassrooms);
+    }
     if (librarySearchInput) {
         librarySearchInput.addEventListener('input', loadLibraryFiles);
     }
-
-    // Assessment Controls
-    if (addQuestionBtn) addQuestionBtn.addEventListener('click', addQuestionField);
-    if (submitAssessmentBtn) submitAssessmentBtn.addEventListener('click', submitAssessment);
-    if (submitAnswersBtn) submitAnswersBtn.addEventListener('click', () => submitAnswers(false)); // Manual submission
-    if (backToAssessmentListBtn) backToAssessmentListBtn.addEventListener('click', () => { currentAssessmentToTake = null; loadAssessments(); });
-    if (backToAssessmentListFromSubmissionsBtn) backToAssessmentListFromSubmissionsBtn.addEventListener('click', () => { loadAssessments(); });
-
-    // Assessment Search Input
     if (assessmentSearchInput) {
         assessmentSearchInput.addEventListener('input', loadAssessments);
     }
