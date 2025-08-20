@@ -1338,56 +1338,73 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Handles the movement during a drawing action (mousemove or touchmove).
-     * Includes stroke smoothing and line interpolation for pen/eraser.
-     */
-    function handleMouseMove(e) {
-        if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
-        e.preventDefault(); // Prevent scrolling on touch devices during drawing
+ * Handles the movement during a drawing action (mousemove or touchmove).
+ * Includes stroke smoothing and line interpolation for pen/eraser.
+ */
+function handleMouseMove(e) {
+    if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
+    e.preventDefault(); // Prevent scrolling on touch devices during drawing
 
-        const coords = getCoords(e);
-        const currentX = coords.x;
-        const currentY = coords.y;
+    const coords = getCoords(e);
+    const currentX = coords.x;
+    const currentY = coords.y;
 
-        whiteboardCtx.save();
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.lineWidth = currentBrushSize;
+    whiteboardCtx.save();
+    whiteboardCtx.strokeStyle = currentColor;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            if (currentTool === 'eraser') {
-                whiteboardCtx.globalCompositeOperation = 'destination-out';
-            } else {
-                whiteboardCtx.globalCompositeOperation = 'source-over';
-            }
-
-            // Add current point to the stroke points array
-            currentStrokePoints.push({ x: currentX, y: currentY });
-
-            // Stroke Smoothing and Line Interpolation using Quadratic Bezier Curve
-            // Draw a segment from the last point to the current point,
-            // using the last point as the control point for a smoother curve.
-            whiteboardCtx.quadraticCurveTo(lastX, lastY, (currentX + lastX) / 2, (currentY + lastY) / 2);
-            whiteboardCtx.stroke();
-            
-            // Move to the midpoint for the start of the next segment
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo((currentX + lastX) / 2, (currentY + lastY) / 2);
-
-            lastX = currentX;
-            lastY = currentY;
-            
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentTool === 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'destination-out';
         } else {
-            // For shapes, restore snapshot and redraw preview
-            if (snapshot) {
-                whiteboardCtx.putImageData(snapshot, 0, 0);
-            } else {
-                // Fallback if snapshot is somehow missing (shouldn't happen)
-                renderCurrentWhiteboardPage();
-            }
-            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
+            whiteboardCtx.globalCompositeOperation = 'source-over';
         }
-        whiteboardCtx.restore();
+
+        // Apply a moving average filter to smooth the points
+        // The last 3 points are averaged to get the new 'smoothed' point
+        let smoothedX = currentX;
+        let smoothedY = currentY;
+        if (currentStrokePoints.length > 2) {
+            const p1 = currentStrokePoints[currentStrokePoints.length - 2];
+            const p2 = currentStrokePoints[currentStrokePoints.length - 1];
+            smoothedX = (p1.x + p2.x + currentX) / 3;
+            smoothedY = (p1.y + p2.y + currentY) / 3;
+        }
+
+        // Add the smoothed point to the stroke
+        currentStrokePoints.push({ x: smoothedX, y: smoothedY });
+
+        // Dynamic line width based on speed
+        const dx = smoothedX - lastX;
+        const dy = smoothedY - lastY;
+        const speed = Math.sqrt(dx * dx + dy * dy);
+        const maxSpeed = 20; // Adjust this value
+        const minWidth = 1;
+        const maxWidth = 20; // Adjust to your preference
+        const newWidth = Math.max(minWidth, maxWidth - (speed / maxSpeed) * maxWidth);
+        
+        // Use the new width
+        whiteboardCtx.lineWidth = newWidth;
+        
+        // Draw a smooth line using quadratic curves
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(lastX, lastY);
+        whiteboardCtx.quadraticCurveTo(lastX, lastY, smoothedX, smoothedY);
+        whiteboardCtx.stroke();
+        
+        lastX = smoothedX;
+        lastY = smoothedY;
+    } else {
+        // For shapes, restore snapshot and redraw preview
+        if (snapshot) {
+            whiteboardCtx.putImageData(snapshot, 0, 0);
+        } else {
+            // Fallback if snapshot is somehow missing (shouldn't happen)
+            renderCurrentWhiteboardPage();
+        }
+        drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
     }
+    whiteboardCtx.restore();
+}
 
     /**
  * Handles the end of a drawing action (mouseup or touchend).
