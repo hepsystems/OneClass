@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Handle connection state changes for logging
         pc.onconnectionstatechange = () => {
             console.log(`Peer ${peerId} connection state: ${pc.connectionState}`);
-            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            if (pc.connectionstate === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                 removeVideoElement(peerId);
                 delete peerConnections[peerId];
                 console.log(`Peer ${peerId} connection closed. Cleaned up.`);
