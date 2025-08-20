@@ -1414,11 +1414,6 @@ function handleMouseUp(e) {
     isDrawing = false;
 
     if (currentTool === 'pen' || currentTool === 'eraser') {
-        // Finish the last segment of the stroke
-        whiteboardCtx.lineTo(lastX, lastY); // Ensure the last point is drawn
-        whiteboardCtx.stroke();
-        whiteboardCtx.closePath(); // Close the current path for pen/eraser
-
         // Create stroke object
         const strokeData = {
             points: currentStrokePoints, // Array of all points in the stroke
@@ -1438,6 +1433,9 @@ function handleMouseUp(e) {
         // Save locally
         whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
         currentStrokePoints = []; // Clear for next stroke
+
+        // Immediately re-render the canvas to show the new, persistent drawing
+        renderCurrentWhiteboardPage();
 
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
         const finalCoords = getCoords(e);
@@ -1480,6 +1478,7 @@ function handleMouseUp(e) {
 
     saveState(); // Save for undo/redo
 }
+
 
 
     /**
@@ -1556,8 +1555,25 @@ function drawWhiteboardItem(commandData) {
             break;
     }
 }
+
+    /**
+ * Renders the drawing commands for the current page onto the canvas.
+ */
+function renderCurrentWhiteboardPage() {
+    // Clear canvas
+    whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+
+    // Get the drawing commands for the current page
+    const currentPage = whiteboardPages[currentPageIndex] || [];
+
+    // Re-draw all items on the page
+    currentPage.forEach(item => {
+        drawWhiteboardItem(item.data);
+    });
+}
     
 
+    
     /**
      * Gets mouse/touch coordinates relative to the canvas.
      * @param {MouseEvent|TouchEvent} e - The event object.
