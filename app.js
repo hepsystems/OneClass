@@ -1494,76 +1494,69 @@ function handleMouseUp(e) {
      * @param {Array<object>} [commandData.points] - Array of {x, y} points for 'pen'/'eraser' strokes.
      * @param {string} commandData.color - Stroke/fill color.
      * @param {number} commandData.width - Stroke width.
-     */
-    function drawWhiteboardItem(commandData) {
-        const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
+     /**
+ * Draws a single drawing command item onto the whiteboard canvas.
+ * This is used for rendering the current page's history.
+ */
+function drawWhiteboardItem(commandData) {
+    const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
 
-        // Apply properties before drawing
-        whiteboardCtx.strokeStyle = color;
-        whiteboardCtx.lineWidth = width;
-        whiteboardCtx.fillStyle = color;
+    // Apply properties before drawing
+    whiteboardCtx.strokeStyle = color;
+    whiteboardCtx.lineWidth = width;
+    whiteboardCtx.fillStyle = color;
 
-        if (tool === 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'destination-out';
-        } else {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-
-        switch (tool) {
-            case 'pen':
-            case 'eraser':
-                // Re-render smoothed stroke from points
-                if (points && points.length > 1) {
-                    whiteboardCtx.beginPath();
-                    whiteboardCtx.moveTo(points[0].x, points[0].y);
-
-                    for (let i = 1; i < points.length - 1; i++) {
-                        const p0 = points[i - 1];
-                        const p1 = points[i];
-                        const p2 = points[i + 1];
-
-                        // Calculate control point for quadratic bezier curve
-                        // Simple midpoint average for smoothing
-                        const controlX = (p0.x + p1.x) / 2;
-                        const controlY = (p0.y + p1.y) / 2;
-                        const endX_segment = (p1.x + p2.x) / 2;
-                        const endY_segment = (p1.y + p2.y) / 2;
-
-                        whiteboardCtx.quadraticCurveTo(p1.x, p1.y, endX_segment, endY_segment);
-                    }
-                    // Draw the last segment
-                    whiteboardCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-                    whiteboardCtx.stroke();
-                    whiteboardCtx.closePath();
-                }
-                break;
-            case 'line':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(startX, startY);
-                whiteboardCtx.lineTo(endX, endY);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'rectangle':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.rect(startX, startY, endX - startX, endY - startY);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'circle':
-                // For circles, startX, startY is center, endX, endY defines radius
-                const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
-                whiteboardCtx.beginPath();
-                whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
-                whiteboardCtx.stroke();
-                whiteboardCtx.closePath();
-                break;
-            case 'text':
-                whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Use 'width' as brush size for text scaling
-                whiteboardCtx.fillText(text, startX, startY);
-                break;
-        }
+    if (tool === 'eraser') {
+        whiteboardCtx.globalCompositeOperation = 'destination-out';
+    } else {
+        whiteboardCtx.globalCompositeOperation = 'source-over';
     }
+
+    switch (tool) {
+        case 'pen':
+        case 'eraser':
+            // Re-render smoothed stroke from points
+            if (points && points.length > 1) {
+                // New logic: Iterate through all points and draw a quadratic curve between each one
+                for (let i = 1; i < points.length; i++) {
+                    const prevPoint = points[i - 1];
+                    const currentPoint = points[i];
+                    
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.moveTo(prevPoint.x, prevPoint.y);
+                    whiteboardCtx.quadraticCurveTo(prevPoint.x, prevPoint.y, currentPoint.x, currentPoint.y);
+                    whiteboardCtx.stroke();
+                }
+            }
+            break;
+        case 'line':
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(startX, startY);
+            whiteboardCtx.lineTo(endX, endY);
+            whiteboardCtx.stroke();
+            whiteboardCtx.closePath();
+            break;
+        case 'rectangle':
+            whiteboardCtx.beginPath();
+            whiteboardCtx.rect(startX, startY, endX - startX, endY - startY);
+            whiteboardCtx.stroke();
+            whiteboardCtx.closePath();
+            break;
+        case 'circle':
+            // For circles, startX, startY is center, endX, endY defines radius
+            const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+            whiteboardCtx.beginPath();
+            whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
+            whiteboardCtx.stroke();
+            whiteboardCtx.closePath();
+            break;
+        case 'text':
+            whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Use 'width' as brush size for text scaling
+            whiteboardCtx.fillText(text, startX, startY);
+            break;
+    }
+}
+    
 
     /**
      * Gets mouse/touch coordinates relative to the canvas.
