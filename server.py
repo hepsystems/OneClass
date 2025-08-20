@@ -14,16 +14,21 @@ from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
+import traceback # Import traceback for detailed error logging
 
-app = Flask(__name__, static_folder='.') # Serve static files from current directory
+# --- NEW: APScheduler Imports ---
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+import atexit
+
 
 # --- Flask App Configuration ---
+app = Flask(__name__, static_folder='.') # Serve static files from current directory
 app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev_secret_key_for_sessions') # Needed for sessions
 app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/oneclass_db')
 app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
 
 # --- CORS and SocketIO Setup ---
-# CORS allows cross-origin requests, essential for frontend-backend communication in development
 CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True) # Allow all origins for dev
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True) # Use gevent async_mode
 
@@ -36,7 +41,6 @@ library_files_collection = mongo.db.library_files
 assessments_collection = mongo.db.assessments
 assessment_questions_collection = mongo.db.assessment_questions # New
 assessment_submissions_collection = mongo.db.assessment_submissions # New
-# Modified whiteboard_collection to store drawings per page
 whiteboard_collection = mongo.db.whiteboard_drawings_pages
 chat_messages_collection = mongo.db.chat_messages # NEW: Collection for chat messages
 
@@ -46,8 +50,143 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 
-# --- API Endpoints ---
+# --- NEW: Background Tasks with APScheduler ---
 
+def check_scheduled_assessments():
+    """
+    Checks for assessments scheduled to start now and emits notifications.
+    This job runs every minute.
+    """
+    with app.app_context():
+        now = datetime.utcnow()
+        # Find assessments scheduled to start within the last minute
+        # And haven't been 'announced' yet to prevent repeated notifications
+        assessments_to_start = list(assessments_collection.find({
+            "scheduled_at": {"$lte": now, "$gte": now - timedelta(minutes=1)},
+            "announced": {"$ne": True} # Only find unannounced assessments
+        }))
+
+        for assessment in assessments_to_start:
+            classroomId = assessment.get('classroomId')
+            assessment_id = assessment.get('id')
+            assessment_title = assessment.get('title')
+            
+            if classroomId and assessment_id:
+                # Emit real-time notification to the classroom
+                socketio.emit('assessment_started', {
+                    'classroomId': classroomId,
+                    'assessmentId': assessment_id,
+                    'title': assessment_title
+                }, room=classroomId)
+
+                # Mark assessment as announced to prevent re-emission
+                assessments_collection.update_one(
+                    {"id": assessment_id},
+                    {"$set": {"announced": True}}
+                )
+                print(f"[Scheduler] Announced assessment '{assessment_title}' ({assessment_id}) to classroom {classroomId}")
+
+def cleanup_old_data():
+    """
+    Removes chat messages older than 30 days.
+    This job runs daily.
+    """
+    with app.app_context():
+        # Get the timestamp for 30 days ago
+        cutoff_date = datetime.utcnow() - timedelta(days=30)
+        
+        # Delete messages older than the cutoff date
+        result = chat_messages_collection.delete_many({"timestamp": {"$lt": cutoff_date}})
+        print(f"[Scheduler] Cleanup job deleted {result.deleted_count} old chat messages.")
+
+
+# Initialize and start the scheduler
+scheduler = BackgroundScheduler()
+# Add a job to check for assessments every minute
+scheduler.add_job(
+    func=check_scheduled_assessments,
+    trigger=IntervalTrigger(minutes=1),
+    id='check_assessments_job',
+    name='Check Scheduled Assessments',
+    replace_existing=True
+)
+# Add a job to clean up old data daily
+scheduler.add_job(
+    func=cleanup_old_data,
+    trigger=IntervalTrigger(days=1),
+    id='cleanup_data_job',
+    name='Cleanup Old Data',
+    replace_existing=True
+)
+
+# Start the scheduler
+scheduler.start()
+
+# Ensure the scheduler shuts down when the app exits
+atexit.register(lambda: scheduler.shutdown())
+
+
+# --- Global Error Handlers ---
+@app.errorhandler(400)
+def bad_request_error(error):
+    """Handles 400 Bad Request errors."""
+    return jsonify({
+        "error": "Bad Request",
+        "message": "The request could not be understood due to malformed syntax."
+    }), 400
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    """Handles 401 Unauthorized errors."""
+    return jsonify({
+        "error": "Unauthorized",
+        "message": "Authentication is required to access this resource."
+    }), 401
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    """Handles 403 Forbidden errors."""
+    return jsonify({
+        "error": "Forbidden",
+        "message": "You do not have permission to access the requested resource."
+    }), 403
+
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handles 404 Not Found errors."""
+    return jsonify({
+        "error": "Not Found",
+        "message": "The requested URL was not found on the server."
+    }), 404
+
+@app.errorhandler(405)
+def method_not_allowed_error(error):
+    """Handles 405 Method Not Allowed errors."""
+    return jsonify({
+        "error": "Method Not Allowed",
+        "message": "The method is not allowed for the requested URL."
+    }), 405
+
+@app.errorhandler(409)
+def conflict_error(error):
+    """Handles 409 Conflict errors."""
+    return jsonify({
+        "error": "Conflict",
+        "message": "The request could not be completed due to a conflict with the current state of the resource."
+    }), 409
+
+@app.errorhandler(500)
+def internal_server_error(error):
+    """Handles 500 Internal Server errors."""
+    app.logger.error(f"Internal Server Error: {error}")
+    app.logger.error(traceback.format_exc())
+    return jsonify({
+        "error": "Internal Server Error",
+        "message": "An unexpected error occurred on the server."
+    }), 500
+
+# --- API Endpoints ---
+# (The rest of the API endpoints remain unchanged)
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
