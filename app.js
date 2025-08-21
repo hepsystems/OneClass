@@ -1657,46 +1657,7 @@ function handleMouseDown(e) {
         if (redoButton) redoButton.disabled = redoStack.length === 0;
     }
 
-    /**
-     * Fetches whiteboard history for all pages from the server.
-     */
-    async function fetchWhiteboardHistory() {
-        if (!currentClassroom || !currentClassroom.id) {
-            console.warn("Cannot fetch whiteboard history: No current classroom.");
-            return;
-        }
-        try {
-            const response = await fetch(`/api/whiteboard-history/${currentClassroom.id}`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log("No whiteboard history found for this classroom. Starting fresh.");
-                    whiteboardPages = [[]]; // Start with a single empty page
-                    currentPageIndex = 0;
-                    renderCurrentWhiteboardPage();
-                    updateWhiteboardPageDisplay();
-                    return;
-                }
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            whiteboardPages = data.history || [[]]; // Use history, default to empty array if null/undefined
-            if (whiteboardPages.length === 0) {
-                whiteboardPages = [[]]; // Ensure at least one page exists
-            }
-            currentPageIndex = 0; // Always reset to first page when loading history
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            showNotification("Whiteboard history loaded.");
-        } catch (error) {
-            console.error("Error fetching whiteboard history:", error);
-            whiteboardPages = [[]]; // Fallback to an empty whiteboard on error
-            currentPageIndex = 0;
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            showNotification("Failed to load whiteboard history.", true);
-        }
-    }
-
+   
     /**
      * Renders the drawing commands for the current page onto the canvas.
      */
