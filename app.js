@@ -58,18 +58,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chat-messages');
 
     // Whiteboard Elements
-    const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    const toolButtons = document.querySelectorAll('.tool-button');
-    const colorPicker = document.getElementById('colorPicker');
-    const brushSizeSlider = document.getElementById('brushSize');
-    const undoButton = document.getElementById('undoButton');
-    const redoButton = document.getElementById('redoButton');
-    const clearButton = document.getElementById('clearButton');
-    const saveButton = document.getElementById('saveButton');
-    const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
-    const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
-    const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
-    const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
+const whiteboardCanvas = document.getElementById('whiteboard-canvas');
+const toolButtons = document.querySelectorAll('.tool-button');
+const colorPicker = document.getElementById('colorPicker');
+const brushSizeSlider = document.getElementById('brushSize');
+const undoButton = document.getElementById('undoButton');
+const redoButton = document.getElementById('redoButton');
+const clearButton = document.getElementById('clearButton');
+const saveButton = document.getElementById('saveButton');
+const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
+const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
+const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
+const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
+
+// Call the whiteboard setup from whiteboard.js
+setupWhiteboardControls({
+    canvas: whiteboardCanvas,
+    toolButtons: toolButtons,
+    colorPicker: colorPicker,
+    brushSizeSlider: brushSizeSlider,
+    undoButton: undoButton,
+    redoButton: redoButton,
+    clearButton: clearButton,
+    saveButton: saveButton,
+    prevWhiteboardPageBtn: prevWhiteboardPageBtn,
+    nextWhiteboardPageBtn: nextWhiteboardPageBtn,
+    user: currentUser,              // ← must exist in your app.js
+    socket: socket,                 // ← your existing socket connection
+    classroom: currentClassroom,    // ← must exist in your app.js
+    whiteboardPagesRef: whiteboardPages // ← your pages array
+});
 
     // Video Broadcast Elements
     const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
@@ -133,26 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
-    // Whiteboard Variables
-    let whiteboardCtx;
-    let isDrawing = false;
-    let startX, startY;
-    let lastX, lastY; // Used for live drawing of pen/eraser segments
-    let currentColor = colorPicker ? colorPicker.value : '#FF0000'; // Default color
-    let currentBrushSize = brushSizeSlider ? parseInt(brushSizeSlider.value) : 5; // Default size
-    let currentTool = 'pen';
-    let snapshot; // For temporary drawing of shapes
-
-    // For advanced pen/eraser drawing (stroke smoothing, line interpolation)
-    let currentStrokePoints = []; // Stores all points for a single pen/eraser stroke
-
-    // Whiteboard History (Multi-page)
-    let whiteboardPages = [[]]; // Array of arrays, each sub-array is a page of drawing commands
-    let currentPageIndex = 0;
-    const undoStack = []; // For local undo/redo of single actions on current page
-    const redoStack = [];
-    const MAX_HISTORY_STEPS = 50;
-
+    
     // Video Zoom States
     const videoZoomStates = new Map(); // Map: videoElement.id -> { currentScale: 1, isZoomed: false, offsetX: 0, offsetY: 0 }
 
