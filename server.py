@@ -287,7 +287,7 @@ def create_assessment():
     username = session.get('username')
     user_role = session.get('role')
 
-    if not user_id or user_role != 'admin': # Only admins can create assessments
+    if not user_id or user_role != 'admin':
         return jsonify({"error": "Unauthorized: Only administrators can create assessments."}), 401
 
     data = request.json
@@ -305,10 +305,9 @@ def create_assessment():
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     try:
-        # Step 2: Fix Backend (server.py) - parse normally (because now you always get UTC)
-        scheduled_at = datetime.fromisoformat(scheduled_at_str.replace("Z", "+00:00"))
+        scheduled_at = datetime.fromisoformat(scheduled_at_str)
     except ValueError:
-        return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM:SS.sssZ"}), 400
+        return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM"}), 400
 
     if not isinstance(duration_minutes, int) or duration_minutes <= 0:
         return jsonify({"error": "Duration must be a positive integer"}), 400
@@ -418,9 +417,9 @@ def get_assessments(classroomId):
     # Convert datetime objects to ISO format strings for client-side
     for assessment in assessments:
         if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
-            assessment['scheduled_at'] = assessment['scheduled_at'].isoformat() + "Z"
+            assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
         if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
-            assessment['created_at'] = assessment['created_at'].isoformat() + "Z"
+            assessment['created_at'] = assessment['created_at'].isoformat()
 
     print(f"Fetched {len(assessments)} assessments (list view) for classroom {classroomId}")
     return jsonify(assessments), 200
@@ -468,7 +467,7 @@ def get_assessment_details(assessmentId):
                 'classroomId': assessment['classroomId'],
                 'assessmentId': assessmentId,
                 'title': assessment['title'],
-                'endTime': end_time.isoformat() + "Z"
+                'endTime': end_time.isoformat()
             }, room=request.sid) # Emit only to the requesting client's SID
             print(f"Emitted 'assessment_started' to {request.sid} for assessment {assessmentId}")
 
@@ -477,11 +476,11 @@ def get_assessment_details(assessmentId):
     # Ensure the keys are consistent with what the frontend expects
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
     
-    # Step 2: Fix Backend (server.py) - return UTC string with 'Z'
+    # Convert datetime objects to ISO format strings for client-side
     if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
-        assessment['scheduled_at'] = assessment['scheduled_at'].isoformat() + "Z"
+        assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
     if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
-        assessment['created_at'] = assessment['created_at'].isoformat() + "Z"
+        assessment['created_at'] = assessment['created_at'].isoformat()
 
     print(f"Fetched details for assessment {assessmentId} including questions. Questions count: {len(assessment['questions'])}")
     return jsonify(assessment), 200
@@ -936,7 +935,7 @@ def on_join(data):
     if chat_history_from_db:
         # Convert datetime objects to ISO format strings for client-side
         for msg in chat_history_from_db:
-            msg['timestamp'] = msg['timestamp'].isoformat() + "Z"
+            msg['timestamp'] = msg['timestamp'].isoformat()
         emit('chat_history', chat_history_from_db, room=sid)
         print(f"Chat history sent to new participant {sid} in classroom {classroomId}")
 
@@ -983,7 +982,7 @@ def handle_chat_message(data):
         'user_id': user_id,
         'username': username,
         'message': message,
-        'timestamp': datetime.utcnow().isoformat() + "Z",
+        'timestamp': datetime.utcnow().isoformat(),
         'role': user_role
     }, room=classroomId)
     print(f"Chat message from {username} in {classroomId} broadcasted and saved.")
