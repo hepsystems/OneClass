@@ -474,7 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         loadAssessments();
         loadLibraryFiles();
-        fetchWhiteboardHistory(); // Load whiteboard history for the current page
     }
 
     /**
