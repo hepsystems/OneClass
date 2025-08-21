@@ -1935,7 +1935,6 @@ async function submitAssessment() {
         showNotification("Please select a classroom first.", true);
         return;
     }
-
     // --- Retrieve Input Values ---
     const title = assessmentTitleInput.value.trim();
     const description = assessmentDescriptionTextarea.value.trim();
@@ -1975,6 +1974,8 @@ async function submitAssessment() {
         displayMessage(assessmentCreationMessage, 'Error converting scheduled time. Please ensure the date/time is correctly entered.', true);
         return;
     }
+    
+
     // --- END OF DATE/TIME CONVERSION ---
 
 
@@ -2050,147 +2051,150 @@ async function submitAssessment() {
 
 
     /**
-     * Loads and displays available assessments for the current classroom.
-     * Filters assessments based on the search input.
-     */
-    async function loadAssessments() {
-        if (!currentClassroom || !currentClassroom.id) {
-            assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
-            return;
+ * Loads and displays available assessments for the current classroom.
+ * Filters assessments based on the search input.
+ */
+async function loadAssessments() {
+    if (!currentClassroom || !currentClassroom.id) {
+        assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
+        return;
+    }
+
+    takeAssessmentContainer.classList.add('hidden');
+    viewSubmissionsContainer.classList.add('hidden');
+    assessmentListContainer.classList.remove('hidden');
+
+    if (currentUser && currentUser.role === 'admin') {
+        assessmentCreationForm.classList.remove('hidden');
+        assessmentCreationForm.classList.add('admin-feature-highlight');
+        if (questionsContainer.children.length === 0) {
+            addQuestionField();
+        }
+    } else {
+        assessmentCreationForm.classList.add('hidden');
+        assessmentCreationForm.classList.remove('admin-feature-highlight');
+    }
+
+    try {
+        const response = await fetch(`/api/assessments/${currentClassroom.id}`);
+        let assessments = await response.json();
+
+        const searchTerm = assessmentSearchInput.value.toLowerCase();
+        if (searchTerm) {
+            assessments = assessments.filter(assessment =>
+                assessment.title.toLowerCase().includes(searchTerm) ||
+                (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
+            );
         }
 
-        takeAssessmentContainer.classList.add('hidden');
-        viewSubmissionsContainer.classList.add('hidden');
-        assessmentListContainer.classList.remove('hidden');
+        assessmentListDiv.innerHTML = '';
 
-        if (currentUser && currentUser.role === 'admin') {
-            assessmentCreationForm.classList.remove('hidden');
-            assessmentCreationForm.classList.add('admin-feature-highlight');
-            if (questionsContainer.children.length === 0) {
-                addQuestionField();
-            }
+        if (assessments.length === 0) {
+            assessmentListDiv.innerHTML = '<p>No assessments available in this classroom or no assessments matching your search.</p>';
         } else {
-            assessmentCreationForm.classList.add('hidden');
-            assessmentCreationForm.classList.remove('admin-feature-highlight');
-        }
+            const now = new Date();
+            assessments.forEach(assessment => {
+                // Parse scheduled_at and duration_minutes
+                const scheduledTimeUTC = new Date(assessment.scheduled_at); // server time (assume UTC)
+                const durationMinutes = parseInt(assessment.duration_minutes, 10);
 
-        try {
-            const response = await fetch(`/api/assessments/${currentClassroom.id}`);
-            let assessments = await response.json();
+                // Convert to student's local time
+                const scheduledTimeLocal = new Date(scheduledTimeUTC.getTime() + (new Date().getTimezoneOffset() * 60000 * -1));
 
-            const searchTerm = assessmentSearchInput.value.toLowerCase();
-            if (searchTerm) {
-                assessments = assessments.filter(assessment =>
-                    assessment.title.toLowerCase().includes(searchTerm) ||
-                    (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
-                );
-            }
+                let status = '';
+                let actionButton = '';
 
-            assessmentListDiv.innerHTML = '';
+                if (isNaN(scheduledTimeLocal.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
+                    status = `<span style="color: orange;">(Invalid Schedule Data)</span>`;
+                    actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
+                    showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
+                } else {
+                    const endTimeLocal = new Date(scheduledTimeLocal.getTime() + durationMinutes * 60 * 1000);
 
-            if (assessments.length === 0) {
-                assessmentListDiv.innerHTML = '<p>No assessments available in this classroom or no assessments matching your search.</p>';
-            } else {
-                const now = new Date();
-                assessments.forEach(assessment => {
-                    // Defensive parsing for scheduled_at and duration_minutes
-                    const scheduledTime = new Date(assessment.scheduled_at);
-                    const durationMinutes = parseInt(assessment.duration_minutes, 10);
-                    
-                    let status = '';
-                    let actionButton = '';
-
-                    if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
-                        status = `<span style="color: orange;">(Invalid Schedule Data)</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
-                        showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
+                    if (now < scheduledTimeLocal) {
+                        status = `<span style="color: blue;">(Upcoming: ${scheduledTimeLocal.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
+                    } else if (now >= scheduledTimeLocal && now <= endTimeLocal) {
+                        status = `<span style="color: green;">(Active - Ends: ${endTimeLocal.toLocaleTimeString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
                     } else {
-                        const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60 * 1000);
+                        status = `<span style="color: red;">(Ended: ${endTimeLocal.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                    }
+                }
 
-                        if (now < scheduledTime) {
-                            status = `<span style="color: blue;">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
-                        } else if (now >= scheduledTime && now <= endTime) {
-                            status = `<span style="color: green;">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
-                        } else {
-                            status = `<span style="color: red;">(Ended: ${endTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                const assessmentItem = document.createElement('div');
+                assessmentItem.classList.add('assessment-item');
+                assessmentItem.innerHTML = `
+                    <div>
+                        <h4>${assessment.title} ${status}</h4>
+                        <p>${assessment.description || 'No description'}</p>
+                        <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                        ${currentUser.role === 'admin' ?
+                            `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
+                             <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
+                            actionButton
                         }
-                    }
+                    </div>
+                `;
+                assessmentListDiv.appendChild(assessmentItem);
+            });
 
-                    const assessmentItem = document.createElement('div');
-                    assessmentItem.classList.add('assessment-item');
-                    assessmentItem.innerHTML = `
-                        <div>
-                            <h4>${assessment.title} ${status}</h4>
-                            <p>${assessment.description || 'No description'}</p>
-                            <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                            ${currentUser.role === 'admin' ?
-                                `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
-                                <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
-                                actionButton
-                            }
-                        </div>
-                    `;
-                    assessmentListDiv.appendChild(assessmentItem);
-                });
-
-                document.querySelectorAll('.take-assessment-btn').forEach(button => {
-                    if (!button.disabled) { // Only add listener if not disabled
-                        button.addEventListener('click', (e) => {
-                            const assessmentId = e.target.dataset.assessmentId;
-                            const assessmentTitle = e.target.dataset.assessmentTitle;
-                            const assessmentDescription = e.target.dataset.assessmentDescription;
-                            takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
-                        });
-                    }
-                });
-
-                document.querySelectorAll('.view-submissions-btn').forEach(button => {
+            // Event listeners
+            document.querySelectorAll('.take-assessment-btn').forEach(button => {
+                if (!button.disabled) {
                     button.addEventListener('click', (e) => {
                         const assessmentId = e.target.dataset.assessmentId;
                         const assessmentTitle = e.target.dataset.assessmentTitle;
-                        viewSubmissions(assessmentId, assessmentTitle);
+                        const assessmentDescription = e.target.dataset.assessmentDescription;
+                        takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
                     });
+                }
+            });
+
+            document.querySelectorAll('.view-submissions-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const assessmentId = e.target.dataset.assessmentId;
+                    const assessmentTitle = e.target.dataset.assessmentTitle;
+                    viewSubmissions(assessmentId, assessmentTitle);
                 });
+            });
 
-                document.querySelectorAll('.delete-assessment-btn').forEach(button => {
-                    button.addEventListener('click', async (e) => {
-                        const assessmentId = e.target.dataset.assessmentId;
-                        // Using a custom modal/notification instead of confirm()
-                        showNotification("Are you sure you want to delete this assessment? (Click again to confirm)", false);
-                        e.target.dataset.confirmDelete = 'true';
-                        setTimeout(() => {
-                            delete e.target.dataset.confirmDelete;
-                        }, 3000);
+            document.querySelectorAll('.delete-assessment-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const assessmentId = e.target.dataset.assessmentId;
+                    showNotification("Are you sure you want to delete this assessment? (Click again to confirm)", false);
+                    e.target.dataset.confirmDelete = 'true';
+                    setTimeout(() => { delete e.target.dataset.confirmDelete; }, 3000);
 
-                        if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') {
-                            try {
-                                const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
-                                const result = await response.json();
-                                if (response.ok) {
-                                    showNotification(result.message);
-                                    loadAssessments();
-                                } else {
-                                    showNotification(`Error deleting assessment: ${result.error}`, true);
-                                }
-                            } catch (error) {
-                                console.error('Error deleting assessment:', error);
-                                showNotification('An error occurred during deletion.', true);
+                    if (e.detail === 2 && e.target.dataset.confirmDelete === 'true') {
+                        try {
+                            const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
+                            const result = await response.json();
+                            if (response.ok) {
+                                showNotification(result.message);
+                                loadAssessments();
+                            } else {
+                                showNotification(`Error deleting assessment: ${result.error}`, true);
                             }
+                        } catch (error) {
+                            console.error('Error deleting assessment:', error);
+                            showNotification('An error occurred during deletion.', true);
                         }
-                    });
+                    }
                 });
-            }
-        } catch (error) {
-            console.error('Error loading assessments:', error);
-            assessmentListDiv.innerHTML = '<p>Failed to load assessments.</p>';
+            });
         }
-        updateUIBasedOnRole();
+    } catch (error) {
+        console.error('Error loading assessments:', error);
+        assessmentListDiv.innerHTML = '<p>Failed to load assessments.</p>';
     }
+
+    updateUIBasedOnRole();
+}
+
 
     /**
      * Displays an assessment for a user to take.
