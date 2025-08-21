@@ -1397,7 +1397,7 @@ function drawWhiteboardItem(commandData) {
 }
 
 
-                               
+/*                               
  * Changes the active drawing tool.
  * @param {string} tool - The tool to activate.
  */
