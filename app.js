@@ -57,37 +57,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendMessageBtn = document.getElementById('send-chat-button');
     const chatMessages = document.getElementById('chat-messages');
 
-    // Whiteboard Elements
-const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-const toolButtons = document.querySelectorAll('.tool-button');
-const colorPicker = document.getElementById('colorPicker');
-const brushSizeSlider = document.getElementById('brushSize');
-const undoButton = document.getElementById('undoButton');
-const redoButton = document.getElementById('redoButton');
-const clearButton = document.getElementById('clearButton');
-const saveButton = document.getElementById('saveButton');
-const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
-const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
-const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
-const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
-
-// Call the whiteboard setup from whiteboard.js
-setupWhiteboardControls({
-    canvas: whiteboardCanvas,
-    toolButtons: toolButtons,
-    colorPicker: colorPicker,
-    brushSizeSlider: brushSizeSlider,
-    undoButton: undoButton,
-    redoButton: redoButton,
-    clearButton: clearButton,
-    saveButton: saveButton,
-    prevWhiteboardPageBtn: prevWhiteboardPageBtn,
-    nextWhiteboardPageBtn: nextWhiteboardPageBtn,
-    user: currentUser,              // ← must exist in your app.js
-    socket: socket,                 // ← your existing socket connection
-    classroom: currentClassroom,    // ← must exist in your app.js
-    whiteboardPagesRef: whiteboardPages // ← your pages array
-});
+    // Whiteboard Elements (now integrated)
+    const whiteboardCanvas = document.getElementById('whiteboard-canvas');
+    const toolButtons = document.querySelectorAll('.tool-button');
+    const colorPicker = document.getElementById('colorPicker');
+    const brushSizeSlider = document.getElementById('brushSize');
+    const undoButton = document.getElementById('undoButton');
+    const redoButton = document.getElementById('redoButton');
+    const clearButton = document.getElementById('clearButton');
+    const saveButton = document.getElementById('saveButton');
+    const whiteboardRoleMessage = document.getElementById('whiteboard-role-message');
+    const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
+    const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
+    const whiteboardPageDisplay = document.getElementById('whiteboard-page-display');
 
     // Video Broadcast Elements
     const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
@@ -151,9 +133,25 @@ setupWhiteboardControls({
         ]
     };
 
-    
     // Video Zoom States
     const videoZoomStates = new Map(); // Map: videoElement.id -> { currentScale: 1, isZoomed: false, offsetX: 0, offsetY: 0 }
+
+    // Whiteboard Global Variables (moved from whiteboard.js)
+    let currentTool = 'pen';
+    let isDrawing = false;
+    let startX, startY, lastX, lastY;
+    let currentStrokePoints = [];
+    let snapshot = null;
+    let whiteboardCtx; // Declared here, assigned in setupWhiteboardControls
+    // whiteboardCanvas is already a const above
+    // currentUser, currentClassroom are already global `let`
+    let whiteboardPages = [[]]; // Initialize with one empty page
+    let currentPageIndex = 0;
+    let currentColor = '#FFFFFF'; // Default color
+    let currentBrushSize = 5; // Default brush size
+    const MAX_HISTORY_STEPS = 10;
+    let undoStack = [];
+    let redoStack = [];
 
 
     // --- Utility Functions ---
@@ -455,7 +453,7 @@ setupWhiteboardControls({
         updateUIBasedOnRole();
 
         initializeSocketIO();
-        setupWhiteboardControls();
+        setupWhiteboardControls(); // Call the integrated setup
         setupChatControls(); // Ensure chat controls are also set up
 
         // Reset broadcast buttons state based on role
@@ -685,16 +683,9 @@ setupWhiteboardControls({
                 console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data.');
                 return;
             }
-            const applyDrawingProperties = (tool, color, width) => {
-                whiteboardCtx.strokeStyle = color;
-                whiteboardCtx.lineWidth = width;
-                whiteboardCtx.fillStyle = color;
-                if (tool === 'eraser') {
-                    whiteboardCtx.globalCompositeOperation = 'destination-out';
-                } else {
-                    whiteboardCtx.globalCompositeOperation = 'source-over';
-                }
-            };
+            // The `applyDrawingProperties` function was internal to `whiteboard.js` and is now merged.
+            // Its logic for setting `strokeStyle`, `lineWidth`, `fillStyle`, and `globalCompositeOperation`
+            // is now handled directly within `drawWhiteboardItem` as it receives `commandData` directly.
 
             if (data.action === 'draw') {
                 const drawingItem = data.data; // This is the actual drawing object sent from the server
@@ -709,11 +700,8 @@ setupWhiteboardControls({
 
                 // Only draw if it's the current active page
                 if (pageIndex === currentPageIndex) {
-                    whiteboardCtx.save();
-                    // applyDrawingProperties expects tool, color, width from the drawing item
-                    applyDrawingProperties(drawingItem.tool, drawingItem.color, drawingItem.width);
-                    drawWhiteboardItem(drawingItem); // drawWhiteboardItem expects the full drawing item
-                    whiteboardCtx.restore();
+                    // drawWhiteboardItem now internally sets styles based on commandData
+                    drawWhiteboardItem(drawingItem);
                 }
             } else if (data.action === 'clear') {
                 const pageIndex = data.pageIndex; // Correctly get pageIndex from the top-level data object
@@ -1189,8 +1177,356 @@ setupWhiteboardControls({
             }
         }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
     }
+    
+    // --- Whiteboard Functions (Integrated from whiteboard.js) ---
 
-                                                    
+    /**
+     * Initializes whiteboard canvas and attaches event listeners.
+     */
+    function setupWhiteboardControls() {
+        if (!whiteboardCanvas) {
+            console.error("Whiteboard canvas element not found.");
+            return;
+        }
+
+        whiteboardCtx = whiteboardCanvas.getContext('2d');
+
+        // initial canvas styles
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineWidth = currentBrushSize;
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.fillStyle = currentColor;
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // events
+        whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
+        whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
+        whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
+        whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
+
+        whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
+        whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
+        whiteboardCanvas.addEventListener('touchend', handleMouseUp);
+        whiteboardCanvas.addEventListener('touchcancel', handleMouseUp);
+
+        toolButtons.forEach(button => {
+            button.addEventListener('click', () => selectTool(button.dataset.tool));
+        });
+
+        if (colorPicker) colorPicker.addEventListener('input', updateColor);
+        if (brushSizeSlider) brushSizeSlider.addEventListener('input', updateBrushSize);
+        if (undoButton) undoButton.addEventListener('click', undo);
+        if (redoButton) redoButton.addEventListener('click', redo);
+        if (clearButton) clearButton.addEventListener('click', () => clearCanvas(true));
+        if (saveButton) saveButton.addEventListener('click', saveImage);
+        if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
+        if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
+
+        renderCurrentWhiteboardPage();
+        updateWhiteboardPageDisplay();
+        updateUndoRedoButtons();
+    }
+
+    /**
+     * Resizes the whiteboard canvas to fit its container while maintaining aspect ratio.
+     */
+    function resizeCanvas() {
+        const container = whiteboardCanvas.parentElement;
+        const aspectRatio = 1200 / 800; // Original aspect ratio
+        let newWidth = container.clientWidth - 40; // Subtract padding/margin
+        let newHeight = newWidth / aspectRatio;
+
+        // Ensure canvas doesn't exceed window height
+        if (newHeight > window.innerHeight * 0.9) {
+            newHeight = window.innerHeight * 0.9;
+            newWidth = newHeight * aspectRatio;
+        }
+
+        whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
+        whiteboardCanvas.height = Math.max(newHeight, 700); // Minimum height, adjust as needed
+
+        // Reapply styles after resize, as canvas resize clears them
+        whiteboardCtx.lineJoin = 'round';
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineWidth = currentBrushSize;
+        whiteboardCtx.strokeStyle = currentColor;
+        whiteboardCtx.fillStyle = currentColor;
+
+        renderCurrentWhiteboardPage(); // Redraw content after resize
+    }
+
+    /**
+     * Handles mouse/touch down events on the whiteboard canvas.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     */
+    function handleMouseDown(e) {
+        if (currentUser.role !== 'admin') return; // Only admin can draw
+        const coords = getCoords(e);
+        startX = coords.x;
+        startY = coords.y;
+        lastX = coords.x; // Initialize lastX, lastY for pen/eraser
+        lastY = coords.y;
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            isDrawing = true;
+            currentStrokePoints = [{ x: startX, y: startY, time: Date.now(), width: currentBrushSize }];
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(startX, startY);
+        } else if (currentTool === 'text') {
+            const textInput = prompt("Enter text:");
+            if (textInput && textInput.trim() !== '') {
+                // Draw text immediately for visual feedback
+                whiteboardCtx.save();
+                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+                whiteboardCtx.fillStyle = currentColor;
+                whiteboardCtx.fillText(textInput, startX, startY);
+                whiteboardCtx.restore();
+
+                const textData = {
+                    startX, startY,
+                    text: textInput,
+                    color: currentColor,
+                    width: currentBrushSize,
+                    tool: 'text'
+                };
+
+                // Emit and store text data as a draw command
+                socket.emit('whiteboard_data', {
+                    action: 'draw',
+                    classroomId: currentClassroom.id,
+                    data: textData,
+                    pageIndex: currentPageIndex
+                });
+                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
+                saveState(); // Save state after drawing text
+            }
+        } else { // For shapes (line, rectangle, circle)
+            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            isDrawing = true;
+        }
+    }
+
+    /**
+     * Handles mouse/touch move events on the whiteboard canvas.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     */
+    function handleMouseMove(e) {
+        if (!isDrawing || currentUser.role !== 'admin') return; // Only draw if actively drawing and admin
+        e.preventDefault(); // Prevent scrolling on touch devices
+        const coords = getCoords(e);
+        const currentX = coords.x;
+        const currentY = coords.y;
+        const now = Date.now();
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
+            const timeDiff = now - (lastPoint?.time || now);
+            const dx = currentX - (lastPoint?.x || currentX);
+            const dy = currentY - (lastPoint?.y || currentY);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const speed = distance / (timeDiff || 1);
+
+            // Dynamic brush width based on speed (smoother drawing)
+            const minWidth = 1.5;
+            const maxWidth = 6;
+            const velocity = Math.min(speed / 2, 1);
+            const newWidth = maxWidth - (maxWidth - minWidth) * velocity;
+
+            currentStrokePoints.push({ x: currentX, y: currentY, time: now, width: newWidth });
+
+            if (currentStrokePoints.length > 2) {
+                const p0 = currentStrokePoints[currentStrokePoints.length - 3];
+                const p1 = currentStrokePoints[currentStrokePoints.length - 2];
+                const p2 = currentStrokePoints[currentStrokePoints.length - 1];
+
+                whiteboardCtx.save();
+                whiteboardCtx.strokeStyle = currentColor;
+                whiteboardCtx.lineWidth = p1.width; // Use dynamic width for this segment
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(p0.x, p0.y);
+                whiteboardCtx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                whiteboardCtx.stroke();
+                whiteboardCtx.restore();
+            }
+            lastX = currentX;
+            lastY = currentY;
+        } else if (snapshot && (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle')) {
+            // Restore previous snapshot to draw fresh shape preview
+            whiteboardCtx.putImageData(snapshot, 0, 0);
+            drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
+        }
+    }
+
+    /**
+     * Handles mouse/touch up events on the whiteboard canvas.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     */
+    function handleMouseUp(e) {
+        if (!isDrawing || currentUser.role !== 'admin') return; // Only process if actively drawing and admin
+        isDrawing = false; // Stop drawing
+
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            // If it was just a click (single point), draw a dot
+            if (currentStrokePoints.length === 1) {
+                const p = currentStrokePoints[0];
+                whiteboardCtx.save();
+                whiteboardCtx.strokeStyle = currentColor;
+                whiteboardCtx.fillStyle = currentColor;
+                whiteboardCtx.lineWidth = p.width;
+                whiteboardCtx.globalCompositeOperation = (currentTool === 'eraser') ? 'destination-out' : 'source-over';
+                whiteboardCtx.beginPath();
+                whiteboardCtx.arc(p.x, p.y, p.width / 2, 0, Math.PI * 2);
+                whiteboardCtx.fill();
+                whiteboardCtx.restore();
+            }
+
+            const strokeData = {
+                points: currentStrokePoints,
+                color: currentColor,
+                tool: currentTool,
+                width: currentBrushSize // Include the base brush size for consistency/fallback
+            };
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: strokeData,
+                pageIndex: currentPageIndex
+            });
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
+            // Re-render the current page to ensure all strokes are permanently drawn
+            renderCurrentWhiteboardPage();
+            currentStrokePoints = []; // Reset for next stroke
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            const coords = getCoords(e);
+            const shapeData = {
+                startX, startY,
+                endX: coords.x,
+                endY: coords.y,
+                color: currentColor,
+                width: currentBrushSize,
+                tool: currentTool
+            };
+            // Draw final shape
+            drawWhiteboardItem(shapeData);
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: shapeData,
+                pageIndex: currentPageIndex
+            });
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
+        }
+        whiteboardCtx.globalCompositeOperation = 'source-over'; // Reset to default blending
+        saveState(); // Save canvas state for undo/redo
+    }
+
+    /**
+     * Draws a whiteboard item (stroke, shape, or text) onto the canvas.
+     * This function applies styling before drawing and restores context after.
+     * @param {object} commandData - Object containing drawing command details.
+     */
+    function drawWhiteboardItem(commandData) {
+        const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
+
+        // Apply styles based on command data
+        whiteboardCtx.strokeStyle = color;
+        whiteboardCtx.lineWidth = width;
+        whiteboardCtx.fillStyle = color;
+        whiteboardCtx.globalCompositeOperation = (tool === 'eraser') ? 'destination-out' : 'source-over';
+
+        switch (tool) {
+            case 'pen':
+            case 'eraser':
+                if (!points || points.length === 0) break;
+
+                // Handle single-point clicks for dots
+                if (points.length === 1) {
+                    const p = points[0];
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.arc(p.x, p.y, p.width / 2 || width / 2, 0, Math.PI * 2); // Use dynamic width if available, else fallback
+                    whiteboardCtx.fill();
+                    break;
+                }
+
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length - 1; i++) {
+                    const p1 = points[i];
+                    const p2 = points[i + 1];
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    whiteboardCtx.lineWidth = p1.width || width; // Use dynamic width for segments
+                    whiteboardCtx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                }
+                whiteboardCtx.stroke();
+                break;
+
+            case 'line':
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(startX, startY);
+                whiteboardCtx.lineTo(endX, endY);
+                whiteboardCtx.stroke();
+                break;
+
+            case 'rectangle':
+                whiteboardCtx.strokeRect(startX, startY, endX - startX, endY - startY);
+                break;
+
+            case 'circle':
+                // Calculate radius from start to end point
+                const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+                whiteboardCtx.beginPath();
+                whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
+                whiteboardCtx.stroke();
+                break;
+
+            case 'text':
+                whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Text size based on brush size
+                whiteboardCtx.fillText(text, startX, startY);
+                break;
+        }
+    }
+
+    /**
+     * Gets mouse or touch coordinates relative to the canvas.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     * @returns {{x: number, y: number}} - X and Y coordinates.
+     */
+    function getCoords(e) {
+        const rect = whiteboardCanvas.getBoundingClientRect();
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+
+    /**
+     * Selects the active drawing tool.
+     * @param {string} tool - The tool to select ('pen', 'eraser', 'line', 'rectangle', 'circle', 'text').
+     */
+    function selectTool(tool) {
+        currentTool = tool;
+        toolButtons.forEach(button => {
+            if (button.dataset.tool === tool) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+        // Reset globalCompositeOperation if switching from eraser to another tool
+        if (whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
+            whiteboardCtx.globalCompositeOperation = 'source-over';
+        }
+        showNotification(`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool selected.`);
+    }
 
     /**
      * Updates the drawing color.
@@ -1223,10 +1559,10 @@ setupWhiteboardControls({
         whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         
         whiteboardPages[currentPageIndex] = []; // Clear local data for current page
-        saveState(); // Save the cleared state
+        saveState(); // Save the cleared state for undo (optional, depends on how deep undo goes)
 
         if (emitEvent && socket && currentClassroom && currentClassroom.id) {
-            socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id, data: { pageIndex: currentPageIndex } });
+            socket.emit('whiteboard_data', { action: 'clear', classroomId: currentClassroom.id, pageIndex: currentPageIndex });
         }
         showNotification(`Whiteboard page ${currentPageIndex + 1} cleared.`);
     }
@@ -1255,10 +1591,11 @@ setupWhiteboardControls({
      */
     function saveState() {
         if (undoStack.length >= MAX_HISTORY_STEPS) {
-            undoStack.shift();
+            undoStack.shift(); // Remove the oldest state
         }
+        // Save the current canvas as an image data URL
         undoStack.push(whiteboardCanvas.toDataURL());
-        redoStack.length = 0;
+        redoStack.length = 0; // Clear redo stack on new action
         updateUndoRedoButtons();
     }
 
@@ -1270,7 +1607,7 @@ setupWhiteboardControls({
         const img = new Image();
         img.onload = () => {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            whiteboardCtx.fillStyle = '#000000';
+            whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
             whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             whiteboardCtx.drawImage(img, 0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         };
@@ -1281,18 +1618,20 @@ setupWhiteboardControls({
      * Performs an undo operation.
      */
     function undo() {
-        if (undoStack.length > 1) {
+        if (undoStack.length > 1) { // Need at least one state left after popping
             const lastState = undoStack.pop();
             redoStack.push(lastState);
             loadState(undoStack[undoStack.length - 1]);
-        } else if (undoStack.length === 1) {
+        } else if (undoStack.length === 1) { // If only the initial blank state is left
             const lastState = undoStack.pop();
             redoStack.push(lastState);
+            // Clear the canvas to simulate going back to an empty state
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             whiteboardCtx.fillStyle = '#000000';
             whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
         updateUndoRedoButtons();
+        showNotification("Undo action performed.");
     }
 
     /**
@@ -1305,6 +1644,7 @@ setupWhiteboardControls({
             loadState(nextState);
         }
         updateUndoRedoButtons();
+        showNotification("Redo action performed.");
     }
 
     /**
@@ -1328,7 +1668,7 @@ setupWhiteboardControls({
             if (!response.ok) {
                 if (response.status === 404) {
                     console.log("No whiteboard history found for this classroom. Starting fresh.");
-                    whiteboardPages = [[]];
+                    whiteboardPages = [[]]; // Start with a single empty page
                     currentPageIndex = 0;
                     renderCurrentWhiteboardPage();
                     updateWhiteboardPageDisplay();
@@ -1337,9 +1677,9 @@ setupWhiteboardControls({
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            whiteboardPages = data.history || [[]];
+            whiteboardPages = data.history || [[]]; // Use history, default to empty array if null/undefined
             if (whiteboardPages.length === 0) {
-                whiteboardPages = [[]];
+                whiteboardPages = [[]]; // Ensure at least one page exists
             }
             currentPageIndex = 0; // Always reset to first page when loading history
             renderCurrentWhiteboardPage();
@@ -1347,7 +1687,7 @@ setupWhiteboardControls({
             showNotification("Whiteboard history loaded.");
         } catch (error) {
             console.error("Error fetching whiteboard history:", error);
-            whiteboardPages = [[]];
+            whiteboardPages = [[]]; // Fallback to an empty whiteboard on error
             currentPageIndex = 0;
             renderCurrentWhiteboardPage();
             updateWhiteboardPageDisplay();
@@ -1359,7 +1699,7 @@ setupWhiteboardControls({
      * Renders the drawing commands for the current page onto the canvas.
      */
     function renderCurrentWhiteboardPage() {
-        if (!whiteboardCtx) return;
+        if (!whiteboardCtx || !whiteboardCanvas) return;
         whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
         whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
@@ -1367,22 +1707,11 @@ setupWhiteboardControls({
         const currentPage = whiteboardPages[currentPageIndex];
         if (currentPage) {
             currentPage.forEach(command => {
-                whiteboardCtx.save();
-                // Apply properties based on the command data
-                whiteboardCtx.strokeStyle = command.data.color;
-                whiteboardCtx.lineWidth = command.data.width;
-                whiteboardCtx.fillStyle = command.data.color;
-                if (command.data.tool === 'eraser') {
-                    whiteboardCtx.globalCompositeOperation = 'destination-out';
-                } else {
-                    whiteboardCtx.globalCompositeOperation = 'source-over';
-                }
-                // Pass the entire data object to drawWhiteboardItem
+                // drawWhiteboardItem now handles saving/restoring context internally based on `commandData`
                 drawWhiteboardItem(command.data);
-                whiteboardCtx.restore();
             });
         }
-        updateWhiteboardPageDisplay();
+        updateWhiteboardPageDisplay(); // Update page number display
     }
 
     /**
@@ -1407,6 +1736,7 @@ setupWhiteboardControls({
     function goToNextWhiteboardPage() {
         if (currentPageIndex < whiteboardPages.length - 1) {
             currentPageIndex++;
+            showNotification(`Moved to whiteboard page ${currentPageIndex + 1}`);
         } else if (currentUser.role === 'admin') {
             whiteboardPages.push([]); // Add a new empty page
             currentPageIndex = whiteboardPages.length - 1;
@@ -1415,14 +1745,15 @@ setupWhiteboardControls({
                 newPageIndex: currentPageIndex,
                 action: 'add_page'
             });
+            showNotification(`New whiteboard page ${currentPageIndex + 1} created.`);
         } else {
-            showNotification("No next page available.", true);
+            showNotification("No next page available. Only administrators can create new pages.", true);
             return;
         }
         renderCurrentWhiteboardPage();
         updateWhiteboardPageDisplay();
+        // Emit page change for all users
         socket.emit('whiteboard_page_change', { classroomId: currentClassroom.id, newPageIndex: currentPageIndex });
-        showNotification(`Moved to whiteboard page ${currentPageIndex + 1}`);
     }
 
     /**
@@ -2500,7 +2831,8 @@ async function submitAssessment() {
                             shareLinkInput.value = data.share_link;
                             shareLinkDisplay.classList.remove('hidden');
                             shareLinkInput.select(); // Select the text for easy copying
-                            showNotification("Share link generated. Click 'Copy Link' to copy.");
+                            document.execCommand('copy'); // Automatically copy to clipboard
+                            showNotification("Share link generated and copied to clipboard!");
                         } else {
                             showNotification('Error generating share link: ' + (data.error || 'Unknown error'), true);
                         }
@@ -2513,7 +2845,8 @@ async function submitAssessment() {
                 }
             });
         }
-        copyShareLinkBtn.addEventListener('click', () => { shareLinkInput.select(); document.execCommand('copy'); showNotification('Link copied to clipboard!'); });
+        // Removed separate copy button listener as it's now integrated with generate.
+        // If a standalone copy button is still desired, add its listener here.
     }
 
     // Broadcast Controls (already handled in setupWhiteboardControls, but ensure listeners are attached)
