@@ -1191,159 +1191,158 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
     }
 
+   // --- Whiteboard Functions ---
 
-    // --- Whiteboard Functions ---
-
-    /**
-     * Sets up the whiteboard canvas and its controls.
-     */
-    function setupWhiteboardControls() {
-        if (!whiteboardCanvas) {
-             console.warn("[Whiteboard] Canvas element not found. Whiteboard controls not set up.");
-             return;
-        }
-        whiteboardCtx = whiteboardCanvas.getContext('2d');
-        if (!whiteboardCtx) {
-            console.error("[Whiteboard] 2D context failed to initialize. Whiteboard will not function.");
-            return;
-        }
-
-        // Set initial drawing properties for the context
-        whiteboardCtx.lineJoin = 'round';
-        whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.lineWidth = currentBrushSize;
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.fillStyle = currentColor; // For text
-
-        resizeCanvas(); // Set initial size
-        window.addEventListener('resize', resizeCanvas);
-
-        // Event Listeners for Drawing
-        whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
-        whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
-        whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
-        whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
-
-        // Touch/Stylus Optimization: Use passive: false for touchmove to allow preventDefault
-        whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
-        whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
-        whiteboardCanvas.addEventListener('touchend', handleMouseUp);
-        whiteboardCanvas.addEventListener('touchcancel', handleMouseUp);
-
-        // Tool selection
-        toolButtons.forEach(button => {
-            button.addEventListener('click', () => selectTool(button.dataset.tool));
-        });
-
-        // Color and Size
-        if (colorPicker) colorPicker.addEventListener('input', updateColor);
-        if (brushSizeSlider) brushSizeSlider.addEventListener('input', updateBrushSize);
-
-        // Actions
-        if (undoButton) undoButton.addEventListener('click', undo);
-        if (redoButton) redoButton.addEventListener('click', redo);
-        if (clearButton) clearButton.addEventListener('click', () => clearCanvas(true));
-        if (saveButton) saveButton.addEventListener('click', saveImage);
-
-        // Page Navigation
-        if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
-        if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
-        
-        // Initial render and page display update
-        renderCurrentWhiteboardPage();
-        updateWhiteboardPageDisplay();
-        updateUndoRedoButtons(); // Initialize undo/redo button states
+/**
+ * Sets up the whiteboard canvas and its controls.
+ */
+function setupWhiteboardControls() {
+    if (!whiteboardCanvas) {
+         console.warn("[Whiteboard] Canvas element not found. Whiteboard controls not set up.");
+         return;
+    }
+    whiteboardCtx = whiteboardCanvas.getContext('2d');
+    if (!whiteboardCtx) {
+        console.error("[Whiteboard] 2D context failed to initialize. Whiteboard will not function.");
+        return;
     }
 
-    /**
-     * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
-     */
-    function resizeCanvas() {
-        const container = whiteboardCanvas.parentElement;
-        
-        const aspectRatio = 1200 / 800; // Original design aspect ratio
-        let newWidth = container.clientWidth - 40; // Account for padding/margins
-        let newHeight = newWidth / aspectRatio;
+    // Set initial drawing properties for the context
+    whiteboardCtx.lineJoin = 'round';
+    whiteboardCtx.lineCap = 'round';
+    whiteboardCtx.lineWidth = currentBrushSize;
+    whiteboardCtx.strokeStyle = currentColor;
+    whiteboardCtx.fillStyle = currentColor; // For text
 
-        // Ensure it doesn't exceed viewport height significantly
-        if (newHeight > window.innerHeight * 0.9) {
-            newHeight = window.innerHeight * 0.9;
-            newWidth = newHeight * aspectRatio;
-        }
+    resizeCanvas(); // Set initial size
+    window.addEventListener('resize', resizeCanvas);
 
-        whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
-        whiteboardCanvas.height = Math.max(newHeight, 700); // Minimum height
+    // Event Listeners for Drawing
+    whiteboardCanvas.addEventListener('mousedown', handleMouseDown);
+    whiteboardCanvas.addEventListener('mousemove', handleMouseMove);
+    whiteboardCanvas.addEventListener('mouseup', handleMouseUp);
+    whiteboardCanvas.addEventListener('mouseout', handleMouseUp);
 
-        // Reapply styles as context state can be reset on dimension change
-        whiteboardCtx.lineJoin = 'round';
-        whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.lineWidth = currentBrushSize;
-        whiteboardCtx.strokeStyle = currentColor;
-        whiteboardCtx.fillStyle = currentColor;
-        renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
+    // Touch/Stylus Optimization: Use passive: false for touchmove to allow preventDefault
+    whiteboardCanvas.addEventListener('touchstart', handleMouseDown, { passive: false });
+    whiteboardCanvas.addEventListener('touchmove', handleMouseMove, { passive: false });
+    whiteboardCanvas.addEventListener('touchend', handleMouseUp);
+    whiteboardCanvas.addEventListener('touchcancel', handleMouseUp);
+
+    // Tool selection
+    toolButtons.forEach(button => {
+        button.addEventListener('click', () => selectTool(button.dataset.tool));
+    });
+
+    // Color and Size
+    if (colorPicker) colorPicker.addEventListener('input', updateColor);
+    if (brushSizeSlider) brushSizeSlider.addEventListener('input', updateBrushSize);
+
+    // Actions
+    if (undoButton) undoButton.addEventListener('click', undo);
+    if (redoButton) redoButton.addEventListener('click', redo);
+    if (clearButton) clearButton.addEventListener('click', () => clearCanvas(true));
+    if (saveButton) saveButton.addEventListener('click', saveImage);
+
+    // Page Navigation
+    if (prevWhiteboardPageBtn) prevWhiteboardPageBtn.addEventListener('click', goToPreviousWhiteboardPage);
+    if (nextWhiteboardPageBtn) nextWhiteboardPageBtn.addEventListener('click', goToNextWhiteboardPage);
+    
+    // Initial render and page display update
+    renderCurrentWhiteboardPage();
+    updateWhiteboardPageDisplay();
+    updateUndoRedoButtons(); // Initialize undo/redo button states
+}
+
+/**
+ * Adjusts the canvas dimensions to fit its parent container while maintaining aspect ratio.
+ */
+function resizeCanvas() {
+    const container = whiteboardCanvas.parentElement;
+    
+    const aspectRatio = 1200 / 800; // Original design aspect ratio
+    let newWidth = container.clientWidth - 40; // Account for padding/margins
+    let newHeight = newWidth / aspectRatio;
+
+    // Ensure it doesn't exceed viewport height significantly
+    if (newHeight > window.innerHeight * 0.9) {
+        newHeight = window.innerHeight * 0.9;
+        newWidth = newHeight * aspectRatio;
     }
 
-    /**
-     * Handles the start of a drawing action (mousedown or touchstart).
-     */
-    function handleMouseDown(e) {
-        if (currentUser.role !== 'admin') return;
-        isDrawing = true;
-        const coords = getCoords(e);
-        startX = coords.x;
-        startY = coords.y;
-        lastX = coords.x;
-        lastY = coords.y; // Initialize lastY as well
+    whiteboardCanvas.width = Math.max(newWidth, 300); // Minimum width
+    whiteboardCanvas.height = Math.max(newHeight, 700); // Minimum height
 
-        // Save snapshot for temporary drawing of shapes
-        if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
-            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        }
+    // Reapply styles as context state can be reset on dimension change
+    whiteboardCtx.lineJoin = 'round';
+    whiteboardCtx.lineCap = 'round';
+    whiteboardCtx.lineWidth = currentBrushSize;
+    whiteboardCtx.strokeStyle = currentColor;
+    whiteboardCtx.fillStyle = currentColor;
+    renderCurrentWhiteboardPage(); // Re-render all commands to fit new size
+}
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
-            whiteboardCtx.beginPath(); // Start a new path for pen/eraser
-            whiteboardCtx.moveTo(startX, startY);
-        } else if (currentTool === 'text') {
-            const textInput = prompt("Enter text:");
-            if (textInput !== null && textInput.trim() !== '') {
-                whiteboardCtx.save();
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillStyle = currentColor;
-                whiteboardCtx.fillText(textInput, startX, startY);
-                whiteboardCtx.restore();
+/**
+ * Handles the start of a drawing action (mousedown or touchstart).
+ */
+function handleMouseDown(e) {
+    if (currentUser.role !== 'admin') return;
+    isDrawing = true;
+    const coords = getCoords(e);
+    startX = coords.x;
+    startY = coords.y;
+    lastX = coords.x;
+    lastY = coords.y; // Initialize lastY as well
 
-                saveState(); // Save the state after drawing text
-                const textData = {
-                    startX: startX,
-                    startY: startY,
-                    endX: startX, // For text, endX/Y are same as start
-                    endY: startY,
-                    text: textInput,
-                    color: currentColor,
-                    width: currentBrushSize,
-                    tool: 'text',
-                    pageIndex: currentPageIndex
-                };
-                socket.emit('whiteboard_data', {
-                    action: 'draw',
-                    classroomId: currentClassroom.id,
-                    data: textData
-                });
-                // Add to local page data
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
-            }
-            isDrawing = false; // Text drawing is a single click action
-        }
+    // Save snapshot for temporary drawing of shapes
+    if (currentTool !== 'pen' && currentTool !== 'eraser' && currentTool !== 'text') {
+        snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
     }
 
-    /**
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        currentStrokePoints = [{ x: startX, y: startY }]; // Start collecting points for the stroke
+        whiteboardCtx.beginPath(); // Start a new path for pen/eraser
+        whiteboardCtx.moveTo(startX, startY);
+    } else if (currentTool === 'text') {
+        const textInput = prompt("Enter text:");
+        if (textInput !== null && textInput.trim() !== '') {
+            whiteboardCtx.save();
+            whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+            whiteboardCtx.fillStyle = currentColor;
+            whiteboardCtx.fillText(textInput, startX, startY);
+            whiteboardCtx.restore();
+
+            saveState(); // Save the state after drawing text
+            const textData = {
+                startX: startX,
+                startY: startY,
+                endX: startX, // For text, endX/Y are same as start
+                endY: startY,
+                text: textInput,
+                color: currentColor,
+                width: currentBrushSize,
+                tool: 'text',
+                pageIndex: currentPageIndex
+            };
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: textData
+            });
+            // Add to local page data
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
+        }
+        isDrawing = false; // Text drawing is a single click action
+    }
+}
+
+/**
  * Handles the movement during a drawing action (mousemove or touchmove).
- * Includes stroke smoothing and line interpolation for pen/eraser.
+ * Includes stroke smoothing and dynamic line width.
  */
 function handleMouseMove(e) {
     if (!isDrawing || currentUser.role !== 'admin' || currentTool === 'text') return;
-    e.preventDefault(); // Prevent scrolling on touch devices during drawing
+    e.preventDefault();
 
     const coords = getCoords(e);
     const currentX = coords.x;
@@ -1360,7 +1359,6 @@ function handleMouseMove(e) {
         }
 
         // Apply a moving average filter to smooth the points
-        // The last 3 points are averaged to get the new 'smoothed' point
         let smoothedX = currentX;
         let smoothedY = currentY;
         if (currentStrokePoints.length > 2) {
@@ -1370,22 +1368,19 @@ function handleMouseMove(e) {
             smoothedY = (p1.y + p2.y + currentY) / 3;
         }
 
-        // Add the smoothed point to the stroke
         currentStrokePoints.push({ x: smoothedX, y: smoothedY });
 
         // Dynamic line width based on speed
         const dx = smoothedX - lastX;
         const dy = smoothedY - lastY;
         const speed = Math.sqrt(dx * dx + dy * dy);
-        const maxSpeed = 20; // Adjust this value
+        const maxSpeed = 20;
         const minWidth = 1;
-        const maxWidth = 20; // Adjust to your preference
+        const maxWidth = 20;
         const newWidth = Math.max(minWidth, maxWidth - (speed / maxSpeed) * maxWidth);
         
-        // Use the new width
         whiteboardCtx.lineWidth = newWidth;
         
-        // Draw a smooth line using quadratic curves
         whiteboardCtx.beginPath();
         whiteboardCtx.moveTo(lastX, lastY);
         whiteboardCtx.quadraticCurveTo(lastX, lastY, smoothedX, smoothedY);
@@ -1398,7 +1393,6 @@ function handleMouseMove(e) {
         if (snapshot) {
             whiteboardCtx.putImageData(snapshot, 0, 0);
         } else {
-            // Fallback if snapshot is somehow missing (shouldn't happen)
             renderCurrentWhiteboardPage();
         }
         drawWhiteboardItem({ tool: currentTool, startX, startY, endX: currentX, endY: currentY, color: currentColor, width: currentBrushSize });
@@ -1406,7 +1400,7 @@ function handleMouseMove(e) {
     whiteboardCtx.restore();
 }
 
-    /**
+/**
  * Handles the end of a drawing action (mouseup or touchend).
  */
 function handleMouseUp(e) {
@@ -1414,35 +1408,26 @@ function handleMouseUp(e) {
     isDrawing = false;
 
     if (currentTool === 'pen' || currentTool === 'eraser') {
-        // Create stroke object
         const strokeData = {
-            points: currentStrokePoints, // Array of all points in the stroke
+            points: currentStrokePoints,
             color: currentColor,
             width: currentBrushSize,
             tool: currentTool
         };
-
-        // Emit to others
         socket.emit('whiteboard_data', {
             action: 'draw',
             classroomId: currentClassroom.id,
             data: strokeData,
             pageIndex: currentPageIndex
         });
-
-        // Save locally
         whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
-        currentStrokePoints = []; // Clear for next stroke
-
-        // Immediately re-render the canvas to show the new, persistent drawing
+        currentStrokePoints = [];
         renderCurrentWhiteboardPage();
 
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
         const finalCoords = getCoords(e);
         const currentX = finalCoords.x;
         const currentY = finalCoords.y;
-
-        // Redraw existing to reset canvas state
         renderCurrentWhiteboardPage();
         
         whiteboardCtx.save();
@@ -1457,7 +1442,6 @@ function handleMouseUp(e) {
             width: currentBrushSize,
             tool: currentTool
         };
-
         drawWhiteboardItem(shapeData);
         whiteboardCtx.restore();
 
@@ -1467,40 +1451,20 @@ function handleMouseUp(e) {
             data: shapeData,
             pageIndex: currentPageIndex
         });
-
         whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
     }
-
-    // Reset eraser mode if it was active
     if (whiteboardCtx.globalCompositeOperation === 'destination-out') {
         whiteboardCtx.globalCompositeOperation = 'source-over';
     }
-
-    saveState(); // Save for undo/redo
+    saveState();
 }
 
-
-
-    /**
-     * Draws a specific whiteboard item (line, rectangle, circle, text, or smoothed pen/eraser stroke).
-     * @param {object} commandData - The data object for the drawing command.
-     * @param {string} commandData.tool - The drawing tool.
-     * @param {number} [commandData.startX] - Start X coordinate (for shapes/text).
-     * @param {number} [commandData.startY] - Start Y coordinate (for shapes/text).
-     * @param {number} [commandData.endX] - End X coordinate (for shapes).
-     * @param {number} [commandData.endY] - End Y coordinate (for shapes).
-     * @param {string} [commandData.text] - Text content for the 'text' tool.
-     * @param {Array<object>} [commandData.points] - Array of {x, y} points for 'pen'/'eraser' strokes.
-     * @param {string} commandData.color - Stroke/fill color.
-     * @param {number} commandData.width - Stroke width.
-     /**
- * Draws a single drawing command item onto the whiteboard canvas.
- * This is used for rendering the current page's history.
+/**
+ * Draws a specific whiteboard item (line, rectangle, circle, text, or smoothed pen/eraser stroke).
+ * @param {object} commandData - The data object for the drawing command.
  */
 function drawWhiteboardItem(commandData) {
     const { tool, startX, startY, endX, endY, text, points, color, width } = commandData;
-
-    // Apply properties before drawing
     whiteboardCtx.strokeStyle = color;
     whiteboardCtx.lineWidth = width;
     whiteboardCtx.fillStyle = color;
@@ -1514,18 +1478,15 @@ function drawWhiteboardItem(commandData) {
     switch (tool) {
         case 'pen':
         case 'eraser':
-            // Re-render smoothed stroke from points
             if (points && points.length > 1) {
-                // New logic: Iterate through all points and draw a quadratic curve between each one
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(points[0].x, points[0].y);
                 for (let i = 1; i < points.length; i++) {
                     const prevPoint = points[i - 1];
                     const currentPoint = points[i];
-                    
-                    whiteboardCtx.beginPath();
-                    whiteboardCtx.moveTo(prevPoint.x, prevPoint.y);
                     whiteboardCtx.quadraticCurveTo(prevPoint.x, prevPoint.y, currentPoint.x, currentPoint.y);
-                    whiteboardCtx.stroke();
                 }
+                whiteboardCtx.stroke();
             }
             break;
         case 'line':
@@ -1542,7 +1503,6 @@ function drawWhiteboardItem(commandData) {
             whiteboardCtx.closePath();
             break;
         case 'circle':
-            // For circles, startX, startY is center, endX, endY defines radius
             const radius = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
             whiteboardCtx.beginPath();
             whiteboardCtx.arc(startX, startY, radius, 0, Math.PI * 2);
@@ -1550,13 +1510,13 @@ function drawWhiteboardItem(commandData) {
             whiteboardCtx.closePath();
             break;
         case 'text':
-            whiteboardCtx.font = `${width * 2}px Inter, sans-serif`; // Use 'width' as brush size for text scaling
+            whiteboardCtx.font = `${width * 2}px Inter, sans-serif`;
             whiteboardCtx.fillText(text, startX, startY);
             break;
     }
 }
 
-    /**
+/**
  * Renders the drawing commands for the current page onto the canvas.
  */
 function renderCurrentWhiteboardPage() {
@@ -1572,48 +1532,49 @@ function renderCurrentWhiteboardPage() {
     });
 }
     
+/**
+ * Gets mouse/touch coordinates relative to the canvas.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ * @returns {object} An object with x and y coordinates.
+ */
+function getCoords(e) {
+    const rect = whiteboardCanvas.getBoundingClientRect();
+    let clientX, clientY;
 
-    
-    /**
-     * Gets mouse/touch coordinates relative to the canvas.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     * @returns {object} An object with x and y coordinates.
-     */
-    function getCoords(e) {
-        const rect = whiteboardCanvas.getBoundingClientRect();
-        let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+    }
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
 
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
+/**
+ * Changes the active drawing tool.
+ * @param {string} tool - The tool to activate.
+ */
+function selectTool(tool) {
+    currentTool = tool;
+    toolButtons.forEach(button => {
+        if (button.dataset.tool === tool) {
+            button.classList.add('active');
         } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
+            button.classList.remove('active');
         }
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
+    });
+    // Reset globalCompositeOperation when changing from eraser
+    if (whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
+        whiteboardCtx.globalCompositeOperation = 'source-over';
     }
+} 
 
-    /**
-     * Changes the active drawing tool.
-     * @param {string} tool - The tool to activate.
-     */
-    function selectTool(tool) {
-        currentTool = tool;
-        toolButtons.forEach(button => {
-            if (button.dataset.tool === tool) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-        // Reset globalCompositeOperation when changing from eraser
-        if (whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
-        }
-    }
+
+                                                    
 
     /**
      * Updates the drawing color.
