@@ -1259,56 +1259,58 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Handles mouse/touch down events on the whiteboard canvas.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     */
-    function handleMouseDown(e) {
-        if (currentUser.role !== 'admin') return; // Only admin can draw
-        const coords = getCoords(e);
-        startX = coords.x;
-        startY = coords.y;
-        lastX = coords.x; // Initialize lastX, lastY for pen/eraser
-        lastY = coords.y;
+ * Handles mouse/touch down events on the whiteboard canvas.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ */
+function handleMouseDown(e) {
+    if (currentUser.role !== 'admin') return; // Only admin can draw
+    const coords = getCoords(e);
+    startX = coords.x;
+    startY = coords.y;
+    lastX = coords.x; // Initialize lastX, lastY for pen/eraser
+    lastY = coords.y;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            isDrawing = true;
-            currentStrokePoints = [{ x: startX, y: startY, time: Date.now(), width: currentBrushSize }];
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo(startX, startY);
-        } else if (currentTool === 'text') {
-            const textInput = prompt("Enter text:");
-            if (textInput && textInput.trim() !== '') {
-                // Draw text immediately for visual feedback
-                whiteboardCtx.save();
-                whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
-                whiteboardCtx.fillStyle = currentColor;
-                whiteboardCtx.fillText(textInput, startX, startY);
-                whiteboardCtx.restore();
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        isDrawing = true;
+        currentStrokePoints = [{ x: startX, y: startY, time: Date.now(), width: currentBrushSize }];
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(startX, startY);
+    } else if (currentTool === 'text') {
+        const textInput = prompt("Enter text:");
+        if (textInput && textInput.trim() !== '') {
+            // Draw text immediately for visual feedback
+            whiteboardCtx.save();
+            whiteboardCtx.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+            whiteboardCtx.fillStyle = currentColor;
+            whiteboardCtx.fillText(textInput, startX, startY);
+            whiteboardCtx.restore();
 
-                const textData = {
-                    startX, startY,
-                    text: textInput,
-                    color: currentColor,
-                    width: currentBrushSize,
-                    tool: 'text'
-                };
+            const textData = {
+                startX, startY,
+                text: textInput,
+                color: currentColor,
+                width: currentBrushSize,
+                tool: 'text'
+            };
 
-                // Emit and store text data as a draw command
-                socket.emit('whiteboard_data', {
-                    action: 'draw',
-                    classroomId: currentClassroom.id,
-                    data: textData,
-                    pageIndex: currentPageIndex
-                });
-                whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
-                saveState(); // Save state after drawing text
-            }
-        } else { // For shapes (line, rectangle, circle)
-            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-            isDrawing = true;
+            // Emit and store text data as a draw command
+            socket.emit('whiteboard_data', {
+                action: 'draw',
+                classroomId: currentClassroom.id,
+                data: textData,
+                pageIndex: currentPageIndex
+            });
+            whiteboardPages[currentPageIndex].push({ action: 'draw', data: textData });
+            renderCurrentWhiteboardPage(); // ⭐ THIS IS THE CRUCIAL LINE TO ADD ⭐
+            saveState(); // Save state after drawing text
         }
+    } else { // For shapes (line, rectangle, circle)
+        snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        isDrawing = true;
     }
+}
 
+    
     /**
      * Handles mouse/touch move events on the whiteboard canvas.
      * @param {MouseEvent|TouchEvent} e - The event object.
