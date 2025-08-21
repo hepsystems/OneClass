@@ -1958,73 +1958,95 @@ async function submitAssessment() {
         return;
     }
 
-    // --- DATE/TIME CONVERSION TO UTC (CRUCIAL FIX) ---
-    let scheduledAtUTC = null; // Declare a variable to store the UTC ISO string
+  // --- DATE/TIME CONVERSION TO UTC (CRUCIAL FIX) ---
+let scheduledAtUTC = null; 
 
-    if (scheduledAtLocal) {
-        // Create a Date object from the local date/time string.
-        // The Date constructor will interpret this string in the user's local timezone.
-        const localDate = new Date(scheduledAtLocal);
+if (scheduledAtLocal) {
+    const localDate = new Date(scheduledAtLocal); 
+    scheduledAtUTC = localDate.toISOString(); // Convert to UTC
+} else {
+    console.warn("scheduledAtLocal was empty during UTC conversion attempt.");
+    displayMessage(assessmentCreationMessage, 'Error converting scheduled time. Please ensure the date/time is correctly entered.', true);
+    return;
+}
+// --- END DATE/TIME CONVERSION ---
 
-        // Convert the local Date object to an ISO 8601 string representing UTC time.
-        // .toISOString() always returns a UTC timestamp ending with 'Z'.
-        scheduledAtUTC = localDate.toISOString();
-    } else {
-        // Fallback or error handling if for some reason scheduledAtLocal is empty here
-        console.warn("scheduledAtLocal was empty during UTC conversion attempt.");
-        displayMessage(assessmentCreationMessage, 'Error converting scheduled time. Please ensure the date/time is correctly entered.', true);
-        return;
+
+// --- Collect Questions ---
+const questionItems = questionsContainer.querySelectorAll('.question-item');
+questions = []; // reset questions before pushing
+
+questionItems.forEach((item, index) => {
+    const questionText = item.querySelector('.question-text').value.trim();
+    const questionType = item.querySelector('.question-type').value;
+    let options = [];
+    let correctAnswer = '';
+
+    if (questionType === 'mcq') {
+        item.querySelectorAll('.mcq-option').forEach(input => {
+            if (input.value.trim() !== '') {
+                options.push(input.value.trim());
+            }
+        });
+        correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
     }
-    // --- END OF DATE/TIME CONVERSION ---
+
+    if (questionText) {
+        questions.push({
+            id: `q${index + 1}-${Date.now()}`,
+            question_text: questionText,
+            question_type: questionType,
+            options: options.length > 0 ? options : undefined,
+            correct_answer: correctAnswer || undefined
+        });
+    }
+});
+
+if (questions.length === 0) {
+    displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
+    return;
+}
 
 
-    // --- Collect Questions ---
-    const questionItems = questionsContainer.querySelectorAll('.question-item');
-    questionItems.forEach((item, index) => {
-        const questionText = item.querySelector('.question-text').value.trim();
-        const questionType = item.querySelector('.question-type').value;
-        let options = [];
-        let correctAnswer = '';
-
-        if (questionType === 'mcq') {
-            item.querySelectorAll('.mcq-option').forEach(input => {
-                if (input.value.trim() !== '') {
-                    options.push(input.value.trim());
-                }
-            });
-            correctAnswer = item.querySelector('.mcq-correct-answer').value.trim();
-        }
-
-        if (questionText) {
-            questions.push({
-                id: `q${index + 1}-${Date.now()}`, // Simple unique ID for now
-                question_text: questionText,
-                question_type: questionType,
-                options: options.length > 0 ? options : undefined,
-                correct_answer: correctAnswer || undefined
-            });
-        }
+// --- Submit Assessment to Backend ---
+try {
+    const response = await fetch('/api/assessments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            classroomId: currentClassroom.id,
+            title,
+            description,
+            scheduled_at: scheduledAtUTC,  // Send UTC time
+            duration_minutes: durationMinutes,
+            questions
+        })
     });
 
-    if (questions.length === 0) {
-        displayMessage(assessmentCreationMessage, 'Please add at least one question.', true);
-        return;
+    const result = await response.json();
+    if (response.ok) {
+        displayMessage(assessmentCreationMessage, "Assessment created successfully.", false);
+        loadAssessments(); // Refresh list after creating
+    } else {
+        displayMessage(assessmentCreationMessage, result.error || "Failed to create assessment.", true);
     }
+} catch (error) {
+    console.error('Error submitting assessment:', error);
+    displayMessage(assessmentCreationMessage, "Error submitting assessment. Try again.", true);
+}
 
-    // --- Submit Assessment to Backend ---
-    try {
-        const response = await fetch('/api/assessments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                classroomId: currentClassroom.id,
-                title,
-                description,
-                scheduled_at: scheduledAtUTC, // <--- THIS IS THE CRITICAL UPDATED VALUE
-                duration_minutes: durationMinutes,
-                questions // Send the questions array
-            })
-        });
+
+    const result = await response.json();
+    if (response.ok) {
+        displayMessage(assessmentCreationMessage, "Assessment created successfully.", false);
+        loadAssessments(); // Refresh list after creating
+    } else {
+        displayMessage(assessmentCreationMessage, result.error || "Failed to create assessment.", true);
+    }
+} catch (error) {
+    console.error('Error submitting assessment:', error);
+    displayMessage(assessmentCreationMessage, "Error submitting assessment. Try again.", true);
+}
 
         const result = await response.json();
 
