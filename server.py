@@ -155,18 +155,18 @@ def create_classroom():
     if existing_classroom:
         return jsonify({"message": "A classroom with this name already exists"}), 409
 
-    # CORRECT CODE: Generates a unique ObjectId for the new classroom.
+    # This is the correct code that generates the ID.
     new_classroom = {
-        "_id": ObjectId(), # Use ObjectId for the classroom ID
+        "_id": ObjectId(), 
         "name": name,
         "creator_id": ObjectId(session['user_id']),
         "creator_username": session['username'],
         "created_at": datetime.utcnow(),
-        "members": [{"id": ObjectId(session['user_id']), "role": "admin"}] # Creator is the admin
+        "members": [{"id": ObjectId(session['user_id']), "role": "admin"}] 
     }
     classrooms_collection.insert_one(new_classroom)
     
-    # CORRECT CODE: The response correctly returns the new classroom's ID as a string.
+    # The response correctly returns the new classroom's ID.
     return jsonify({"message": "Classroom created successfully", "classroom_id": str(new_classroom['_id'])}), 201
 
 @app.route("/api/classrooms/<classroomId>", methods=["GET"])
