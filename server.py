@@ -49,7 +49,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- Background Task Scheduler Setup ---
 scheduler = GeventScheduler()
-scheduler.add_executor(GeventExecutor, 'default') # This line is redundant but here for clarity.
+# Fix for the TypeError: Correctly instantiate the executor and add it to the scheduler
+scheduler.add_executor(GeventExecutor()) # Correctly passing an instance, not the class
 scheduler.start()
 
 def delete_old_classrooms():
