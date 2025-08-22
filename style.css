@@ -1,356 +1,442 @@
-/* General Body and App Layout */
+/*
+ * One Class - Modern & Responsive Stylesheet
+ *
+ * This stylesheet is designed to be comprehensive, powerful, and aesthetically
+ * pleasing, covering all elements of the provided HTML structure.
+ * It uses a modern approach with CSS Variables, Flexbox, and Grid for
+ * robust, responsive layouts and smooth transitions.
+ */
+
+/* --- 1. Global & Utility Styles --- */
+
 :root {
-    /* Colors */
+    /* Color Palette */
     --primary-color: #007bff;
     --primary-dark-color: #0056b3;
-    --success-color: #28a745;
-    --success-dark-color: #218838;
-    --danger-color: #dc3545;
-    --danger-dark-color: #c82333;
-    --info-color: #17a2b8;
-    --info-dark-color: #138496;
     --secondary-color: #6c757d;
-    --secondary-dark-color: #5a6268;
-    --body-bg: #f0f2f5;
-    --app-bg: #ffffff;
-    --text-color: #333;
-    --light-text-color: #555;
-    --border-color: #e0e6ed;
-    --light-border-color: #eee;
-    --subtle-shadow: rgba(0, 0, 0, 0.05);
-    --medium-shadow: rgba(0, 0, 0, 0.08);
-    --strong-shadow: rgba(0, 0, 0, 0.2);
-    --sidebar-bg: #2c3e50;
-    --sidebar-text: #ecf0f1;
-    --sidebar-hover-bg: #34495e;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --neutral-light: #f8f9fa;
+    --neutral-mid: #e9ecef;
+    --neutral-dark: #343a40;
+    --text-color: #212529;
+    --white: #ffffff;
+    --black: #000000;
+    --backdrop: rgba(0, 0, 0, 0.5);
 
-    /* Spacing */
-    --spacing-xs: 5px;
-    --spacing-sm: 10px;
-    --spacing-md: 20px;
-    --spacing-lg: 30px;
+    /* Spacing & Sizing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 48px;
+    --border-radius: 8px;
 
-    /* Fonts */
-    --font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Fonts & Typography */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    --font-size-base: 16px;
+    --line-height-base: 1.6;
 
-    /* Border Radius */
-    --border-radius-sm: 4px;
-    --border-radius-md: 8px;
-    --border-radius-lg: 12px;
+    /* Box Shadow */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+
+    /* Transitions */
+    --transition-fast: 0.2s ease-in-out;
+    --transition-slow: 0.4s ease;
 }
 
-* {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
 body {
-    font-family: var(--font-family-sans-serif);
-    background-color: var(--body-bg);
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
     color: var(--text-color);
-    line-height: 1.6;
+    background-color: var(--neutral-light);
     min-height: 100vh;
-}
-
-#app {
     display: flex;
     flex-direction: column;
+}
+
+/* Base Styles for all major sections */
+section {
+    width: 100%;
     min-height: 100vh;
-}
-
-header {
-    background-color: var(--app-bg);
-    padding: var(--spacing-sm) var(--spacing-md);
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: var(--subtle-shadow);
-}
-
-header h1 {
-    font-size: 1.5em;
-    color: var(--primary-color);
-}
-
-#top-nav button {
-    background: none;
-    border: none;
-    color: var(--text-color);
-    padding: var(--spacing-sm);
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 1em;
-    transition: color 0.2s ease;
-}
-
-#top-nav button:hover {
-    color: var(--primary-color);
-}
-
-#top-nav button.active-nav {
-    border-bottom: 2px solid var(--primary-color);
-    color: var(--primary-color);
-}
-
-#app-content {
-    flex-grow: 1;
-    display: flex;
-    padding: var(--spacing-md);
-    position: relative;
-}
-
-.content-view {
-    display: none;
-    flex-grow: 1;
-    flex-direction: column;
-    width: 100%;
-}
-
-.content-view.active {
-    display: flex;
-}
-
-/* Form and Button Styles */
-form {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background-color: var(--app-bg);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--subtle-shadow);
-    max-width: 500px;
-    margin: 0 auto;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-input[type="file"],
-input[type="datetime-local"],
-textarea,
-select {
-    width: 100%;
-    padding: var(--spacing-sm);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-sm);
-    font-size: 1em;
-    background-color: var(--body-bg);
-}
-
-button {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: none;
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    font-size: 1em;
-    font-weight: bold;
-    color: white;
-    transition: background-color 0.2s ease, transform 0.1s ease;
-}
-
-button:active {
-    transform: scale(0.98);
-}
-
-.btn-primary, button[type="submit"] {
-    background-color: var(--primary-color);
-}
-
-.btn-primary:hover, button[type="submit"]:hover {
-    background-color: var(--primary-dark-color);
-}
-
-.btn-success {
-    background-color: var(--success-color);
-}
-
-.btn-success:hover {
-    background-color: var(--success-dark-color);
-}
-
-.btn-danger {
-    background-color: var(--danger-color);
-}
-
-.btn-danger:hover {
-    background-color: var(--danger-dark-color);
-}
-
-.btn-info {
-    background-color: var(--info-color);
-}
-
-.btn-info:hover {
-    background-color: var(--info-dark-color);
-}
-
-.btn-secondary {
-    background-color: var(--secondary-color);
-}
-
-.btn-secondary:hover {
-    background-color: var(--secondary-dark-color);
-}
-
-.btn-icon {
-    background: none;
-    color: var(--text-color);
-    padding: 0;
+    padding: var(--spacing-xl);
+    transition: opacity var(--transition-slow), transform var(--transition-slow);
 }
 
 .hidden {
     display: none !important;
 }
 
-.message {
-    text-align: center;
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
-    margin-top: var(--spacing-md);
+.active {
+    display: flex !important;
 }
 
-#auth-section {
-    display: flex;
-    flex-direction: column;
+/* --- 2. Button & Form Component Styles --- */
+
+button,
+.btn {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 100vh;
-    padding: var(--spacing-lg);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95em;
+    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+button:hover,
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+button:active,
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark-color);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    color: var(--white);
+}
+
+.btn-secondary:hover {
+    background-color: var(--neutral-dark);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    color: var(--white);
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    color: var(--white);
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    color: var(--white);
+}
+
+.btn-info:hover {
+    background-color: #138496;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="datetime-local"],
+textarea,
+select {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--neutral-mid);
+    border-radius: var(--border-radius);
+    font-size: 1em;
+    background-color: var(--white);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
+
+/* --- 3. Auth Section --- */
+
+#auth-section {
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark-color));
+}
+
+#login-container,
+#register-container {
+    background-color: var(--white);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    max-width: 400px;
+    text-align: center;
+    transition: transform var(--transition-slow);
 }
 
 #auth-section h2 {
+    color: var(--white);
+    font-size: 2.5em;
+    margin-bottom: var(--spacing-lg);
+}
+
+#auth-section h3 {
     margin-bottom: var(--spacing-md);
     color: var(--primary-color);
 }
 
-#login-container, #register-container {
-    background-color: var(--app-bg);
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--medium-shadow);
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
+#auth-section form {
+    margin-top: var(--spacing-md);
 }
 
-#login-container p, #register-container p {
-    margin-top: var(--spacing-sm);
-    font-size: 0.9em;
+#auth-section p {
+    margin-top: var(--spacing-md);
 }
 
-/* Dashboard Section */
-#dashboard-section {
+/* --- 4. Dashboard & Settings Sections --- */
+
+#dashboard-section,
+#settings-section {
+    background-color: var(--neutral-light);
+    gap: var(--spacing-xl);
+}
+
+.main-nav {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    background-color: var(--white);
     padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
 }
 
-#dashboard-section h2 {
-    text-align: center;
-    margin-bottom: var(--spacing-md);
+.main-nav button {
+    color: var(--text-color);
+    font-size: 1.1em;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    background: none;
+    position: relative;
+    transition: color var(--transition-fast);
+}
+
+.main-nav button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--primary-color);
+    transform: scaleX(0);
+    transition: transform var(--transition-fast);
+}
+
+.main-nav button:hover,
+.main-nav button.active-nav {
     color: var(--primary-color);
+}
+
+.main-nav button.active-nav::after {
+    transform: scaleX(1);
+}
+
+#dashboard-section h2,
+#settings-section h2 {
+    text-align: center;
+    font-size: 2em;
+    color: var(--primary-color);
+}
+
+#create-join-classroom {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+#create-classroom-section,
+#join-classroom-section {
+    background-color: var(--white);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    text-align: center;
 }
 
 #classroom-list {
-    display: flex;
-    flex-wrap: wrap;
+    list-style-type: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: var(--spacing-md);
-    justify-content: center;
+    margin-top: var(--spacing-md);
 }
 
-.classroom-card {
-    background-color: var(--app-bg);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--subtle-shadow);
+#classroom-list li {
+    background-color: var(--neutral-mid);
     padding: var(--spacing-md);
-    width: 250px;
-    text-align: center;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.classroom-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--medium-shadow);
+#classroom-list li:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
 }
 
-.classroom-card h3 {
-    margin-bottom: var(--spacing-sm);
-    color: var(--primary-color);
+/* --- 5. Classroom Section --- */
+
+#classroom-section {
+    padding: 0;
+    flex-direction: row;
+    position: relative;
+    overflow: hidden;
 }
 
-#admin-controls {
-    margin-top: var(--spacing-lg);
-    text-align: center;
-}
-
-#admin-controls h3 {
-    margin-bottom: var(--spacing-sm);
-}
-
-#admin-controls .form-container {
+.classroom-header {
     display: flex;
-    gap: var(--spacing-sm);
-    justify-content: center;
-    max-width: 500px;
-    margin: 0 auto;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--white);
+    box-shadow: var(--shadow-sm);
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-/* Classroom Details Section */
-#classroom-details-section header {
-    background-color: transparent;
-    border-bottom: none;
-    box-shadow: none;
-    margin-bottom: var(--spacing-md);
+.hamburger-menu {
+    background: none;
+    border: none;
+    color: var(--text-color);
+    font-size: 1.5em;
+}
+
+.sidebar {
+    background-color: var(--neutral-dark);
+    color: var(--white);
+    width: 280px;
+    padding: var(--spacing-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 20;
+    transform: translateX(-100%);
+    transition: transform var(--transition-fast);
+}
+
+.sidebar.active {
+    transform: translateX(0);
+}
+
+.sidebar button {
+    background: none;
+    border: none;
+    color: var(--neutral-light);
+    text-align: left;
+    padding: var(--spacing-sm);
+    font-size: 1em;
+}
+
+.sidebar button.active-nav {
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius);
+}
+
+.sidebar button:hover {
+    background-color: var(--secondary-color);
+}
+
+.close-btn {
+    align-self: flex-end;
+    font-size: 2em;
 }
 
 .classroom-content-wrapper {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    gap: var(--spacing-md);
-}
-
-#video-whiteboard-container {
-    display: flex;
-    flex-grow: 1;
-    gap: var(--spacing-md);
-}
-
-#video-panel {
-    display: flex;
-    flex-direction: column;
-    width: 25%;
-    max-width: 300px;
-    background-color: var(--app-bg);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--subtle-shadow);
     padding: var(--spacing-md);
+    gap: var(--spacing-md);
     overflow-y: auto;
 }
 
-#video-panel h4 {
-    text-align: center;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: var(--spacing-sm);
+.classroom-sub-section {
+    background-color: var(--white);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    min-height: 600px;
+    display: none;
+    flex-direction: column;
+}
+
+.classroom-sub-section.active {
+    display: flex;
+}
+
+/* --- 6. Video & Whiteboard Section (Combined for Layout) --- */
+
+/* This is the new parent container for video and whiteboard, which are now siblings in the HTML */
+#video-whiteboard-layout {
+    display: flex;
+    flex-direction: column; /* Stacks them vertically on smaller screens */
+    gap: var(--spacing-md);
 }
 
 #video-streams-wrapper {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     gap: var(--spacing-sm);
+    justify-content: center;
+    align-items: flex-start;
+    padding: var(--spacing-md);
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
 }
 
 .video-wrapper {
     position: relative;
     width: 100%;
+    max-width: 300px;
     aspect-ratio: 16 / 9;
-    background-color: #000;
-    border-radius: var(--border-radius-sm);
+    background-color: var(--black);
+    border-radius: var(--border-radius);
     overflow: hidden;
+    box-shadow: var(--shadow-sm);
 }
 
 .video-wrapper video {
@@ -363,12 +449,12 @@ button:active {
     position: absolute;
     bottom: 0;
     width: 100%;
-    padding: 5px;
-    background: rgba(0, 0, 0, 0.5);
-    color: white;
+    padding: var(--spacing-xs);
+    background: var(--backdrop);
+    color: var(--white);
     text-align: center;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity var(--transition-fast);
     cursor: zoom-in;
 }
 
@@ -383,518 +469,233 @@ button:active {
     transform: translate(-50%, -50%);
     width: 90vw;
     height: 90vh;
-    max-width: 900px;
-    max-height: 700px;
+    max-width: 1200px;
+    max-height: 800px;
     z-index: 100;
-    background-color: black;
+    background-color: var(--black);
     border: 3px solid var(--primary-color);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     cursor: zoom-out;
 }
 
-#remote-video-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-/* Whiteboard Section */
 #whiteboard-area {
-    flex-grow: 1;
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
     padding: var(--spacing-md);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--subtle-shadow);
-    background-color: var(--app-bg);
-}
-
-#whiteboard-role-message {
-    text-align: center;
-    color: var(--light-text-color);
-    font-style: italic;
-    margin-bottom: var(--spacing-sm);
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
 }
 
 #whiteboard-canvas {
     flex-grow: 1;
     width: 100%;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-sm);
+    background-color: var(--white);
+    border: 1px solid var(--neutral-mid);
     cursor: crosshair;
 }
 
 #whiteboard-control-panel {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
     gap: var(--spacing-sm);
     margin-top: var(--spacing-md);
-    background-color: var(--body-bg);
     padding: var(--spacing-sm);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--subtle-shadow);
+    background-color: var(--neutral-light);
+    border-radius: var(--border-radius);
 }
 
-#whiteboard-tools-container {
+.tool-group {
     display: flex;
     gap: var(--spacing-sm);
-    flex-wrap: wrap;
-    align-items: center;
 }
 
-.tool-btn {
+.tool-button, .action-button {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: var(--app-bg);
-    color: var(--light-text-color);
+    background-color: var(--white);
+    color: var(--neutral-dark);
+    border: 1px solid var(--neutral-mid);
     position: relative;
-    box-shadow: var(--subtle-shadow);
-    border: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    box-shadow: var(--shadow-sm);
 }
 
-.tool-btn:hover {
-    background-color: var(--light-border-color);
-}
-
-.tool-btn.active-tool {
+.tool-button.active {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--white);
     border-color: var(--primary-dark-color);
 }
 
-.tool-btn .tooltip {
-    visibility: hidden;
-    background-color: var(--sidebar-bg);
-    color: var(--sidebar-text);
-    text-align: center;
-    border-radius: var(--border-radius-sm);
-    padding: 5px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.3s;
+.action-button:hover, .tool-button:hover {
+    background-color: var(--neutral-mid);
 }
 
-.tool-btn:hover .tooltip {
-    visibility: visible;
-    opacity: 1;
-}
-
-.tool-options-container {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.tool-label {
-    font-weight: 500;
-    color: var(--light-text-color);
-}
-
-/* Classroom Tabs */
-#classroom-tabs {
+#whiteboard-navigation {
     display: flex;
     justify-content: center;
-    gap: var(--spacing-sm);
-    background-color: var(--body-bg);
-    border-radius: var(--border-radius-lg);
-    padding: var(--spacing-sm);
-    box-shadow: var(--subtle-shadow);
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
 }
 
-#classroom-tabs button {
-    background-color: transparent;
-    color: var(--light-text-color);
-    border-bottom: 2px solid transparent;
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-weight: 600;
-}
+/* --- 7. Chat Section --- */
 
-#classroom-tabs button.active-tab {
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: var(--border-radius-sm);
-    transform: none;
-    border-bottom: none;
-}
-
-.classroom-sub-section {
-    background-color: var(--app-bg);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-lg);
-    box-shadow: var(--subtle-shadow);
-    display: none;
-    flex-direction: column;
-    flex-grow: 1;
-}
-
-.classroom-sub-section.active {
-    display: flex;
-}
-
-/* Chat Section */
 #chat-section {
-    height: 500px; /* Example fixed height for chat */
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 60vh;
 }
 
 #chat-messages {
     flex-grow: 1;
     overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-sm);
-    padding: var(--spacing-sm);
-    margin-bottom: var(--spacing-sm);
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-xs);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background-color: var(--neutral-light);
+    border-radius: var(--border-radius);
 }
 
 .chat-message-item {
-    padding: 8px 12px;
-    border-radius: 18px;
-    max-width: 70%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 20px;
+    max-width: 75%;
     word-wrap: break-word;
     font-size: 0.9em;
 }
 
 .chat-message-item.sent {
     background-color: var(--primary-color);
-    color: white;
+    color: var(--white);
     align-self: flex-end;
     border-bottom-right-radius: 4px;
 }
 
 .chat-message-item.received {
-    background-color: var(--light-border-color);
+    background-color: var(--neutral-mid);
     color: var(--text-color);
     align-self: flex-start;
     border-bottom-left-radius: 4px;
 }
 
-.chat-message-item.system-message {
-    background-color: var(--info-color);
-    color: white;
-    align-self: center;
-    text-align: center;
-    font-style: italic;
-    font-size: 0.8em;
-}
-
 .chat-input-area {
     display: flex;
     gap: var(--spacing-sm);
-}
-
-#chat-message-input {
-    flex-grow: 1;
-    border: 1px solid var(--border-color);
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius-sm);
-}
-
-#send-chat-button {
-    padding: var(--spacing-sm) var(--spacing-md);
-}
-
-/* Library Section */
-#library-files-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--spacing-md);
     margin-top: var(--spacing-md);
 }
 
-.library-file-item {
-    background-color: var(--body-bg);
-    padding: var(--spacing-sm);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--subtle-shadow);
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-    width: 250px;
-    font-size: 0.9em;
-}
-
-.library-file-item a {
-    color: var(--primary-color);
-    text-decoration: none;
+#chat-input {
     flex-grow: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.library-file-item a:hover {
-    text-decoration: underline;
-}
+/* --- 8. Library & Assessments Sections --- */
 
-.library-file-item button {
-    background-color: transparent;
-    color: var(--danger-color);
-    border: none;
-    padding: 0;
-}
-
-#upload-library-form {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    background: none;
-    box-shadow: none;
-}
-
-/* Assessments Section */
-#assessments-list {
+#library-files-list,
+#assessment-list {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
 }
 
+.library-file-item,
 .assessment-item {
-    background-color: var(--body-bg);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    box-shadow: var(--subtle-shadow);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--neutral-light);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition-fast);
 }
 
-.assessment-item h4 {
-    margin-bottom: var(--spacing-xs);
+.library-file-item:hover,
+.assessment-item:hover {
+    transform: translateX(5px);
 }
 
-.assessment-item p {
-    font-size: 0.9em;
-    color: var(--light-text-color);
-}
-
-.assessment-item .assessment-actions {
-    display: flex;
-    gap: var(--spacing-sm);
-}
-
-/* Assessment Creation and Details Forms */
 #assessment-creation-form,
-#assessment-questions-form {
+#take-assessment-form {
     max-width: none;
+    background-color: transparent;
+    box-shadow: none;
 }
 
-.question-form-item {
-    background-color: var(--light-border-color);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
-    position: relative;
-}
+/* --- 9. Responsive Design --- */
 
-.question-form-item .delete-question-btn {
-    position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    background: transparent;
-    color: var(--danger-color);
-    font-size: 1.2em;
-}
-
-.question-form-item textarea {
-    min-height: 80px;
-}
-
-.mcq-options {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-sm);
-}
-
-.mcq-option-item {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm);
-}
-
-.mcq-option-item input[type="text"] {
-    flex-grow: 1;
-}
-
-.question-form-item .add-option-btn,
-.question-form-item .remove-option-btn {
-    background-color: var(--secondary-color);
-    color: white;
-    font-size: 1.2em;
-    padding: 2px 8px;
-    border-radius: var(--border-radius-sm);
-    width: auto;
-}
-
-.question-form-item .remove-option-btn {
-    background-color: var(--danger-color);
-}
-
-.student-question-item {
-    background-color: var(--body-bg);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-md);
-}
-
-/* Submission View */
-#submission-view-questions .submission-question {
-    background-color: var(--light-border-color);
-    padding: var(--spacing-md);
-    border-radius: var(--border-radius-md);
-    margin-bottom: var(--spacing-sm);
-    border-left: 5px solid;
-}
-
-.submission-question.correct {
-    border-left-color: var(--success-color);
-}
-
-.submission-question.incorrect {
-    border-left-color: var(--danger-color);
-}
-
-.submission-question.not-graded {
-    border-left-color: var(--secondary-color);
-}
-
-.submission-question p {
-    margin: var(--spacing-xs) 0;
-}
-
-.submission-question strong {
-    color: var(--primary-color);
-}
-
-/* Settings Section */
-#settings-section {
-    padding: var(--spacing-md);
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-#settings-section h2 {
-    color: var(--primary-color);
-    margin-bottom: var(--spacing-md);
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-    #app-content {
-        padding: var(--spacing-sm);
-    }
-
-    header {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-    }
-
-    #classroom-list {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .classroom-card {
-        width: 100%;
-    }
-
-    #admin-controls .form-container {
-        flex-direction: column;
-    }
-
-    #classroom-tabs {
-        flex-wrap: wrap;
-    }
-    
-    #video-whiteboard-container {
-        flex-direction: column;
-    }
-
-    #video-panel {
-        width: 100%;
-        max-width: none;
-    }
-    
-    #whiteboard-area {
-        flex-grow: 1;
-        width: 100%;
-    }
-
-    #whiteboard-tools-container {
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .tool-options-container {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .chat-messages {
-        padding: var(--spacing-sm);
-    }
-
-    .chat-message-item {
-        max-width: 95%;
-        padding: 8px 12px;
-        font-size: 0.9em;
-    }
-
-    .chat-input-area {
-        flex-direction: column;
-        gap: var(--spacing-sm);
-    }
-
-    #send-chat-button {
-        width: 100%;
-        padding: var(--spacing-sm);
-        font-size: 15px;
-    }
-
-    #library-section div[data-admin-only] {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    #upload-library-files-btn {
-        width: 100%;
-    }
-
-    #assessment-creation-form input[type="text"],
-    #assessment-creation-form textarea,
-    #assessment-creation-form select {
-        width: calc(100% - 20px);
-    }
-
-    .mcq-options input[type="text"] {
-        width: calc(100% - 20px - 26px);
-    }
-
-    #add-question-btn, #submit-assessment-btn {
-        width: 100%;
-    }
-
-    #assessment-list div {
-        flex-direction: column;
+@media (min-width: 1024px) {
+    #video-whiteboard-layout {
+        flex-direction: row;
         align-items: flex-start;
-        gap: var(--spacing-sm);
+    }
+
+    #video-streams-wrapper {
+        flex: 0 0 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        font-size: 14px;
+    }
+
+    #auth-section {
+        padding: var(--spacing-md);
+    }
+
+    #auth-section h2 {
+        font-size: 2em;
+    }
+
+    #login-container,
+    #register-container {
+        padding: var(--spacing-lg);
+    }
+
+    .main-nav {
+        flex-wrap: wrap;
+    }
+
+    #dashboard-section h2,
+    #settings-section h2 {
+        font-size: 1.5em;
+    }
+
+    #classroom-section {
+        flex-direction: column;
+    }
+
+    .classroom-header {
+        position: relative;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        bottom: auto;
+        transform: translateY(-100%);
+    }
+
+    .sidebar.active {
+        transform: translateY(0);
+    }
+
+    #video-streams-wrapper {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .video-wrapper {
+        max-width: none;
+        width: 100%;
+    }
+
+    #whiteboard-control-panel {
+        flex-direction: column;
     }
 }
