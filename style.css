@@ -316,7 +316,8 @@ select:focus {
 
 #classroom-section {
     padding: 0;
-    flex-direction: row;
+    display: flex;
+    flex-direction: column;
     position: relative;
     overflow: hidden;
 }
@@ -334,6 +335,7 @@ select:focus {
 }
 
 .hamburger-menu {
+    display: block; /* Hamburger is always visible on mobile */
     background: none;
     border: none;
     color: var(--text-color);
@@ -348,7 +350,7 @@ select:focus {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-sm);
-    position: absolute;
+    position: fixed; /* Use fixed for full screen overlay */
     top: 0;
     left: 0;
     bottom: 0;
@@ -359,6 +361,7 @@ select:focus {
 
 .sidebar.active {
     transform: translateX(0);
+    box-shadow: var(--shadow-lg); /* Add shadow when open */
 }
 
 .sidebar button {
@@ -368,11 +371,13 @@ select:focus {
     text-align: left;
     padding: var(--spacing-sm);
     font-size: 1em;
+    border-radius: var(--border-radius);
 }
 
 .sidebar button.active-nav {
     background-color: var(--primary-color);
-    border-radius: var(--border-radius);
+    color: var(--white);
+    font-weight: 700;
 }
 
 .sidebar button:hover {
@@ -382,6 +387,8 @@ select:focus {
 .close-btn {
     align-self: flex-end;
     font-size: 2em;
+    background: none;
+    color: var(--neutral-light);
 }
 
 .classroom-content-wrapper {
@@ -409,7 +416,6 @@ select:focus {
 
 /* --- 6. Video & Whiteboard Section (Combined for Layout) --- */
 
-/* This is the new parent container for video and whiteboard, which are now siblings in the HTML */
 #video-whiteboard-layout {
     display: flex;
     flex-direction: column; /* Stacks them vertically on smaller screens */
@@ -636,6 +642,15 @@ select:focus {
 
     #video-streams-wrapper {
         flex: 0 0 300px;
+    }
+
+    .sidebar {
+        position: relative; /* Make the sidebar part of the layout */
+        transform: none; /* No need to hide with transform */
+    }
+
+    .hamburger-menu {
+        display: none; /* Hide the hamburger menu on desktop */
     }
 }
 
