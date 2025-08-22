@@ -15,7 +15,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS
 from apscheduler.schedulers.gevent import GeventScheduler
 from apscheduler.executors.gevent import GeventExecutor
-from bson.objectid import ObjectId # For using ObjectId in MongoDB queries
+from bson.objectid import ObjectId
 
 # --- Flask App Configuration ---
 app = Flask(__name__, static_folder='.')
@@ -31,17 +31,17 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=T
 mongo = PyMongo(app)
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
-files_collection = mongo.db.files # from server (1).py
-library_files_collection = mongo.db.library_files # from server.py (more specific)
-chats_collection = mongo.db.chats # from server (1).py
-chat_messages_collection = mongo.db.chat_messages # from server.py (more specific)
-whiteboard_collection = mongo.db.whiteboards # from server (1).py
-whiteboard_drawings_pages = mongo.db.whiteboard_drawings_pages # from server.py (more specific)
-webrtc_signals_collection = mongo.db.webrtc_signals # from server (1).py (note: not used)
+files_collection = mongo.db.files
+library_files_collection = mongo.db.library_files
+chats_collection = mongo.db.chats
+chat_messages_collection = mongo.db.chat_messages
+whiteboard_collection = mongo.db.whiteboards
+whiteboard_drawings_pages = mongo.db.whiteboard_drawings_pages
+webrtc_signals_collection = mongo.db.webrtc_signals
 assessments_collection = mongo.db.assessments
-submissions_collection = mongo.db.submissions # from server (1).py
-assessment_questions_collection = mongo.db.assessment_questions # from server.py (more specific)
-assessment_submissions_collection = mongo.db.assessment_submissions # from server.py (more specific)
+submissions_collection = mongo.db.submissions
+assessment_questions_collection = mongo.db.assessment_questions
+assessment_submissions_collection = mongo.db.assessment_submissions
 
 # Ensure necessary directories exist for file uploads
 UPLOAD_FOLDER = 'uploads'
@@ -50,7 +50,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- Background Task Scheduler Setup ---
 scheduler = GeventScheduler()
-scheduler.add_executor(GeventExecutor, 'default') # This line is redundant but here for clarity.
+scheduler.add_executor(GeventExecutor(), 'default')
 def delete_old_classrooms():
     """
     Deletes classrooms that have not been active for a period of time.
@@ -59,7 +59,7 @@ def delete_old_classrooms():
     # Placeholder for logic. In a real app, you'd use a timestamp.
     pass
 
-scheduler.add_job(delete_old_classrooms, 'interval', minutes=60) # Run every hour
+scheduler.add_job(delete_old_classrooms, 'interval', minutes=60)
 scheduler.start()
 
 # --- API Endpoints ---
@@ -132,7 +132,7 @@ def get_current_user():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"message": "Not authenticated"}), 401
-    
+
     user = users_collection.find_one({"_id": ObjectId(user_id)}, {"password": 0})
     if user:
         return jsonify({"user": {"id": str(user['_id']), "username": user['username'], "role": user['role']}}), 200
@@ -165,7 +165,7 @@ def update_profile():
         return jsonify({"error": "User not found"}), 404
     if result.modified_count == 0:
         return jsonify({"message": "No changes made"}), 200
-    
+
     session['username'] = new_username
     print(f"Profile for {user_id} updated to username: {new_username}")
     return jsonify({"message": "Profile updated successfully"}), 200
@@ -178,12 +178,12 @@ def create_classroom():
 
     if not user_id or user_role != 'admin':
         return jsonify({"message": "Unauthorized: Only administrators can create classrooms"}), 401
-    
+
     data = request.json
     name = data.get('name')
     if not name:
         return jsonify({"message": "Classroom name is required"}), 400
-    
+
     existing_classroom = classrooms_collection.find_one({"name": name, "creator_id": ObjectId(user_id)})
     if existing_classroom:
         return jsonify({"message": "A classroom with this name already exists"}), 409
@@ -197,12 +197,12 @@ def create_classroom():
         "members": [{"id": ObjectId(user_id), "role": "admin"}]
     }
     classrooms_collection.insert_one(new_classroom)
-    
+
     socketio.emit('admin_action_update', {
         'classroomId': str(new_classroom['_id']),
         'message': f"Admin {username} created a new classroom: '{name}'."
     })
-    
+
     return jsonify({"message": "Classroom created successfully", "classroom_id": str(new_classroom['_id'])}), 201
 
 @app.route("/api/classrooms/<classroomId>", methods=["GET"])
@@ -210,7 +210,7 @@ def get_classroom(classroomId):
     classroom = classrooms_collection.find_one({"_id": ObjectId(classroomId)})
     if not classroom:
         return jsonify({"message": "Classroom not found"}), 404
-    
+
     return jsonify({
         "classroom_id": str(classroom['_id']),
         "name": classroom['name'],
@@ -223,7 +223,7 @@ def get_classrooms():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     classrooms = list(classrooms_collection.find({"members.id": ObjectId(user_id)}))
     return jsonify([{
         "classroom_id": str(c['_id']),
@@ -237,7 +237,7 @@ def join_classroom():
     user_role = session.get('role')
     if not user_id:
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     data = request.json
     classroomId = data.get('classroomId')
     if not classroomId:
@@ -246,15 +246,15 @@ def join_classroom():
     classroom = classrooms_collection.find_one({"_id": ObjectId(classroomId)})
     if not classroom:
         return jsonify({"message": "Classroom not found"}), 404
-    
+
     if any(member['id'] == ObjectId(user_id) for member in classroom['members']):
         return jsonify({"message": "Already a member of this classroom"}), 200
-    
+
     classrooms_collection.update_one(
         {"_id": ObjectId(classroomId)},
         {"$push": {"members": {"id": ObjectId(user_id), "role": user_role}}}
     )
-    
+
     socketio.emit('admin_action_update', {
         'classroomId': classroomId,
         'message': f"User {session.get('username')} joined classroom '{classroom.get('name')}'."
@@ -286,7 +286,7 @@ def upload_library_files():
             filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1]
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            
+
             file_id = str(uuid.uuid4())
             library_files_collection.insert_one({
                 "id": file_id,
@@ -298,7 +298,7 @@ def upload_library_files():
                 "uploaded_by": user_id
             })
             uploaded_file_info.append({"id": file_id, "filename": file.filename, "url": f"/uploads/{filename}"})
-    
+
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
         'message': f"Admin {session.get('username')} uploaded new file(s) to the library."
@@ -326,7 +326,7 @@ def delete_library_file(fileId):
     user_role = session.get('role')
     if not user_id or user_role != 'admin':
         return jsonify({"error": "Unauthorized"}), 401
-    
+
     file_data = library_files_collection.find_one({"id": fileId})
     if not file_data:
         return jsonify({"error": "File not found"}), 404
@@ -339,7 +339,7 @@ def delete_library_file(fileId):
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], file_data['stored_filename'])
     if os.path.exists(filepath):
         os.remove(filepath)
-    
+
     result = library_files_collection.delete_one({"id": fileId})
     if result.deleted_count > 0:
         socketio.emit('admin_action_update', {
@@ -359,12 +359,12 @@ def create_assessment():
     user_role = session.get('role')
     if not user_id or user_role != 'admin':
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     data = request.json
     title = data.get('title')
     classroom_id = data.get('classroomId')
     questions = data.get('questions')
-    
+
     if not all([title, classroom_id, questions]):
         return jsonify({"message": "Missing required fields"}), 400
 
@@ -393,7 +393,7 @@ def get_assessment_questions(assessmentId):
     assessment = assessments_collection.find_one({"_id": ObjectId(assessmentId)})
     if not assessment:
         return jsonify({"message": "Assessment not found"}), 404
-    
+
     return jsonify({"questions": assessment['questions']}), 200
 
 @app.route("/api/assessments/<assessmentId>/submit", methods=["POST"])
@@ -402,11 +402,11 @@ def submit_assessment():
     username = session.get('username')
     if not user_id:
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     data = request.json
     assessmentId = data.get('assessmentId')
     answers = data.get('answers')
-    
+
     new_submission = {
         "assessmentId": ObjectId(assessmentId),
         "studentId": ObjectId(user_id),
@@ -421,7 +421,7 @@ def get_assessment_submissions(assessmentId):
     user_role = session.get('role')
     if user_role != 'admin':
         return jsonify({"message": "Unauthorized"}), 401
-    
+
     submissions = list(submissions_collection.find({"assessmentId": ObjectId(assessmentId)}))
     return jsonify([{
         "submissionId": str(s['_id']),
@@ -450,14 +450,14 @@ def disconnect():
     sid = request.sid
 
     print(f"Client disconnected: {username} ({user_id}), SID: {sid}")
-    
+
     classroomId_to_leave = None
     for room_id in rooms(sid):
         if room_id != sid and room_id != request.sid and room_id != user_id:
             if len(room_id) == 36 and '-' in room_id:
                 classroomId_to_leave = room_id
                 break
-    
+
     if classroomId_to_leave:
         leave_room(classroomId_to_leave)
         emit('user_left', {'username': username, 'sid': sid}, room=classroomId_to_leave, include_sid=False)
@@ -469,18 +469,18 @@ def handle_join_classroom(data):
     classroomId = data.get('classroomId')
     user_id = session.get('user_id')
     username = session.get('username')
-    
+
     if not classroomId or not user_id:
         emit('join_error', {'message': 'Classroom ID or user not authenticated.'})
         return
-        
+
     classroom = classrooms_collection.find_one({"_id": ObjectId(classroomId)})
     if not classroom or not any(str(m['id']) == user_id for m in classroom['members']):
         emit('join_error', {'message': 'User is not a member of this classroom.'})
         return
 
     join_room(classroomId)
-    
+
     chat_history = list(chats_collection.find({'classroomId': classroomId}).sort('timestamp', 1))
     emit('chat_history', {'messages': chat_history}, room=request.sid)
 
@@ -505,10 +505,10 @@ def handle_chat_message(data):
     message = data.get('message')
     user_id = session.get('user_id')
     username = session.get('username')
-    
+
     if not all([classroomId, message, user_id, username]):
         return
-    
+
     chat_doc = {
         'classroomId': classroomId,
         'user_id': user_id,
@@ -518,7 +518,7 @@ def handle_chat_message(data):
     }
 
     chats_collection.insert_one(chat_doc)
-    
+
     emit('chat_message', chat_doc, room=classroomId)
 
 @socketio.on('whiteboard_message')
@@ -541,7 +541,7 @@ def handle_whiteboard_message(data):
         }},
         upsert=True
     )
-    
+
     emit('whiteboard_state', {'data': whiteboard_data}, room=classroomId, include_sid=False)
 
 @socketio.on('webrtc_offer')
@@ -550,11 +550,11 @@ def handle_webrtc_offer(data):
     offer = data.get('offer')
     recipient_id = data.get('recipient_id')
     sender_id = request.sid
-    
+
     if not all([classroomId, offer, recipient_id, sender_id]):
         print(f"Missing data for webrtc_offer: {data}")
         return
-    
+
     emit('webrtc_offer', {'offer': offer, 'sender_id': sender_id}, room=recipient_id)
     print(f"WEBRTC: Offer from {sender_id} to {recipient_id} in classroom {classroomId}")
 
@@ -595,7 +595,7 @@ def handle_peer_disconnected_signal(data):
     if not classroomId or not peer_id:
         print(f"Missing data for webrtc_peer_disconnected: {data}")
         return
-    
+
     emit('webrtc_peer_disconnected', {'peer_id': peer_id}, room=classroomId, include_sid=False)
     print(f"WEBRTC: Client {sender_sid} signaling peer {peer_id} disconnected in classroom {classroomId}")
 
