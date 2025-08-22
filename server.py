@@ -14,10 +14,10 @@ from datetime import datetime, timedelta
 # Import Flask-SocketIO and SocketIO
 from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_cors import CORS # Import CORS
-# --- New: Import APScheduler and the GeventExecutor ---
+# --- Import APScheduler and the GeventExecutor ---
 from apscheduler.schedulers.gevent import GeventScheduler
 from apscheduler.executors.gevent import GeventExecutor
-from bson.objectid import ObjectId # New: For using ObjectId in MongoDB queries
+from bson.objectid import ObjectId # For using ObjectId in MongoDB queries
 
 app = Flask(__name__, static_folder='.') # Serve static files from current directory
 
@@ -27,7 +27,6 @@ app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017
 app.permanent_session_lifetime = timedelta(days=7) # Session lasts for 7 days
 
 # --- CORS and SocketIO Setup ---
-# CORS allows cross-origin requests, essential for frontend-backend communication in development
 CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True) # Allow all origins for dev
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', manage_session=True)
 
@@ -36,11 +35,17 @@ mongo = PyMongo(app)
 users_collection = mongo.db.users
 classrooms_collection = mongo.db.classrooms
 files_collection = mongo.db.files
-chats_collection = mongo.db.chats # New: Collection for persistent chat messages
-whiteboard_collection = mongo.db.whiteboards # New: Collection for persistent whiteboard data
-webrtc_signals_collection = mongo.db.webrtc_signals # New: Collection for persistent signaling
+chats_collection = mongo.db.chats # Collection for persistent chat messages
+whiteboard_collection = mongo.db.whiteboards # Collection for persistent whiteboard data
+webrtc_signals_collection = mongo.db.webrtc_signals # Collection for persistent signaling
 assessments_collection = mongo.db.assessments # Collection for assessments
 submissions_collection = mongo.db.submissions # Collection for assessment submissions
+assessment_questions_collection = mongo.db.assessment_questions # New: Separated questions collection
+
+# Ensure necessary directories exist for file uploads
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- Background Task Scheduler Setup ---
 scheduler = GeventScheduler()
@@ -187,11 +192,16 @@ def get_classrooms():
     } for c in classrooms]), 200
 
 @app.route("/api/classrooms/<classroomId>/join", methods=["POST"])
-def join_classroom(classroomId):
+def join_classroom():
     user_id = session.get('user_id')
     user_role = session.get('role')
     if not user_id:
         return jsonify({"message": "Unauthorized"}), 401
+
+    data = request.json
+    classroomId = data.get('classroomId')
+    if not classroomId:
+        return jsonify({"message": "Classroom ID is required"}), 400
     
     classroom = classrooms_collection.find_one({"_id": ObjectId(classroomId)})
     if not classroom:
@@ -210,15 +220,57 @@ def join_classroom(classroomId):
 
     return jsonify({"message": "Joined classroom successfully"}), 200
 
+@app.route('/api/upload-library-files', methods=['POST'])
+def upload_library_files():
+    user_id = session.get('user_id')
+    user_role = session.get('role')
+    if not user_id or user_role != 'admin':
+        return jsonify({"message": "Unauthorized: Only administrators can upload files."}), 401
+    
+    if 'files' not in request.files:
+        return jsonify({"message": "No files part"}), 400
+
+    files = request.files.getlist('files')
+    class_room_id = request.form.get('classroomId')
+
+    if not class_room_id:
+        return jsonify({"message": "Classroom ID is missing"}), 400
+
+    uploaded_file_info = []
+    for file in files:
+        if file.filename == '':
+            return jsonify({"message": "No selected file"}), 400
+        if file:
+            filename = str(uuid.uuid4()) + os.path.splitext(file.filename)[1] # Unique filename
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            file_id = str(uuid.uuid4()) # Generate unique ID for the file record
+            files_collection.insert_one({
+                "id": file_id,
+                "classroomId": class_room_id,
+                "original_filename": file.filename,
+                "stored_filename": filename,
+                "url": f"/uploads/{filename}",
+                "uploaded_at": datetime.utcnow(),
+                "uploaded_by": user_id
+            })
+            uploaded_file_info.append({"id": file_id, "filename": file.filename, "url": f"/uploads/{filename}"})
+    
+    socketio.emit('admin_action_update', {
+        'classroomId': class_room_id,
+        'message': f"Admin {session.get('username')} uploaded new file(s) to the library."
+    }, room=class_room_id)
+
+    return jsonify({"message": "Files uploaded successfully", "files": uploaded_file_info}), 201
+
 @app.route("/api/library-files/<classroomId>", methods=["GET"])
 def list_library_files(classroomId):
     files = list(files_collection.find({"classroomId": classroomId}))
-    # FIX: Correcting the syntax error in the return statement
     return jsonify(files), 200
 
 @app.route("/api/library-files/<fileId>", methods=["DELETE"])
 def delete_library_file(fileId):
-    # Check if user is admin
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"message": "Unauthorized"}), 401
@@ -230,6 +282,11 @@ def delete_library_file(fileId):
     classroom = classrooms_collection.find_one({"_id": file_to_delete['classroomId']})
     if not classroom or not any(m['id'] == ObjectId(user_id) and m['role'] == 'admin' for m in classroom['members']):
         return jsonify({"message": "Forbidden"}), 403
+    
+    # Delete from filesystem
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], file_to_delete['stored_filename'])
+    if os.path.exists(filepath):
+        os.remove(filepath)
     
     files_collection.delete_one({"_id": fileId})
     return jsonify({"message": "File deleted successfully"}), 200
@@ -251,6 +308,7 @@ def create_assessment():
         return jsonify({"message": "Missing required fields"}), 400
 
     new_assessment = {
+        "_id": ObjectId(),
         "title": title,
         "classroomId": classroom_id,
         "questions": questions,
