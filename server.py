@@ -54,7 +54,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- APScheduler Setup ---
 scheduler = GeventScheduler()
-scheduler.add_executor(GeventExecutor, 'default')
+# FIX: Instantiate GeventExecutor by adding ()
+scheduler.add_executor(GeventExecutor(), 'default')
 scheduler.start()
 
 def delete_old_classrooms():
