@@ -130,6 +130,7 @@ input[type="email"],
 input[type="password"],
 input[type="number"],
 input[type="file"],
+input[type="datetime-local"],
 textarea,
 select {
     width: 100%;
@@ -198,7 +199,7 @@ button:active {
 .btn-icon {
     background: none;
     color: var(--text-color);
-    padding: var(--spacing-sm);
+    padding: 0;
 }
 
 .hidden {
@@ -315,14 +316,14 @@ button:active {
 
 #video-whiteboard-container {
     display: flex;
-    flex-grow: 1; /* Allows it to fill the remaining space */
+    flex-grow: 1;
     gap: var(--spacing-md);
 }
 
 #video-panel {
     display: flex;
     flex-direction: column;
-    width: 25%; /* Adjust as needed */
+    width: 25%;
     max-width: 300px;
     background-color: var(--app-bg);
     border-radius: var(--border-radius-lg);
@@ -452,6 +453,9 @@ button:active {
     position: relative;
     box-shadow: var(--subtle-shadow);
     border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .tool-btn:hover {
@@ -539,6 +543,11 @@ button:active {
 }
 
 /* Chat Section */
+#chat-section {
+    height: 500px; /* Example fixed height for chat */
+    overflow-y: auto;
+}
+
 #chat-messages {
     flex-grow: 1;
     overflow-y: auto;
