@@ -49,8 +49,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- Background Task Scheduler Setup ---
 scheduler = GeventScheduler()
-# Fix for the TypeError: Correctly instantiate the executor and add it to the scheduler
-scheduler.add_executor(GeventExecutor()) # Correctly passing an instance, not the class
+# Correctly instantiate the executor and add it to the scheduler
+scheduler.add_executor(GeventExecutor()) 
 scheduler.start()
 
 def delete_old_classrooms():
@@ -155,6 +155,7 @@ def create_classroom():
     if existing_classroom:
         return jsonify({"message": "A classroom with this name already exists"}), 409
 
+    # CORRECT CODE: Generates a unique ObjectId for the new classroom.
     new_classroom = {
         "_id": ObjectId(), # Use ObjectId for the classroom ID
         "name": name,
@@ -164,6 +165,8 @@ def create_classroom():
         "members": [{"id": ObjectId(session['user_id']), "role": "admin"}] # Creator is the admin
     }
     classrooms_collection.insert_one(new_classroom)
+    
+    # CORRECT CODE: The response correctly returns the new classroom's ID as a string.
     return jsonify({"message": "Classroom created successfully", "classroom_id": str(new_classroom['_id'])}), 201
 
 @app.route("/api/classrooms/<classroomId>", methods=["GET"])
@@ -422,7 +425,7 @@ def handle_chat_message(data):
     chat_doc = {
         'classroomId': classroomId,
         'user_id': user_id,
-        'username': username,
+        "username": username,
         'message': message,
         'timestamp': datetime.utcnow()
     }
