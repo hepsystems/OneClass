@@ -2755,81 +2755,97 @@ async function submitAssessment() {
     }
 
 
-    // --- Event Listeners ---
+    /**
+ * Enters a specific classroom, updates UI, joins the Socket.IO room, and loads content.
+ * @param {string} id - The ID of the classroom.
+ * @param {string} name - The name of the classroom.
+ */
+function enterClassroom(id, name) {
+    // Store classroom data locally
+    currentClassroom = { id: id, name: name };
+    localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
 
-    // Auth Section
-    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginContainer.classList.add('hidden'); registerContainer.classList.remove('hidden'); authMessage.textContent = ''; });
-    if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerContainer.classList.add('hidden'); loginContainer.classList.remove('hidden'); authMessage.textContent = ''; });
+    // Update UI labels
+    classroomIdDisplay.textContent = id;
+    classNameValue.textContent = name;
+    classCodeSpan.textContent = id;
 
-    if (loginForm) {
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            try {
-                const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
-                const result = await response.json();
-                if (response.ok) {
-                    currentUser = result.user;
-                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    sessionStorage.setItem('user_id', currentUser.id); // Store user_id in sessionStorage
-                    displayMessage(authMessage, result.message, false);
-                    checkLoginStatus();
-                } else {
-                    displayMessage(authMessage, result.error, true);
-                }
-            } catch (error) {
-                console.error('Error during login:', error);
-                displayMessage(authMessage, 'An error occurred during login.', true);
-            }
+    // Show classroom section UI
+    showSection(classroomSection);
+    showClassroomSubSection(whiteboardArea);
+    updateNavActiveState(navWhiteboard);
+    updateUIBasedOnRole();
+
+    // Make sure socket exists before using it
+    if (socket) {
+        socket.emit('join_classroom', { classroomId: id });  // Correct event name
+    } else {
+        initializeSocketIO(() => {
+            if (socket) socket.emit('join_classroom', { classroomId: id });
         });
     }
 
-    if (registerForm) {
-        registerForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('register-username').value;
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            const role = document.getElementById('register-role').value;
-            try {
-                const response = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, email, password, role }) });
-                const result = await response.json();
-                if (response.ok) {
-                    displayMessage(authMessage, result.message + " Please log in.", false);
-                    registerForm.reset();
-                    loginContainer.classList.remove('hidden');
-                    registerContainer.classList.add('hidden');
-                } else {
-                    displayMessage(authMessage, result.error, true);
-                }
-            } catch (error) {
-                console.error('Error during registration:', error);
-                displayMessage(authMessage, 'An error occurred during registration.', true);
-            }
-        });
+    // Setup whiteboard & chat controls once inside the classroom
+    setupWhiteboardControls?.();
+    setupChatControls?.();
+
+    // Reset broadcast buttons based on role
+    if (currentUser && currentUser.role === 'admin') {
+        startBroadcastBtn.disabled = false;
+        endBroadcastBtn.disabled = true;
+        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
+    } else {
+        startBroadcastBtn.classList.add('hidden');
+        endBroadcastBtn.classList.add('hidden');
+        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
     }
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/api/logout', { method: 'POST' });
-                if (response.ok) {
-                    localStorage.removeItem('currentUser');
-                    sessionStorage.removeItem('user_id'); // Clear user_id from sessionStorage
-                    currentUser = null;
-                    cleanupClassroomResources(); // Clean up all classroom-related state
-                    showSection(authSection);
-                    showNotification("Logged out successfully.");
-                } else {
-                    showNotification('Failed to logout.', true);
-                }
-            } catch (error) {
-                console.error('Error during logout:', error);
-                showNotification('An error occurred during logout.', true);
-            }
-        });
+    // Hide share link by default
+    shareLinkDisplay.classList.add('hidden');
+    shareLinkInput.value = '';
+
+    // Load initial classroom data
+    loadAssessments?.();
+    loadLibraryFiles?.();
+    fetchWhiteboardHistory?.(); // Load whiteboard history for current page
+}
+
+/**
+ * Cleans up classroom-related resources when leaving a classroom.
+ */
+function cleanupClassroomResources() {
+    if (socket && currentClassroom && currentClassroom.id) {
+        socket.emit('leave_classroom', { classroomId: currentClassroom.id }); // Correct event name
     }
+
+    // Stop broadcast if active
+    if (typeof endBroadcast === 'function') {
+        endBroadcast();
+    }
+
+    // Clear current classroom
+    currentClassroom = null;
+    localStorage.removeItem('currentClassroom');
+
+    // Clear UI elements that belong to the classroom
+    if (chatMessages) chatMessages.innerHTML = '';
+    if (whiteboardCanvas && whiteboardCanvas.getContext) {
+        const ctx = whiteboardCanvas.getContext('2d');
+        ctx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+    }
+
+    // Reset broadcast buttons state
+    startBroadcastBtn.disabled = true;
+    endBroadcastBtn.disabled = true;
+    broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
+
+    // Optional: show dashboard after cleanup
+    showSection(dashboardSection);
+    updateNavActiveState(navDashboard);
+}
+
 
     // Dashboard Section
     if (createClassroomBtn) {
