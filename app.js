@@ -115,6 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const notificationsContainer = document.getElementById('notifications-container');
 
+    colorPicker.addEventListener('input', updateColor);
+    brushSizeSlider.addEventListener('input', updateBrushSize);
+    undoButton.addEventListener('click', undo);
+    redoButton.addEventListener('click', redo);
+    clearButton.addEventListener('click', clearWhiteboard);
+
+
 
     // --- Global Variables ---
     let socket;
@@ -124,6 +131,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let assessmentTimerInterval = null; // For the countdown timer
     let assessmentEndTime = null; // The exact Date object when the assessment should end
 
+
+    
+
+
+    
     // WebRTC Variables
     let localStream;
     const peerConnections = {};
