@@ -750,8 +750,7 @@ def create_classroom():
     classroom_name = data.get('name')
 
     if not classroom_name:
-        return jsonify({"error": "Classroom name is required"}),
- 400
+        return jsonify({"error": "Classroom name is required"}), 400
 
     classroom_id = str(uuid.uuid4())
     classrooms_collection.insert_one({
