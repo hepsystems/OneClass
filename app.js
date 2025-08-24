@@ -115,8 +115,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const notificationsContainer = document.getElementById('notifications-container');
 
-    
-
 
     // --- Global Variables ---
     let socket;
@@ -126,11 +124,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let assessmentTimerInterval = null; // For the countdown timer
     let assessmentEndTime = null; // The exact Date object when the assessment should end
 
-
-    
-
-
-    
     // WebRTC Variables
     let localStream;
     const peerConnections = {};
@@ -1183,11 +1176,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 applyTransform(videoElement.id);
             }
         }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
-
-
-
-
-        // --- Whiteboard Functions (Integrated from whiteboard.js) ---
+    }
+    
+    // --- Whiteboard Functions (Integrated from whiteboard.js) ---
 
     /**
      * Initializes whiteboard canvas and attaches event listeners.
@@ -1239,7 +1230,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUndoRedoButtons();
     }
 
-    
     /**
      * Resizes the whiteboard canvas to fit its container while maintaining aspect ratio.
      */
