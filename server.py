@@ -21,6 +21,9 @@ from flask_cors import CORS  # Import CORS
 from apscheduler.schedulers.gevent import GeventScheduler
 from apscheduler.executors.gevent import GeventExecutor
 
+# --- New: Import Flask-Caching ---
+from flask_caching import Cache
+
 app = Flask(__name__, static_folder='.')  # Serve static files from current directory
 
 # --- Flask App Configuration ---
@@ -32,6 +35,11 @@ app.permanent_session_lifetime = timedelta(days=7)  # Session lasts for 7 days
 # CORS allows cross-origin requests, essential for frontend-backend communication in development
 CORS(app, resources={r"/*": {"origins": "*", "supports_credentials": True}}, supports_credentials=True)  # Allow all origins for dev
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', logger=True, engineio_logger=True, manage_session=True)
+
+# --- New: Cache Configuration (using Redis) ---
+app.config['CACHE_TYPE'] = 'RedisCache'
+app.config['CACHE_REDIS_URL'] = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+cache = Cache(app)
 
 # --- MongoDB Setup ---
 mongo = PyMongo(app)
@@ -67,6 +75,26 @@ def delete_old_classrooms():
     pass
 
 scheduler.add_job(delete_old_classrooms, 'interval', minutes=60)  # Run every hour
+
+# --- Helper Functions ---
+def get_user_data(user_id):
+    """
+    Fetches user data, with caching.
+    The data is stored in Redis for 1 hour to avoid repeated database lookups.
+    """
+    user_data = cache.get(f"user_{user_id}")
+    if user_data:
+        print(f"Fetched user data for {user_id} from cache.")
+        return user_data
+
+    # Use the 'id' field which is a UUID string, not '_id'
+    user = users_collection.find_one({"id": user_id}, {"password": 0, "_id": 0})
+    if user:
+        # Cache the result
+        cache.set(f"user_{user_id}", user, timeout=3600)  # Cache for 1 hour
+        print(f"Fetched user data for {user_id} from DB and cached it.")
+        return user
+    return None
 
 # --- API Endpoints ---
 @app.route('/')
@@ -159,23 +187,24 @@ def logout():
     session.pop('role', None)  # Clear role from session
     return jsonify({"message": "Logged out successfully"}), 200
 
-# NEW: Endpoint to check current user session
+# NEW: Endpoint to check current user session (Updated with caching helper)
 @app.route('/api/@me', methods=['GET'])
 def get_current_user():
     user_id = session.get('user_id')
-    if user_id:
-        user = users_collection.find_one({"id": user_id}, {"_id": 0, "password": 0})  # Exclude _id and password
-        if user:
-            print(f"Current user session check: {user.get('username')} ({user.get('role')})")
-            return jsonify(user), 200
-        else:
-            print(f"User ID {user_id} found in session but not in DB. Clearing session.")
-            session.pop('user_id', None)
-            session.pop('username', None)
-            session.pop('role', None)
-            return jsonify({"error": "User not found"}), 404
-    print("No user ID in session. Unauthorized.")
-    return jsonify({"error": "Unauthorized"}), 401
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    user = get_user_data(user_id)
+    if user:
+        print(f"Current user session check: {user.get('username')} ({user.get('role')})")
+        return jsonify(user)
+
+    # If user not found in DB, clear the invalid session
+    print(f"User ID {user_id} found in session but not in DB. Clearing session.")
+    session.pop('user_id', None)
+    session.pop('username', None)
+    session.pop('role', None)
+    return jsonify({"error": "User not found"}), 404
 
 @app.route('/api/update-profile', methods=['POST'])
 def update_profile():
@@ -200,6 +229,7 @@ def update_profile():
         return jsonify({"message": "No changes made"}), 200  # No error if same username
     
     session['username'] = new_username  # Update username in session
+    cache.delete(f"user_{user_id}") # Invalidate user cache on update
     print(f"Profile for {user_id} updated to username: {new_username}")
     return jsonify({"message": "Profile updated successfully"}), 200
 
@@ -768,6 +798,10 @@ def create_classroom():
         "created_at": datetime.utcnow(),
         "participants": [user_id]  # Creator is initially a participant
     })
+
+    # Invalidate the classroom list cache on creation
+    cache.delete_memoized(get_classrooms)
+
     # Emit admin action update (this is for general notification, not room-specific yet)
     socketio.emit('admin_action_update', {
         'classroomId': classroom_id,  # Use new classroom ID
@@ -777,14 +811,24 @@ def create_classroom():
     return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
 
 @app.route('/api/classrooms', methods=['GET'])
+@cache.cached(timeout=60, query_string=True)
 def get_classrooms():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Fetch classrooms where the user is a participant
-    classrooms = list(classrooms_collection.find({"participants": user_id}, {"_id": 0}))
-    print(f"Fetched {len(classrooms)} classrooms for user {user_id}")
+    search_query = request.args.get('search', '')
+    # Start with the mandatory participant filter
+    query_filter = {"participants": user_id}
+    
+    if search_query:
+        # Add search by classroom 'name'
+        query_filter["name"] = {"$regex": search_query, "$options": "i"}
+
+    # Fetch classrooms using the combined filter, excluding the _id field
+    classrooms = list(classrooms_collection.find(query_filter, {"_id": 0}))
+    
+    print(f"Fetched {len(classrooms)} classrooms for user {user_id} with query '{search_query}'")
     return jsonify(classrooms), 200
 
 @app.route('/api/classrooms/<classroomId>', methods=['GET'])
