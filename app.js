@@ -1,4 +1,4 @@
-// app.js (Complete Rewrite with Enhanced Whiteboard Persistence and all features)
+// app.js (Complete Rewrite with Enhanced Whiteboard Persistence, Draggable Text, and all features)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Element References ---
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
     const whiteboardPageDisplay = document.getElementById('whiteboard-page-display'); // Displays current page number
     const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn'); // Button to generate share link for whiteboard
-    const textToolButton = document.getElementById('textTool'); // Assuming you have a button with this ID for text tool
+    const textToolButton = document.getElementById('textTool'); // Button for text tool
 
     // Video Broadcast Elements
     const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]'); // Radio buttons for broadcast type
@@ -151,14 +151,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoZoomStates = new Map();
 
     // Whiteboard Global Variables (integrated from whiteboard.js for comprehensive control)
+    let whiteboardCtx; // 2D rendering context of the whiteboard canvas
     let currentTool = 'pen'; // Currently selected drawing tool
     let isDrawing = false; // Flag to indicate if drawing is in progress
-    let startX, startY, lastX, lastY; // Coordinates for drawing actions
+    let startX, startY; // Coordinates for drawing actions
     let currentStrokePoints = []; // Stores points for the current stroke (pen/eraser)
-    let snapshot = null; // Canvas image data for shape previews and undo
-    let whiteboardCtx; // 2D rendering context of the whiteboard canvas
-    // `whiteboardCanvas` is already declared as a const above
-    // `currentUser`, `currentClassroom` are already global `let`
+    let temporaryShapeData = null; // Stores data for the shape being currently drawn for live preview
+    
     // `whiteboardPages` stores an array of arrays, where each inner array is a page's drawing history
     let whiteboardPages = [[]]; // Initialize with one empty page, each page is an array of drawing commands
     let currentPageIndex = 0; // Index of the currently active whiteboard page
@@ -167,6 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_HISTORY_STEPS = 10; // Maximum number of undo/redo states to store per page
     let undoStack = []; // Stores deep copies of whiteboardPages[currentPageIndex] for undo functionality
     let redoStack = []; // Stores deep copies of whiteboardPages[currentPageIndex] for redo functionality
+    
+    // Text Tool specific variables
+    let activeTextInput = null; // Reference to the currently active textarea for text input
+    let isDraggingText = false; // Flag for dragging existing text
+    let draggedTextItemIndex = -1; // Index of the text item being dragged in whiteboardPages
+    let dragStartOffsetX = 0; // Offset from mouse to text item's x
+    let dragStartOffsetY = 0; // Offset from mouse to text item's y
+
     let questionCounter = 0; // To keep track of questions in the assessment creation form
 
 
@@ -298,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (whiteboardCanvas) {
             // Disable pointer events on canvas for non-admins to prevent interaction
             whiteboardCanvas.style.pointerEvents = isAdmin ? 'auto' : 'none';
+            // Also explicitly disable the temporary text input area if it exists
+            if(activeTextInput) activeTextInput.disabled = !isAdmin;
         }
         // Disable whiteboard tool buttons for non-admins
         toolButtons.forEach(button => {
@@ -600,6 +609,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         endBroadcast(); // Ensure all WebRTC broadcasts and connections are terminated
 
+        // Remove any active text input element
+        if (activeTextInput) {
+            activeTextInput.remove();
+            activeTextInput = null;
+        }
+
         // Clear whiteboard state and canvas
         if (whiteboardCtx && whiteboardCanvas) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
@@ -826,15 +841,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Ensure the target page exists locally; create if it's a new page
-                if (!whiteboardPages[pageIndex]) {
-                    console.log(`[Whiteboard] Creating new local page ${pageIndex} for incoming drawing data.`);
-                    whiteboardPages[pageIndex] = [];
+                while (whiteboardPages.length <= pageIndex) {
+                    whiteboardPages.push([]);
                 }
                 whiteboardPages[pageIndex].push(drawingItem); // Store the drawing command
 
                 // Only render if it's the currently active page
                 if (pageIndex === currentPageIndex) {
-                    drawWhiteboardItem(drawingItem);
+                    renderCurrentWhiteboardPage(); // Re-render the entire page to include the new item
                 }
             } else if (action === 'clear') {
                 // Clear local data for the specified page
@@ -881,6 +895,8 @@ document.addEventListener('DOMContentLoaded', () => {
             renderCurrentWhiteboardPage();
             updateWhiteboardPageDisplay();
             showNotification(`Whiteboard page changed to ${newPageIndex + 1}`);
+            // Also push to undo stack for the new page
+            pushToUndoStack();
         });
 
         // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
@@ -1387,6 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('resize', resizeCanvas);
 
         // --- Drawing Event Listeners (Mouse & Touch) ---
+        // These listeners are global to the canvas and will be conditionally handled based on the current tool.
         whiteboardCanvas.addEventListener('mousedown', handleDrawingStart);
         whiteboardCanvas.addEventListener('mousemove', handleDrawingMove);
         whiteboardCanvas.addEventListener('mouseup', handleDrawingEnd);
@@ -1448,8 +1465,12 @@ document.addEventListener('DOMContentLoaded', () => {
             newWidth = newHeight * aspectRatio;
         }
 
+        // Apply new dimensions directly to the canvas element
         whiteboardCanvas.width = newWidth;
         whiteboardCanvas.height = newHeight;
+
+        // Reapply CSS styles that might be reset (like background color)
+        whiteboardCanvas.style.backgroundColor = '#000000'; // Ensure background is black
 
         console.log(`[Whiteboard] Canvas resized to: ${whiteboardCanvas.width}x${whiteboardCanvas.height}`);
 
@@ -1457,9 +1478,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (whiteboardCtx) {
             whiteboardCtx.lineJoin = 'round';
             whiteboardCtx.lineCap = 'round';
-            whiteboardCtx.lineWidth = currentBrushSize;
-            whiteboardCtx.strokeStyle = currentColor;
-            whiteboardCtx.fillStyle = currentColor;
+            // Current brush size and color are set by drawWhiteboardItem for each item, not globally here.
             whiteboardCtx.globalCompositeOperation = 'source-over'; // Reset blending mode
         }
 
@@ -1468,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Handles the `mousedown` or `touchstart` event on the canvas.
-     * Initializes drawing state, captures start coordinates, and saves canvas snapshot for shapes.
+     * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
      * @param {MouseEvent|TouchEvent} e - The event object.
      */
     function handleDrawingStart(e) {
@@ -1481,98 +1500,117 @@ document.addEventListener('DOMContentLoaded', () => {
         const coords = getCanvasCoords(e);
         startX = coords.x;
         startY = coords.y;
-        lastX = coords.x; // Initialize lastX, lastY for continuous drawing tools
-        lastY = coords.y;
 
-        isDrawing = true; // Set drawing flag
-
-        // For pen/eraser, start collecting points
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            currentStrokePoints = [{ x: startX, y: startY, time: Date.now(), width: currentBrushSize }];
-            // No beginPath/moveTo directly here for dynamic drawing, it will be handled in handleDrawingMove
-        } else if (currentTool === 'text') {
-            // For text tool, prompt for input immediately
-            const textInput = prompt("Enter text for the whiteboard:");
-            if (textInput && textInput.trim() !== '') {
-                // Create a text drawing item
-                const textData = {
-                    type: 'text',
-                    text: textInput,
-                    x: startX,
-                    y: startY + currentBrushSize * 2, // Adjust Y to place text above click point
-                    color: currentColor,
-                    size: currentBrushSize * 2 // Text size based on brush size
-                };
-                // Draw immediately for local feedback
-                drawWhiteboardItem(textData);
-                // Store and emit the text data
-                whiteboardPages[currentPageIndex].push(textData);
-                emitWhiteboardData('draw', textData);
-                pushToUndoStack(); // Save state for undo
-            }
-            isDrawing = false; // Text is a one-off action, not a continuous draw, so reset drawing flag
-        } else { // For shape tools (line, rectangle, circle)
-            snapshot = whiteboardCtx.getImageData(0, 0, whiteboardCanvas.width, whiteboardCanvas.height); // Save canvas state
+        // Clear any active text input if a new drawing action starts.
+        if (activeTextInput) {
+            commitText(e); // Commit existing text before starting new action.
         }
+
+        if (currentTool === 'text') {
+            // Check if clicking on existing text for dragging
+            const textItem = findTextItemAtCoords(coords.x, coords.y);
+            if (textItem) {
+                isDraggingText = true;
+                draggedTextItemIndex = whiteboardPages[currentPageIndex].indexOf(textItem);
+                dragStartOffsetX = coords.x - textItem.x;
+                dragStartOffsetY = coords.y - textItem.y;
+                console.log(`[Text Tool] Started dragging text item at index ${draggedTextItemIndex}.`);
+                return; // Don't start drawing a new text box, just drag.
+            } else {
+                // If not clicking on existing text, create a new text input
+                createTextInput(coords.x, coords.y);
+                return; // Text input created, no further drawing actions for now.
+            }
+        }
+
+        // For drawing tools (pen, eraser, shapes)
+        isDrawing = true; // Set drawing flag
+        currentStrokePoints = []; // Reset for new stroke
+        temporaryShapeData = null; // Reset for new shape
+
+        // Store initial point for pen/eraser
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
+        }
+        console.log(`[Whiteboard] Drawing started with tool '${currentTool}' at (${startX}, ${startY}).`);
     }
 
     /**
      * Handles the `mousemove` or `touchmove` event on the canvas.
-     * Continuously draws or updates shape previews based on the current tool.
+     * Continuously draws, updates shape previews, or drags text based on the current tool.
      * @param {MouseEvent|TouchEvent} e - The event object.
      */
     function handleDrawingMove(e) {
-        if (!isDrawing || currentUser.role !== 'admin') return;
+        if (!isDrawing && !isDraggingText) return; // Only proceed if an action is active
+        if (currentUser.role !== 'admin') return; // Only admins can draw/drag
         e.preventDefault(); // Prevent default browser behavior (e.g., scrolling)
 
         const coords = getCanvasCoords(e);
         const currentX = coords.x;
         const currentY = coords.y;
-        const now = Date.now();
 
+        if (isDraggingText) {
+            if (draggedTextItemIndex === -1 || !whiteboardPages[currentPageIndex][draggedTextItemIndex]) {
+                console.warn('[Text Tool] Attempted to drag text but item not found or index invalid.');
+                isDraggingText = false;
+                draggedTextItemIndex = -1;
+                return;
+            }
+            // Update the text item's position
+            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
+            textItem.x = currentX - dragStartOffsetX;
+            textItem.y = currentY - dragStartOffsetY;
+            renderCurrentWhiteboardPage(); // Redraw the page to show text in new position
+            return;
+        }
+
+        // Handle drawing tools (pen, eraser, shapes)
         if (currentTool === 'pen' || currentTool === 'eraser') {
             const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
-            // Calculate speed for dynamic brush width (if desired, currently uses fixed)
-            // const timeDiff = now - (lastPoint?.time || now);
-            // const dx = currentX - (lastPoint?.x || currentX);
-            // const dy = currentY - (lastPoint?.y || currentY);
-            // const distance = Math.sqrt(dx * dx + dy * dy);
-            // const speed = distance / (timeDiff || 1); // Speed in pixels/ms
-            // const dynamicWidth = calculateDynamicWidth(speed); // Implement this if needed
+            // Only add if moved a significant distance or is the first point after startX,startY
+            if (!lastPoint || (Math.abs(currentX - lastPoint.x) > 1 || Math.abs(currentY - lastPoint.y) > 1)) {
+                 currentStrokePoints.push({ x: currentX, y: currentY, width: currentBrushSize });
 
-            currentStrokePoints.push({ x: currentX, y: currentY, time: now, width: currentBrushSize });
+                // Render the entire page to show the continuous stroke, including previous items.
+                // This approach ensures shapes underneath are not temporarily erased.
+                renderCurrentWhiteboardPage();
 
-            // To ensure real-time drawing without redrawing entire page repeatedly for pen/eraser
-            // we draw directly to canvas. The full stroke is added to `whiteboardPages` on `handleDrawingEnd`.
-            whiteboardCtx.save();
-            whiteboardCtx.globalCompositeOperation = (currentTool === 'eraser') ? 'destination-out' : 'source-over';
-            whiteboardCtx.strokeStyle = currentColor;
-            whiteboardCtx.lineWidth = currentBrushSize;
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo(lastPoint.x, lastPoint.y);
-            whiteboardCtx.lineTo(currentX, currentY);
-            whiteboardCtx.stroke();
-            whiteboardCtx.restore();
+                // Draw the very last segment directly for smoother real-time feedback.
+                // This segment will be covered by the next full render, but gives immediate visual.
+                whiteboardCtx.save();
+                whiteboardCtx.globalCompositeOperation = (currentTool === 'eraser') ? 'destination-out' : 'source-over';
+                whiteboardCtx.strokeStyle = (currentTool === 'eraser') ? '#000000' : currentColor; // Eraser draws black
+                whiteboardCtx.lineWidth = currentBrushSize;
+                whiteboardCtx.beginPath();
+                if(lastPoint) { // Only draw segment if there's a previous point
+                    whiteboardCtx.moveTo(lastPoint.x, lastPoint.y);
+                    whiteboardCtx.lineTo(currentX, currentY);
+                    whiteboardCtx.stroke();
+                } else { // Draw a dot if it's the very first point of the stroke
+                    whiteboardCtx.arc(currentX, currentY, currentBrushSize / 2, 0, Math.PI * 2);
+                    whiteboardCtx.fill();
+                }
+                whiteboardCtx.restore();
 
-            // Emit small segments of the stroke for real-time sync with other users
-            if (currentStrokePoints.length % 5 === 0) {
-                 // Create a temporary stroke object for emission
-                const tempStroke = {
-                    type: currentTool,
-                    points: currentStrokePoints.slice(-5), // Send only the last few points
-                    color: currentColor,
-                    size: currentBrushSize
-                };
-                emitWhiteboardData('draw', tempStroke);
+                // Emit small segments of the stroke for real-time sync with other users
+                // This is a trade-off: sending all points constantly is too much, segments help.
+                if (currentStrokePoints.length % 5 === 0) {
+                     const tempStroke = {
+                        type: currentTool,
+                        points: currentStrokePoints.slice(-5), // Send only the last few points
+                        color: currentColor,
+                        size: currentBrushSize
+                    };
+                    emitWhiteboardData('draw', tempStroke);
+                }
             }
-            lastX = currentX;
-            lastY = currentY;
 
-        } else if (snapshot && (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle')) {
-            // For shapes, restore the snapshot (clears previous preview) and redraw the current shape preview.
-            renderCurrentWhiteboardPage(snapshot); // Render previous state (or just the snapshot)
-            whiteboardCtx.putImageData(snapshot, 0, 0); // Restore canvas to state before current shape drawing began
-            drawWhiteboardItem(buildShapeData(currentTool, startX, startY, currentX, currentY)); // Draw only the current shape preview
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            // For shapes, update the temporaryShapeData and re-render the entire page.
+            // This re-render includes all previous items + the current shape preview.
+            temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
+            renderCurrentWhiteboardPage(); // Render all existing items first
+            drawWhiteboardItem(temporaryShapeData); // Then draw the temporary shape on top
         }
     }
 
@@ -1583,12 +1621,26 @@ document.addEventListener('DOMContentLoaded', () => {
      * @param {MouseEvent|TouchEvent} e - The event object.
      */
     function handleDrawingEnd(e) {
-        if (!isDrawing || currentUser.role !== 'admin') return;
+        if (!isDrawing && !isDraggingText) return; // Only proceed if an action was active
+        if (currentUser.role !== 'admin') return; // Only admins can draw/drag
+        e.preventDefault();
+
+        // Handle text dragging end
+        if (isDraggingText) {
+            isDraggingText = false;
+            if (draggedTextItemIndex !== -1) {
+                // Emit update for dragged text and push to undo stack
+                const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
+                emitWhiteboardData('draw', textItem); // Re-emit the updated text item
+                pushToUndoStack();
+                console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
+            }
+            draggedTextItemIndex = -1;
+            return;
+        }
+
+        // Handle drawing tools (pen, eraser, shapes)
         isDrawing = false; // Stop drawing
-
-        // Reset global composite operation to default
-        if (whiteboardCtx) whiteboardCtx.globalCompositeOperation = 'source-over';
-
         if (currentTool === 'pen' || currentTool === 'eraser') {
             // If it was just a click (single point) or a very short drag
             if (currentStrokePoints.length <= 1) {
@@ -1596,7 +1648,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const dotData = {
                     type: currentTool,
                     points: [{ x: p.x, y: p.y, width: currentBrushSize }],
-                    color: currentColor,
+                    color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
                     size: currentBrushSize
                 };
                 whiteboardPages[currentPageIndex].push(dotData); // Add to local history
@@ -1606,7 +1658,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const strokeData = {
                     type: currentTool,
                     points: currentStrokePoints,
-                    color: currentColor,
+                    color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
                     size: currentBrushSize
                 };
                 whiteboardPages[currentPageIndex].push(strokeData); // Add to local history
@@ -1618,14 +1670,45 @@ document.addEventListener('DOMContentLoaded', () => {
             const shapeData = buildShapeData(currentTool, startX, startY, coords.x, coords.y);
             whiteboardPages[currentPageIndex].push(shapeData); // Add to local history
             emitWhiteboardData('draw', shapeData); // Emit to others
+            temporaryShapeData = null; // Clear temporary shape data
         }
         
-        // After any drawing ends, re-render the entire page to ensure consistent state
-        // and clear any temporary drawing from `handleDrawingMove` that wasn't a full command.
-        renderCurrentWhiteboardPage(); 
+        // After any drawing ends (or text drag ends), re-render the entire page to ensure consistent state
+        renderCurrentWhiteboardPage();
         
-        snapshot = null; // Clear snapshot after drawing is finalized
-        pushToUndoStack(); // Save the new canvas state for undo/redo
+        // Only push to undo stack if an actual modification happened (not just a drag preview)
+        pushToUndoStack(); 
+        console.log(`[Whiteboard] Drawing ended with tool '${currentTool}'.`);
+    }
+
+    /**
+     * Helper function to find a text item at given canvas coordinates.
+     * @param {number} x - X coordinate on canvas.
+     * @param {number} y - Y coordinate on canvas.
+     * @returns {object|null} The text item object if found, otherwise null.
+     */
+    function findTextItemAtCoords(x, y) {
+        const currentPageCommands = whiteboardPages[currentPageIndex];
+        if (!currentPageCommands) return null;
+
+        // Iterate through text items in reverse to pick the topmost (most recently drawn)
+        for (let i = currentPageCommands.length - 1; i >= 0; i--) {
+            const item = currentPageCommands[i];
+            if (item.type === 'text' && item.x && item.y && item.text) {
+                // Estimate text bounding box for click detection
+                const textWidth = whiteboardCtx.measureText(item.text).width;
+                const textHeight = item.size || currentBrushSize * 2; // Approximate height
+
+                // Text 'y' is typically the baseline, so adjust for full height.
+                // Giving a little padding for easier click
+                const padding = 5;
+                if (x >= (item.x - padding) && x <= (item.x + textWidth + padding) &&
+                    y >= (item.y - textHeight - padding) && y <= (item.y + padding)) {
+                    return item;
+                }
+            }
+        }
+        return null;
     }
 
 
@@ -1675,15 +1758,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         whiteboardCtx.save(); // Save the current canvas context state before applying item-specific styles
 
-        // Apply shared styles from the drawing item
+        // Apply shared styles from the drawing item, falling back to current global tool settings
         whiteboardCtx.strokeStyle = item.color || currentColor;
         whiteboardCtx.lineWidth = item.size || currentBrushSize;
         whiteboardCtx.fillStyle = item.color || currentColor;
         whiteboardCtx.lineCap = 'round';
         whiteboardCtx.lineJoin = 'round';
 
-        // Set globalCompositeOperation for eraser tool
-        whiteboardCtx.globalCompositeOperation = (item.type === 'eraser') ? 'destination-out' : 'source-over';
+        // Set globalCompositeOperation based on item type
+        // Eraser now draws with background color (black)
+        whiteboardCtx.globalCompositeOperation = 'source-over';
+        if (item.type === 'eraser') {
+            whiteboardCtx.strokeStyle = '#000000'; // Eraser draws black
+            whiteboardCtx.fillStyle = '#000000'; // Also for filled shapes if eraser was misused
+        }
+
 
         switch (item.type) {
             case 'pen':
@@ -1728,28 +1817,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'rectangle':
                 whiteboardCtx.beginPath();
-                // Ensure fill/stroke is handled
-                if (item.fill) { // You could add an 'item.fill' property if you want filled shapes
-                    whiteboardCtx.fillRect(item.startX, item.startY, item.width, item.height);
-                } else {
-                    whiteboardCtx.strokeRect(item.startX, item.startY, item.width, item.height);
-                }
+                // Stroke rectangles by default. Could add an 'item.fill' property if filled shapes are needed.
+                whiteboardCtx.strokeRect(item.startX, item.startY, item.width, item.height);
                 break;
 
             case 'circle':
                 whiteboardCtx.beginPath();
                 whiteboardCtx.arc(item.centerX, item.centerY, item.radius, 0, Math.PI * 2);
-                if (item.fill) { // You could add an 'item.fill' property if you want filled shapes
-                    whiteboardCtx.fill();
-                } else {
-                    whiteboardCtx.stroke();
-                }
+                // Stroke circles by default. Could add an 'item.fill' property if filled shapes are needed.
+                whiteboardCtx.stroke();
                 break;
 
             case 'text':
                 // Set font style and draw text
-                whiteboardCtx.font = `${item.size}px Inter, sans-serif`;
-                whiteboardCtx.fillText(item.text, item.x, item.y);
+                // Adjust font size dynamically if canvas is resized.
+                const scaledFontSize = item.size; // No dynamic scaling for now, use original size
+                whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
+                // Split text by newlines and draw each line
+                const lines = item.text.split('\n');
+                lines.forEach((line, i) => {
+                    whiteboardCtx.fillText(line, item.x, item.y + i * scaledFontSize * 1.2); // 1.2 for line spacing
+                });
                 break;
         }
         whiteboardCtx.restore(); // Restore the canvas context to its previous state
@@ -1797,12 +1885,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Reset globalCompositeOperation if switching from eraser
-        if (whiteboardCtx && whiteboardCtx.globalCompositeOperation === 'destination-out' && tool !== 'eraser') {
-            whiteboardCtx.globalCompositeOperation = 'source-over';
+        // If switching away from text tool, commit any active text
+        if (activeTextInput && tool !== 'text') {
+            commitText(null); // Commit and remove the textarea
         }
+        // If switching to text tool, set appropriate cursor
+        if (currentTool === 'text') {
+            whiteboardCanvas.style.cursor = 'text';
+        } else {
+            whiteboardCanvas.style.cursor = 'crosshair'; // Default for drawing
+        }
+        
         showNotification(`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool selected.`);
-        console.log(`[Whiteboard] Tool selected: ${tool}`);
+        console.log(`[Whiteboard] Tool selected: ${tool}.`);
     }
 
     /**
@@ -1811,8 +1906,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateColor() {
         if (colorPicker) {
             currentColor = colorPicker.value;
-            // No need to set ctx.strokeStyle/fillStyle here as drawWhiteboardItem sets it for each item
-            // However, we could re-render the current page to visually update items that might be dynamically changing color (not in this implementation)
+            // No need to re-render the entire page just for color update,
+            // as drawWhiteboardItem uses the item's color. This affects *new* drawings.
             console.log(`[Whiteboard] Color updated to: ${currentColor}`);
         }
     }
@@ -1823,10 +1918,112 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateBrushSize() {
         if (brushSizeSlider) {
             currentBrushSize = parseInt(brushSizeSlider.value, 10);
-            // No need to set ctx.lineWidth here as drawWhiteboardItem sets it for each item
+            // No need to re-render the entire page just for brush size update,
+            // as drawWhiteboardItem uses the item's size. This affects *new* drawings.
             console.log(`[Whiteboard] Brush size updated to: ${currentBrushSize}`);
         }
     }
+
+    /**
+     * Creates and places a temporary textarea element on the canvas for text input.
+     * @param {number} x - X coordinate for placement.
+     * @param {number} y - Y coordinate for placement.
+     */
+    function createTextInput(x, y) {
+        if (activeTextInput) { // Commit any existing text before creating a new one
+            commitText(null);
+        }
+
+        activeTextInput = document.createElement('textarea');
+        activeTextInput.classList.add('whiteboard-text-input');
+        // Position the textarea absolutely over the canvas
+        activeTextInput.style.position = 'absolute';
+        activeTextInput.style.left = `${x + whiteboardCanvas.offsetLeft}px`;
+        activeTextInput.style.top = `${y + whiteboardCanvas.offsetTop}px`;
+        activeTextInput.style.font = `${currentBrushSize * 2}px Inter, sans-serif`;
+        activeTextInput.style.color = currentColor;
+        activeTextInput.style.backgroundColor = 'transparent';
+        activeTextInput.style.border = '1px dashed #fff';
+        activeTextInput.style.resize = 'none';
+        activeTextInput.style.overflow = 'hidden';
+        activeTextInput.style.padding = '2px';
+        activeTextInput.style.zIndex = '10'; // Ensure it's above the canvas
+
+        // Adjust dimensions dynamically
+        activeTextInput.style.width = '200px'; // Initial width
+        activeTextInput.style.height = `${currentBrushSize * 2 * 1.5}px`; // Initial height for one line
+        activeTextInput.rows = 1;
+        
+        whiteboardArea.appendChild(activeTextInput); // Append to whiteboardArea, not canvas directly
+        activeTextInput.focus();
+
+        const adjustHeight = () => {
+            activeTextInput.style.height = 'auto';
+            activeTextInput.style.height = `${activeTextInput.scrollHeight}px`;
+        };
+
+        activeTextInput.addEventListener('input', adjustHeight);
+        activeTextInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) { // Commit on Enter, allow Shift+Enter for new line
+                event.preventDefault();
+                commitText(event);
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                removeTextInput();
+                showNotification('Text input cancelled.');
+            }
+        });
+        activeTextInput.addEventListener('blur', commitText); // Commit when textarea loses focus
+
+        console.log(`[Text Tool] Created new text input at (${x}, ${y}).`);
+        adjustHeight(); // Initial height adjustment
+    }
+
+    /**
+     * Commits the text from the active textarea to the whiteboard as a drawing item.
+     * @param {Event|null} event - The event that triggered the commit (e.g., blur, Enter key).
+     */
+    function commitText(event) {
+        if (!activeTextInput || !activeTextInput.value.trim()) {
+            removeTextInput(); // Just remove if empty
+            return;
+        }
+        
+        const text = activeTextInput.value.trim();
+        const textX = parseInt(activeTextInput.style.left, 10) - whiteboardCanvas.offsetLeft;
+        const textY = parseInt(activeTextInput.style.top, 10) - whiteboardCanvas.offsetTop;
+
+        const textData = {
+            type: 'text',
+            text: text,
+            x: textX,
+            y: textY, // Y is the top of the textarea, `drawWhiteboardItem` adjusts for baseline
+            color: currentColor,
+            size: currentBrushSize * 2
+        };
+
+        whiteboardPages[currentPageIndex].push(textData);
+        emitWhiteboardData('draw', textData);
+        pushToUndoStack(); // Save state for undo
+
+        removeTextInput(); // Remove the textarea after committing
+        renderCurrentWhiteboardPage(); // Redraw the canvas to show the committed text.
+        showNotification('Text added to whiteboard.');
+        console.log(`[Text Tool] Committed text: '${text}' at (${textX}, ${textY}).`);
+    }
+
+    /**
+     * Removes the active textarea element from the DOM.
+     */
+    function removeTextInput() {
+        if (activeTextInput) {
+            activeTextInput.remove();
+            activeTextInput = null;
+            console.log('[Text Tool] Removed active text input.');
+        }
+        whiteboardCanvas.style.cursor = currentTool === 'text' ? 'text' : 'crosshair'; // Restore cursor
+    }
+
 
     /**
      * Clears the current whiteboard page. Optionally emits a clear event to the server.
@@ -1946,8 +2143,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * Updates the `disabled` state of the undo and redo buttons based on stack contents.
      */
     function updateUndoRedoButtons() {
-        if (undoButton) undoButton.disabled = currentUser.role !== 'admin' || undoStack.length <= 1; // Disable if only initial empty state or less
-        if (redoButton) redoButton.disabled = currentUser.role !== 'admin' || redoStack.length === 0; // Disable if redo stack is empty
+        // Disable if not admin, or if stack state doesn't allow (e.g., only initial empty state for undo)
+        if (undoButton) undoButton.disabled = !currentUser || currentUser.role !== 'admin' || undoStack.length <= 1;
+        if (redoButton) redoButton.disabled = !currentUser || currentUser.role !== 'admin' || redoStack.length === 0;
     }
 
     /**
@@ -2009,6 +2207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('[Whiteboard] Cannot render page: Context or canvas not available.');
             return;
         }
+        // Clear the canvas and set the black background
         whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         whiteboardCtx.fillStyle = '#000000'; // Ensure background is black
         whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
@@ -2022,6 +2221,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.log(`[Whiteboard] Page ${currentPageIndex + 1} is empty.`);
         }
+
+        // If a temporary shape is being drawn, draw it on top of everything else
+        if (temporaryShapeData) {
+            drawWhiteboardItem(temporaryShapeData);
+        }
+
         updateWhiteboardPageDisplay(); // Update page indicator after rendering
     }
 
@@ -2493,7 +2698,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             let assessments = await response.json();
 
-            // Apply search filter
             const searchTerm = assessmentSearchInput.value.toLowerCase();
             if (searchTerm) {
                 assessments = assessments.filter(assessment =>
@@ -3097,7 +3301,7 @@ document.addEventListener('DOMContentLoaded', () => {
             markingArea.innerHTML = markingHtml;
 
             // Attach event listeners for the Save and Cancel buttons within the marking form
-            markingArea.querySelector('.save-marks-btn').addEventListener('click', () => saveMarkedSubmission(submissionId, assessmentId));
+            markingArea.querySelector('.save-marks-btn').addEventListener('click', () => saveMarkedSubmission(submission.id, assessmentId));
             markingArea.querySelector('.cancel-marking-btn').addEventListener('click', () => {
                 markingArea.classList.add('hidden'); // Hide the marking area on cancel
                 showNotification('Marking cancelled.');
