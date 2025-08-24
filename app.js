@@ -1399,7 +1399,7 @@ function handleMouseDown(e) {
         const coords = getCoords(e);
         let shapeData;
 
-        // Create the correct shape data object based on the current tool
+        // 1. Create the correct shape data object based on the current tool
         if (currentTool === 'rectangle') {
             shapeData = {
                 tool: 'rectangle',
@@ -1435,13 +1435,13 @@ function handleMouseDown(e) {
             };
         }
 
-        // Add the completed shape data to the whiteboard history
+        // 2. Add the completed shape data to the whiteboard history
         whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
 
-        // Re-render the entire whiteboard to make the new shape persistent
+        // 3. Re-render the entire whiteboard to make the new shape persistent
         renderCurrentWhiteboardPage();
 
-        // Broadcast the new drawing to other users
+        // 4. Broadcast the new drawing to other users
         socket.emit('whiteboard_data', {
             action: 'draw',
             classroomId: currentClassroom.id,
@@ -1453,6 +1453,7 @@ function handleMouseDown(e) {
     whiteboardCtx.globalCompositeOperation = 'source-over';
     saveState();
 }
+
     /**
      * Draws a whiteboard item (stroke, shape, or text) onto the canvas.
      * This function applies styling before drawing and restores context after.
