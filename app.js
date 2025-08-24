@@ -444,12 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
     } 
 
 
-    // app.js (Updated functions)
-
-// --- Global Socket.IO Connection ---
-const socket = io();
-const activeSocketListeners = new Map();
-
 // --- Classroom Functions ---
 
 /**
