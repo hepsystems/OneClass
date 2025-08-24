@@ -333,7 +333,7 @@ def create_assessment():
     username = session.get('username')
     user_role = session.get('role')
 
-    if not user_id or user_role != 'admin':
+    if not user_id or user_role != 'admin':  # Only administrators can create assessments
         return jsonify({"error": "Unauthorized: Only administrators can create assessments."}), 401
 
     data = request.json
@@ -342,7 +342,7 @@ def create_assessment():
     description = data.get('description')
     scheduled_at_str = data.get('scheduled_at')
     duration_minutes = data.get('duration_minutes')
-    questions_data = data.get('questions')  # Renamed to avoid conflict with 'questions' list below
+    questions_data = data.get('questions')
 
     if not all([class_room_id, title, scheduled_at_str, duration_minutes is not None, questions_data is not None]):
         return jsonify({"error": "Missing required fields: classroomId, title, scheduled_at, duration_minutes, or questions"}), 400
@@ -360,16 +360,14 @@ def create_assessment():
 
     assessment_id = str(uuid.uuid4())
     
-    # Debugging: Print values before insertion
     print(f"Creating assessment: title='{title}', scheduled_at='{scheduled_at}', duration_minutes='{duration_minutes}'")
 
-    # Insert assessment details
     assessments_collection.insert_one({
         "id": assessment_id,
         "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "scheduled_at": scheduled_at,  # Storing as datetime object
+        "scheduled_at": scheduled_at,
         "duration_minutes": duration_minutes,
         "creator_id": user_id,
         "creator_username": username,
@@ -377,27 +375,23 @@ def create_assessment():
         "created_at": datetime.utcnow()
     })
 
-    # Insert each question into the assessment_questions_collection
     inserted_question_ids = []
-    for q_data in questions_data:  # Iterate over questions_data
+    for q_data in questions_data:
         question_id = str(uuid.uuid4())
-        # Ensure consistent key names for storing questions
         question_doc = {
             "id": question_id,
             "assessmentId": assessment_id,
-            "classroomId": class_room_id,  # Link to classroom for easier queries
-            "question_text": q_data.get('question_text'),  # Use 'question_text'
-            "question_type": q_data.get('question_type'),  # Use 'question_type'
+            "classroomId": class_room_id,
+            "question_text": q_data.get('question_text'),
+            "question_type": q_data.get('question_type'),
             "options": q_data.get('options'),
             "correct_answer": q_data.get('correct_answer')
         }
-        # Filter out None values for optional fields if they are not provided
         question_doc = {k: v for k, v in question_doc.items() if v is not None}
         
         assessment_questions_collection.insert_one(question_doc)
         inserted_question_ids.append(question_id)
 
-    # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
         'message': f"Admin {session.get('username')} created a new assessment: '{title}' with {len(questions_data)} questions."
@@ -419,20 +413,20 @@ def add_questions_to_assessment(assessmentId):
         return jsonify({"error": "Assessment not found"}), 404
 
     data = request.json
-    questions_data = data.get('questions')  # Renamed
+    questions_data = data.get('questions')
 
     if not isinstance(questions_data, list) or not questions_data:
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     inserted_question_ids = []
-    for q_data in questions_data:  # Iterate over questions_data
+    for q_data in questions_data:
         question_id = str(uuid.uuid4())
         question_doc = {
             "id": question_id,
             "assessmentId": assessmentId,
-            "classroomId": assessment['classroomId'],  # Link to classroom
-            "question_text": q_data.get('question_text'),  # Use 'question_text'
-            "question_type": q_data.get('question_type'),  # Use 'question_type'
+            "classroomId": assessment['classroomId'],
+            "question_text": q_data.get('question_text'),
+            "question_type": q_data.get('question_type'),
             "options": q_data.get('options'),
             "correct_answer": q_data.get('correct_answer')
         }
@@ -441,7 +435,6 @@ def add_questions_to_assessment(assessmentId):
         assessment_questions_collection.insert_one(question_doc)
         inserted_question_ids.append(question_id)
 
-    # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': assessment.get('classroomId'),
         'message': f"Admin {session.get('username')} added {len(questions_data)} questions to assessment '{assessment.get('title')}'."
@@ -456,10 +449,8 @@ def get_assessments(classroomId):
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Fetch assessments without their questions for the list view
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
     
-    # Convert datetime objects to ISO format strings for client-side
     for assessment in assessments:
         if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
             assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
@@ -480,46 +471,34 @@ def get_assessment_details(assessmentId):
         print(f"Assessment {assessmentId} not found.")
         return jsonify({"error": "Assessment not found"}), 404
     
-    # Debugging: Print raw values from DB
     print(f"Raw assessment details from DB for {assessmentId}: scheduled_at={assessment.get('scheduled_at')}, duration_minutes={assessment.get('duration_minutes')}")
 
-    # Check if the assessment is starting now and emit event
     now = datetime.utcnow()
     scheduled_at = assessment.get('scheduled_at')
     duration_minutes = assessment.get('duration_minutes')
 
-    # Basic validation for scheduled_at and duration_minutes before calculations
     if not isinstance(scheduled_at, datetime) or not isinstance(duration_minutes, (int, float)) or duration_minutes <= 0:
         print(f"Invalid scheduled_at ({scheduled_at}) or duration_minutes ({duration_minutes}) for assessment {assessmentId}. Cannot calculate end time.")
-        # Return an error or handle gracefully if data is corrupt
         return jsonify({"error": "Assessment scheduling data is invalid. Please contact an administrator."}), 500
 
     end_time = scheduled_at + timedelta(minutes=duration_minutes)
 
-    # If the assessment is active and it's the first time a user is fetching it since it became active
-    # (or within a small buffer to ensure notification)
     if scheduled_at <= now < end_time:
-        # Check if this user has already started/submitted this assessment
         existing_submission = assessment_submissions_collection.find_one({
             "assessmentId": assessmentId,
             "student_id": user_id
         })
-        # Only emit if no submission exists yet for this user for this assessment
         if not existing_submission:
-            # Emit assessment_started event to the specific user who just fetched it
             socketio.emit('assessment_started', {
                 'classroomId': assessment['classroomId'],
                 'assessmentId': assessmentId,
                 'title': assessment['title'],
                 'endTime': end_time.isoformat()
-            }, room=request.sid)  # Emit only to the requesting client's SID
+            }, room=request.sid)
             print(f"Emitted 'assessment_started' to {request.sid} for assessment {assessmentId}")
 
-    # Fetch questions for this specific assessment
-    # Ensure the keys are consistent with what the frontend expects
     assessment['questions'] = list(assessment_questions_collection.find({"assessmentId": assessmentId}, {"_id": 0}))
     
-    # Convert datetime objects to ISO format strings for client-side
     if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
         assessment['scheduled_at'] = assessment['scheduled_at'].isoformat()
     if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
@@ -532,15 +511,15 @@ def get_assessment_details(assessmentId):
 def submit_assessment():
     user_id = session.get('user_id')
     username = session.get('username')
-    user_role = session.get('role')  # Get user role for submission record
+    user_role = session.get('role')
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.json
     assessment_id = data.get('assessmentId')
     class_room_id = data.get('classroomId')
-    answers = data.get('answers')  # List of {question_id: "...", user_answer: "...", question_text: "...", question_type: "...", correct_answer: "..."}
-    is_auto_submit = data.get('is_auto_submit', False)  # New: flag for auto-submission
+    answers = data.get('answers')
+    is_auto_submit = data.get('is_auto_submit', False)
 
     if not all([assessment_id, class_room_id, answers]):
         return jsonify({"error": "Missing required fields: assessmentId, classroomId, or answers"}), 400
@@ -548,7 +527,6 @@ def submit_assessment():
     if not isinstance(answers, list):
         return jsonify({"error": "Answers must be a list"}), 400
 
-    # Check if assessment is still active or if it's an auto-submission
     assessment_details = assessments_collection.find_one({"id": assessment_id})
     if not assessment_details:
         return jsonify({"error": "Assessment not found"}), 404
@@ -561,7 +539,6 @@ def submit_assessment():
     if not is_auto_submit and now > end_time:
         return jsonify({"error": "Assessment submission time has passed."}), 403
 
-    # Check if user has already submitted
     existing_submission = assessment_submissions_collection.find_one({
         "assessmentId": assessment_id,
         "student_id": user_id
@@ -584,9 +561,7 @@ def submit_assessment():
             if question:
                 total_questions += 1
                 is_correct = False
-                # Use 'question_type' from DB for consistency
-                if question.get('question_type') == 'mcq': 
-                    # Use the correct_answer from the DB, not client-provided
+                if question.get('question_type') == 'mcq':
                     db_correct_answer = question.get('correct_answer')
                     if db_correct_answer and user_answer is not None and \
                        str(user_answer).strip().lower() == str(db_correct_answer).strip().lower():
@@ -595,10 +570,10 @@ def submit_assessment():
                 
                 graded_answers.append({
                     "question_id": question_id,
-                    "question_text": question.get('question_text'),  # Use 'question_text' from DB
+                    "question_text": question.get('question_text'),
                     "user_answer": user_answer,
                     "correct_answer": question.get('correct_answer'),
-                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None  # Only for MCQ
+                    "is_correct": is_correct if question.get('question_type') == 'mcq' else None
                 })
 
     assessment_submissions_collection.insert_one({
@@ -607,15 +582,14 @@ def submit_assessment():
         "classroomId": class_room_id,
         "student_id": user_id,
         "student_username": username,
-        "student_role": user_role,  # Store student's role
+        "student_role": user_role,
         "submitted_at": datetime.utcnow(),
         "answers": graded_answers,
         "score": score,
         "total_questions": total_questions,
-        "is_auto_submit": is_auto_submit  # Store auto-submit flag
+        "is_auto_submit": is_auto_submit
     })
 
-    # Emit admin action update
     socketio.emit('admin_action_update', {
         'classroomId': class_room_id,
         'message': f"User {username} submitted an assessment for '{assessment_details.get('title')}'."
@@ -632,10 +606,7 @@ def get_assessment_submissions(assessmentId):
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Admins can see all submissions for their assessment
-    # Students can only see their own submission (if any)
     query = {"assessmentId": assessmentId}
-    # If not admin, filter by student_id
     if user_role != 'admin':
         query["student_id"] = user_id
 
@@ -654,7 +625,6 @@ def get_single_submission(submissionId):
     if not submission:
         return jsonify({"error": "Submission not found"}), 404
 
-    # Ensure only admin (who owns the assessment) or the submitting student can view
     assessment = assessments_collection.find_one({"id": submission['assessmentId']})
     if not assessment:
         return jsonify({"error": "Associated assessment not found"}), 404
@@ -683,12 +653,11 @@ def mark_submission(assessmentId, submissionId):
         return jsonify({"error": "Submission not found for this assessment."}), 404
 
     data = request.json
-    updated_answers = data.get('updated_answers')  # List of {question_id: "...", is_correct: bool, admin_feedback: "..."}
+    updated_answers = data.get('updated_answers')
 
     if not isinstance(updated_answers, list):
         return jsonify({"error": "updated_answers must be a list"}), 400
 
-    # Create a dictionary for quick lookup of existing answers
     existing_answers_map = {ans['question_id']: ans for ans in submission['answers']}
 
     new_score = 0
@@ -702,7 +671,6 @@ def mark_submission(assessmentId, submissionId):
         if q_id and q_id in existing_answers_map:
             original_answer = existing_answers_map[q_id]
             
-            # Update the original answer with new marking data
             original_answer['is_correct'] = is_correct
             original_answer['admin_feedback'] = admin_feedback
 
@@ -713,7 +681,6 @@ def mark_submission(assessmentId, submissionId):
         else:
             print(f"Warning: Question ID {q_id} not found in original submission {submissionId}")
 
-    # Update the submission document
     result = assessment_submissions_collection.update_one(
         {"id": submissionId},
         {"$set": {
@@ -725,7 +692,6 @@ def mark_submission(assessmentId, submissionId):
     )
 
     if result.modified_count > 0:
-        # Emit Socket.IO event to the student who submitted the assessment
         socketio.emit('submission_marked', {
             'assessmentId': assessmentId,
             'assessmentTitle': assessment['title'],
@@ -733,9 +699,8 @@ def mark_submission(assessmentId, submissionId):
             'studentId': submission['student_id'],
             'score': new_score,
             'total_questions': submission['total_questions']
-        }, room=submission['student_id'])  # Emit to the student's user_id room
+        }, room=submission['student_id'])
 
-        # Also emit admin action update to the classroom
         socketio.emit('admin_action_update', {
             'classroomId': assessment.get('classroomId'),
             'message': f"Admin {session.get('username')} marked a submission for '{assessment.get('title')}'."
@@ -758,13 +723,11 @@ def delete_assessment(assessmentId):
     if not assessment:
         return jsonify({"error": "Assessment not found"}), 404
 
-    # Delete associated questions and submissions
     assessment_questions_collection.delete_many({"assessmentId": assessmentId})
     assessment_submissions_collection.delete_many({"assessmentId": assessmentId})
     result = assessments_collection.delete_one({"id": assessmentId})
 
     if result.deleted_count > 0:
-        # Emit admin action update
         socketio.emit('admin_action_update', {
             'classroomId': assessment.get('classroomId'),
             'message': f"Admin {session.get('username')} deleted assessment '{assessment.get('title')}'."
@@ -780,7 +743,7 @@ def create_classroom():
     username = session.get('username')
     user_role = session.get('role')
 
-    if not user_id or user_role != 'admin':  # Only admins can create classrooms
+    if not user_id or user_role != 'admin':
         return jsonify({"error": "Unauthorized: Only administrators can create classrooms."}), 401
 
     data = request.json
@@ -796,20 +759,19 @@ def create_classroom():
         "creator_id": user_id,
         "creator_username": username,
         "created_at": datetime.utcnow(),
-        "participants": [user_id]  # Creator is initially a participant
+        "participants": [user_id]
     })
 
-    # Invalidate the classroom list cache on creation
     cache.delete_memoized(get_classrooms)
 
-    # Emit admin action update (this is for general notification, not room-specific yet)
     socketio.emit('admin_action_update', {
-        'classroomId': classroom_id,  # Use new classroom ID
+        'classroomId': classroom_id,
         'message': f"Admin {username} created a new classroom: '{classroom_name}'."
     })
     print(f"Classroom '{classroom_name}' created by {username}. ID: {classroom_id}")
     return jsonify({"message": "Classroom created successfully", "classroom": {"id": classroom_id, "name": classroom_name}}), 201
 
+# --- UPDATED: Modified get_classrooms endpoint to conditionally filter ---
 @app.route('/api/classrooms', methods=['GET'])
 @cache.cached(timeout=60, query_string=True)
 def get_classrooms():
@@ -817,18 +779,28 @@ def get_classrooms():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
+    # Get the 'type' parameter from the URL, defaulting to 'joined'
+    list_type = request.args.get('type', 'joined')
     search_query = request.args.get('search', '')
-    # Start with the mandatory participant filter
-    query_filter = {"participants": user_id}
-    
+
+    query_filter = {}
+
+    # Only apply the participant filter if the request is for joined classrooms
+    if list_type == 'joined':
+        query_filter["participants"] = user_id
+    elif list_type == 'all':
+        # No participant filter needed for 'all' classrooms
+        pass
+    else:
+        # Handle invalid 'type' parameter
+        return jsonify({"error": "Invalid classroom list type"}), 400
+
     if search_query:
-        # Add search by classroom 'name'
         query_filter["name"] = {"$regex": search_query, "$options": "i"}
 
-    # Fetch classrooms using the combined filter, excluding the _id field
     classrooms = list(classrooms_collection.find(query_filter, {"_id": 0}))
     
-    print(f"Fetched {len(classrooms)} classrooms for user {user_id} with query '{search_query}'")
+    print(f"Fetched {len(classrooms)} classrooms for list type '{list_type}' for user {user_id} with search query '{search_query}'")
     return jsonify(classrooms), 200
 
 @app.route('/api/classrooms/<classroomId>', methods=['GET'])
@@ -841,14 +813,11 @@ def get_classroom_details(classroomId):
     if not classroom:
         return jsonify({"error": "Classroom not found or access denied"}), 404
 
-    # Fetch recent chat messages for this classroom (e.g., last 50 messages)
     chat_messages = list(chat_messages_collection.find({"classroomId": classroomId}, {"_id": 0}).sort("timestamp", -1).limit(50))
-    chat_messages.reverse()  # Reverse to get chronological order
+    chat_messages.reverse()
 
-    # Fetch library files for this classroom
     library_files = list(library_files_collection.find({"classroomId": classroomId}, {"_id": 0}))
 
-    # Fetch assessments for this classroom
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"_id": 0}))
     for assessment in assessments:
         if 'scheduled_at' in assessment and isinstance(assessment['scheduled_at'], datetime):
@@ -856,7 +825,6 @@ def get_classroom_details(classroomId):
         if 'created_at' in assessment and isinstance(assessment['created_at'], datetime):
             assessment['created_at'] = assessment['created_at'].isoformat()
 
-    # Fetch whiteboard drawings for this classroom
     whiteboard_drawings = list(whiteboard_collection.find({"classroomId": classroomId}, {"_id": 0}).sort("timestamp", -1).limit(1))
     current_whiteboard = whiteboard_drawings[0] if whiteboard_drawings else None
 
@@ -881,7 +849,6 @@ def join_classroom(classroomId):
     if not classroom:
         return jsonify({"error": "Classroom not found"}), 404
 
-    # Add user to participants if not already there
     if user_id not in classroom.get('participants', []):
         classrooms_collection.update_one(
             {"id": classroomId},
@@ -904,7 +871,6 @@ def leave_classroom(classroomId):
     if not classroom:
         return jsonify({"error": "Classroom not found"}), 404
 
-    # Remove user from participants
     if user_id in classroom.get('participants', []):
         classrooms_collection.update_one(
             {"id": classroomId},
@@ -926,7 +892,6 @@ def get_classroom_participants(classroomId):
     if not classroom:
         return jsonify({"error": "Classroom not found or access denied"}), 404
 
-    # Fetch user details for each participant
     participant_ids = classroom.get('participants', [])
     participants = list(users_collection.find({"id": {"$in": participant_ids}}, {"_id": 0, "password": 0}))
     print(f"Fetched {len(participants)} participants for classroom {classroomId}")
@@ -943,7 +908,6 @@ def delete_classroom(classroomId):
     if not classroom:
         return jsonify({"error": "Classroom not found"}), 404
 
-    # Delete all associated data: library files, assessments, questions, submissions, whiteboard, chat messages
     library_files = list(library_files_collection.find({"classroomId": classroomId}, {"stored_filename": 1}))
     for file in library_files:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file['stored_filename'])
@@ -951,21 +915,17 @@ def delete_classroom(classroomId):
             os.remove(filepath)
     library_files_collection.delete_many({"classroomId": classroomId})
 
-    # Delete assessments and related data
     assessments = list(assessments_collection.find({"classroomId": classroomId}, {"id": 1}))
     assessment_ids = [a['id'] for a in assessments]
     assessment_questions_collection.delete_many({"classroomId": classroomId})
     assessment_submissions_collection.delete_many({"classroomId": classroomId})
     assessments_collection.delete_many({"classroomId": classroomId})
 
-    # Delete whiteboard and chat messages
     whiteboard_collection.delete_many({"classroomId": classroomId})
     chat_messages_collection.delete_many({"classroomId": classroomId})
 
-    # Finally, delete the classroom itself
     result = classrooms_collection.delete_one({"id": classroomId})
     if result.deleted_count > 0:
-        # Emit admin action update (general notification)
         socketio.emit('admin_action_update', {
             'classroomId': classroomId,
             'message': f"Admin {session.get('username')} deleted classroom '{classroom.get('name')}' and all its data."
@@ -982,7 +942,6 @@ def handle_connect():
     username = session.get('username')
     if user_id:
         print(f"User {username} ({user_id}) connected with SID: {request.sid}")
-        # Join a room specific to the user for targeted events (e.g., assessment notifications)
         join_room(user_id)
     else:
         print(f"Unauthenticated user connected with SID: {request.sid}")
@@ -993,7 +952,6 @@ def handle_disconnect():
     username = session.get('username')
     if user_id:
         print(f"User {username} ({user_id}) disconnected. SID: {request.sid}")
-        # Leave all rooms? SocketIO automatically handles leaving rooms on disconnect.
 
 @socketio.on('join_classroom')
 def handle_join_classroom(data):
@@ -1003,12 +961,10 @@ def handle_join_classroom(data):
     if not user_id or not classroom_id:
         return
 
-    # Verify user is a participant of the classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
     if classroom:
         join_room(classroom_id)
         print(f"User {username} joined Socket.IO room for classroom {classroom_id}")
-        # Optionally, emit a system message to the classroom chat
         chat_message_id = str(uuid.uuid4())
         chat_message = {
             "id": chat_message_id,
@@ -1034,7 +990,6 @@ def handle_leave_classroom(data):
 
     leave_room(classroom_id)
     print(f"User {username} left Socket.IO room for classroom {classroom_id}")
-    # Optionally, emit a system message to the classroom chat
     chat_message_id = str(uuid.uuid4())
     chat_message = {
         "id": chat_message_id,
@@ -1058,7 +1013,6 @@ def handle_chat_message(data):
     if not all([user_id, username, classroom_id, message_text]):
         return
 
-    # Verify user is a participant of the classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
     if not classroom:
         return
@@ -1087,12 +1041,10 @@ def handle_whiteboard_draw(data):
     if not all([user_id, classroom_id, drawing_data]):
         return
 
-    # Verify user is a participant of the classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
     if not classroom:
         return
 
-    # Store the latest drawing state for the classroom
     whiteboard_collection.update_one(
         {"classroomId": classroom_id},
         {"$set": {
@@ -1104,7 +1056,6 @@ def handle_whiteboard_draw(data):
         }},
         upsert=True
     )
-    # Broadcast the drawing data to all other users in the classroom
     emit('whiteboard_draw', data, room=classroom_id, include_self=False)
     print(f"Whiteboard drawing update from {username} in classroom {classroom_id}")
 
@@ -1119,12 +1070,10 @@ def handle_webrtc_offer(data):
     if not all([user_id, target_user_id, classroom_id, offer]):
         return
 
-    # Verify both users are in the same classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
     if not classroom:
         return
 
-    # Store the offer persistently for the target user to fetch if they are offline
     signal_id = str(uuid.uuid4())
     webrtc_signals_collection.insert_one({
         "id": signal_id,
@@ -1137,12 +1086,11 @@ def handle_webrtc_offer(data):
         "timestamp": datetime.utcnow()
     })
 
-    # Also emit the offer in real-time to the target user
     emit('webrtc_offer', {
         'fromUserId': user_id,
         'fromUsername': username,
         'offer': offer
-    }, room=target_user_id)  # Emit to the target user's personal room
+    }, room=target_user_id)
     print(f"WebRTC offer from {username} ({user_id}) to {target_user_id} in classroom {classroom_id}")
 
 @socketio.on('webrtc_answer')
@@ -1156,12 +1104,10 @@ def handle_webrtc_answer(data):
     if not all([user_id, target_user_id, classroom_id, answer]):
         return
 
-    # Verify both users are in the same classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
     if not classroom:
         return
 
-    # Store the answer persistently
     signal_id = str(uuid.uuid4())
     webrtc_signals_collection.insert_one({
         "id": signal_id,
@@ -1174,7 +1120,6 @@ def handle_webrtc_answer(data):
         "timestamp": datetime.utcnow()
     })
 
-    # Emit the answer in real-time
     emit('webrtc_answer', {
         'fromUserId': user_id,
         'fromUsername': username,
@@ -1193,12 +1138,10 @@ def handle_webrtc_ice_candidate(data):
     if not all([user_id, target_user_id, classroom_id, candidate]):
         return
 
-    # Verify both users are in the same classroom
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
     if not classroom:
         return
 
-    # Store the ICE candidate persistently
     signal_id = str(uuid.uuid4())
     webrtc_signals_collection.insert_one({
         "id": signal_id,
@@ -1211,7 +1154,6 @@ def handle_webrtc_ice_candidate(data):
         "timestamp": datetime.utcnow()
     })
 
-    # Emit the ICE candidate in real-time
     emit('webrtc_ice_candidate', {
         'fromUserId': user_id,
         'fromUsername': username,
@@ -1226,9 +1168,7 @@ def get_pending_webrtc_signals():
     if not user_id:
         return jsonify({"error": "Unauthorized"}), 401
 
-    # Find all signals intended for this user
     signals = list(webrtc_signals_collection.find({"toUserId": user_id}, {"_id": 0}).sort("timestamp", 1))
-    # Delete the signals after fetching (to avoid processing them again)
     webrtc_signals_collection.delete_many({"toUserId": user_id})
     print(f"Fetched {len(signals)} pending WebRTC signals for user {user_id}")
     return jsonify(signals), 200
