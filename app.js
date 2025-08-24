@@ -443,67 +443,144 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } 
 
+
+    // app.js (Updated functions)
+
+// --- Global Socket.IO Connection ---
+const socket = io();
+const activeSocketListeners = new Map();
+
+// --- Classroom Functions ---
+
+/**
+ * Enters a specific classroom, updates UI, joins the Socket.IO room, and loads content.
+ * @param {string} id - The ID of the classroom.
+ * @param {string} name - The name of the classroom.
+ */
+async function enterClassroom(id, name) {
+    if (!currentUser) return;
+
+    currentClassroomId = id;
+    currentClassroomName = name;
+
+    // First, clear any existing classroom-specific listeners from previous sessions to prevent duplicates
+    removeClassroomSocketListeners();
+
+    // Set the display and UI state
+    showSection(classroomSection);
+    showClassroomSubSection(whiteboardArea);
+    updateNavActiveState(navWhiteboard);
+    updateUIBasedOnRole();
+    
+    classroomIdDisplay.textContent = `You are in: ${name}`;
+    classNameValue.textContent = name;
+    classCodeSpan.textContent = id;
+    whiteboardContainer.innerHTML = '';
+    chatMessages.innerHTML = '';
+    
+    // Tell the server to join the Socket.IO room for this classroom
+    socket.emit('join_classroom', { classroomId: id });
+    
+    // Set up ALL classroom-specific listeners
+    setupClassroomSocketListeners(id);
+    
+    // Load the initial data for this classroom
+    loadAssessments();
+    loadLibraryFiles();
+    fetchWhiteboardHistory(); // Load whiteboard history for the current page
+    
+    // ... rest of your UI-related logic (e.g., broadcast buttons) ...
+
+    // Reset broadcast buttons state based on role
+    if (currentUser && currentUser.role === 'admin') {
+        startBroadcastBtn.disabled = false;
+        endBroadcastBtn.disabled = true;
+        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
+    } else {
+        startBroadcastBtn.classList.add('hidden');
+        endBroadcastBtn.classList.add('hidden');
+        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
+    }
+
+    shareLinkDisplay.classList.add('hidden');
+    shareLinkInput.value = '';
+}
+
+/**
+ * Leaves a classroom, cleans up resources, and returns to the dashboard.
+ */
+function leaveClassroom() {
+    if (currentClassroomId) {
+        // Tell the server to leave the socket room
+        socket.emit('leave_classroom', { classroomId: currentClassroomId });
+    }
+    
+    // Clean up listeners and reset UI
+    removeClassroomSocketListeners();
+    currentClassroomId = null;
+    currentClassroomName = null;
+    currentWhiteboardPage = 1;
+    endBroadcast(); // Clean up all WebRTC resources
+    
+    // Go back to dashboard view
+    showSection(dashboardSection);
+    updateNavActiveState(navDashboard);
+    loadAvailableClassrooms(); // Reload the dashboard list
+}
+
+/**
+ * Sets up all real-time event listeners for a specific classroom.
+ * @param {string} classroomId The classroom ID.
+ */
+function setupClassroomSocketListeners(classroomId) {
+    // Listener for chat messages
+    const chatListener = (message) => {
+        if (message.classroomId === classroomId) {
+            appendChatMessage(message);
+        }
+    };
+    socket.on('chat_message', chatListener);
+    activeSocketListeners.set('chat_message', chatListener);
+    
+    // Listener for whiteboard updates
+    const whiteboardListener = (data) => {
+        if (data.classroomId === classroomId) {
+            updateWhiteboard(data.drawingData);
+        }
+    };
+    socket.on('whiteboard_draw', whiteboardListener);
+    activeSocketListeners.set('whiteboard_draw', whiteboardListener);
+
+    // Listener for admin actions (e.g., new file uploads, new assessments)
+    const adminActionListener = (data) => {
+        if (data.classroomId === classroomId) {
+            showNotification(data.message);
+            if (data.message.includes('file(s) uploaded')) {
+                 loadLibraryFiles();
+            }
+            if (data.message.includes('created a new assessment')) {
+                loadAssessments();
+            }
+        }
+    };
+    socket.on('admin_action_update', adminActionListener);
+    activeSocketListeners.set('admin_action_update', adminActionListener);
+}
+
+/**
+ * Removes all classroom-specific socket listeners.
+ */
+function removeClassroomSocketListeners() {
+    activeSocketListeners.forEach((listener, eventName) => {
+        socket.off(eventName, listener);
+    });
+    activeSocketListeners.clear();
+}
+
     
             
 
-    // --- Classroom Functions ---
-
-    /**
-     * Enters a specific classroom, updates UI, initializes Socket.IO, and loads content.
-     * @param {string} id - The ID of the classroom.
-     * @param {string} name - The name of the classroom.
-     */
-    function enterClassroom(id, name) {
-        currentClassroom = { id: id, name: name };
-        localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
-        classroomIdDisplay.textContent = id;
-        classNameValue.textContent = name;
-        classCodeSpan.textContent = id;
-
-        showSection(classroomSection);
-        showClassroomSubSection(whiteboardArea);
-        updateNavActiveState(navWhiteboard);
-        updateUIBasedOnRole();
-
-        initializeSocketIO();
-        setupWhiteboardControls(); // Call the integrated setup
-        setupChatControls(); // Ensure chat controls are also set up
-
-        // Reset broadcast buttons state based on role
-        if (currentUser && currentUser.role === 'admin') {
-            startBroadcastBtn.disabled = false;
-            endBroadcastBtn.disabled = true;
-            // Ensure broadcast type radios are visible for admin
-            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
-        } else {
-            startBroadcastBtn.classList.add('hidden');
-            endBroadcastBtn.classList.add('hidden');
-            // Hide broadcast type radios for non-admins
-            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
-        }
-
-        shareLinkDisplay.classList.add('hidden');
-        shareLinkInput.value = '';
-
-        loadAssessments();
-        loadLibraryFiles();
-        fetchWhiteboardHistory(); // Load whiteboard history for the current page
-    }
-
-    /**
-     * Cleans up classroom-related resources when leaving a classroom.
-     */
-    function cleanupClassroomResources() {
-        if (socket && currentClassroom && currentClassroom.id) {
-            socket.emit('leave', { 'classroomId': currentClassroom.id });
-            socket.disconnect();
-            socket = null;
-        } else if (socket) {
-            socket.disconnect();
-            socket = null;
-        }
-        endBroadcast(); // Clean up all WebRTC resources
-
+    
         // Clear whiteboard canvas and reset state
         if (whiteboardCtx && whiteboardCanvas) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
