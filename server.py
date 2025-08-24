@@ -860,7 +860,7 @@ def join_classroom(classroomId):
         print(f"User {username} already in classroom {classroomId}")
         return jsonify({"message": "Already a participant"}), 200
 
-@app.route('/api/classrooms/<classroomId>/leave', methods['POST'])
+@app.route('/api/classrooms/<classroomId>/leave', methods=['POST'])
 def leave_classroom(classroomId):
     user_id = session.get('user_id')
     username = session.get('username')
