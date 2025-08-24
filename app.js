@@ -327,254 +327,170 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
-   // --- Dashboard Functions ---
+    // --- Dashboard Functions ---
 
     /**
-     * Loads classrooms and displays them, categorized by user's participation.
-     * It makes separate calls to the backend to get "your" classrooms and "available" classrooms.
+     * Loads all available classrooms and displays them, categorized by user's participation.
+     * Filters classrooms based on the search input.
      */
     async function loadAvailableClassrooms() {
         if (!currentUser || !currentUser.id) {
             classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             return;
         }
-
         try {
+            const response = await fetch('/api/classrooms');
+            let classrooms = await response.json();
+
             const searchTerm = classroomSearchInput.value.toLowerCase();
-            const urlJoined = new URL('/api/classrooms', window.location.origin);
-            const urlAll = new URL('/api/classrooms', window.location.origin);
-            
-            // Set the 'joined' type for the first fetch
-            urlJoined.searchParams.append('type', 'joined');
             if (searchTerm) {
-                urlJoined.searchParams.append('search', searchTerm);
+                classrooms = classrooms.filter(cls =>
+                    cls.name.toLowerCase().includes(searchTerm) ||
+                    cls.id.toLowerCase().includes(searchTerm)
+                );
             }
 
-            // Set the 'all' type for the second fetch
-            urlAll.searchParams.append('type', 'all');
-            if (searchTerm) {
-                urlAll.searchParams.append('search', searchTerm);
-            }
+            classroomList.innerHTML = '';
 
-            const [joinedResponse, allResponse] = await Promise.all([
-                fetch(urlJoined.toString()),
-                fetch(urlAll.toString())
-            ]);
+            if (classrooms.length === 0) {
+                classroomList.innerHTML = '<li>No classrooms found matching your search.</li>';
+            } else {
+                const userJoinedClassrooms = classrooms.filter(cls =>
+                    cls.creator_id === currentUser.id || (cls.participants && cls.participants.includes(currentUser.id))
+                );
+                const otherClassrooms = classrooms.filter(cls =>
+                    cls.creator_id !== currentUser.id && (!cls.participants || !cls.participants.includes(currentUser.id))
+                );
 
-            const userJoinedClassrooms = await joinedResponse.json();
-            let allClassrooms = await allResponse.json();
+                if (userJoinedClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Your Classrooms';
+                    classroomList.appendChild(h3);
+                    userJoinedClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
 
-            // Filter out joined classrooms from the 'all' list to avoid duplicates
-            const joinedIds = new Set(userJoinedClassrooms.map(cls => cls.id));
-            const otherClassrooms = allClassrooms.filter(cls => !joinedIds.has(cls.id));
+                if (otherClassrooms.length > 0) {
+                    const h3 = document.createElement('h3');
+                    h3.textContent = 'Available Classrooms to Join';
+                    classroomList.appendChild(h3);
+                    otherClassrooms.forEach(classroom => {
+                        const li = document.createElement('li');
+                        li.innerHTML = `
+                            <span>${classroom.name} (ID: ${classroom.id})</span>
+                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="join-classroom-btn">Join Classroom</button>
+                        `;
+                        classroomList.appendChild(li);
+                    });
+                }
 
-            classroomList.innerHTML = ''; // Clear the list
+                if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
+                    classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
+                }
 
-            if (userJoinedClassrooms.length > 0) {
-                const h3 = document.createElement('h3');
-                h3.textContent = 'Your Classrooms';
-                classroomList.appendChild(h3);
-                userJoinedClassrooms.forEach(classroom => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span>${classroom.name} (ID: ${classroom.id})</span>
-                        <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
-                    `;
-                    classroomList.appendChild(li);
+                document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const id = e.target.dataset.classroomId;
+                        const name = e.target.dataset.classroomName;
+                        enterClassroom(id, name);
+                    });
                 });
-            }
 
-            if (otherClassrooms.length > 0) {
-                const h3 = document.createElement('h3');
-                h3.textContent = 'Available Classrooms to Join';
-                classroomList.appendChild(h3);
-                otherClassrooms.forEach(classroom => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `
-                        <span>${classroom.name} (ID: ${classroom.id})</span>
-                        <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="join-classroom-btn">Join Classroom</button>
-                    `;
-                    classroomList.appendChild(li);
-                });
-            }
-
-            if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
-                classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
-            }
-
-            // Re-attach event listeners
-            document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const id = e.target.dataset.classroomId;
-                    const name = e.target.dataset.classroomName;
-                    enterClassroom(id, name);
-                });
-            });
-
-            document.querySelectorAll('.join-classroom-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const id = e.target.dataset.classroomId;
-                    const name = e.target.dataset.classroomName;
-                    try {
-                        const response = await fetch('/api/classrooms/' + id + '/join', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ classroomId: id })
-                        });
-                        const result = await response.json();
-                        if (response.ok) {
-                            showNotification(result.message);
-                            await loadAvailableClassrooms(); // Reload list to update status
-                            enterClassroom(id, name); // Immediately enter after joining
-                        } else {
-                            showNotification(result.error, true);
+                document.querySelectorAll('.join-classroom-btn').forEach(button => {
+                    button.addEventListener('click', async (e) => {
+                        const id = e.target.dataset.classroomId;
+                        const name = e.target.dataset.classroomName;
+                        try {
+                            const response = await fetch('/api/join-classroom', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ classroomId: id })
+                            });
+                            const result = await response.json();
+                            if (response.ok) {
+                                showNotification(result.message);
+                                loadAvailableClassrooms(); // Reload list to update status
+                                enterClassroom(id, name); // Immediately enter after joining
+                            } else {
+                                showNotification(result.error, true);
+                            }
+                        } catch (error) {
+                            console.error('Error joining classroom:', error);
+                            showNotification('An error occurred during joining.', true);
                         }
-                    } catch (error) {
-                        console.error('Error joining classroom:', error);
-                        showNotification('An error occurred during joining.', true);
-                    }
+                    });
                 });
-            });
-
+            }
         } catch (error) {
             console.error('Error loading classrooms:', error);
             classroomList.innerHTML = '<li>Failed to load classrooms.</li>';
         }
-    } 
-
-
-// --- Classroom Functions ---
-
-/**
- * Enters a specific classroom, updates UI, joins the Socket.IO room, and loads content.
- * @param {string} id - The ID of the classroom.
- * @param {string} name - The name of the classroom.
- */
-async function enterClassroom(id, name) {
-    if (!currentUser) return;
-
-    currentClassroomId = id;
-    currentClassroomName = name;
-
-    // First, clear any existing classroom-specific listeners from previous sessions to prevent duplicates
-    removeClassroomSocketListeners();
-
-    // Set the display and UI state
-    showSection(classroomSection);
-    showClassroomSubSection(whiteboardArea);
-    updateNavActiveState(navWhiteboard);
-    updateUIBasedOnRole();
-    
-    classroomIdDisplay.textContent = `You are in: ${name}`;
-    classNameValue.textContent = name;
-    classCodeSpan.textContent = id;
-    whiteboardContainer.innerHTML = '';
-    chatMessages.innerHTML = '';
-    
-    // Tell the server to join the Socket.IO room for this classroom
-    socket.emit('join_classroom', { classroomId: id });
-    
-    // Set up ALL classroom-specific listeners
-    setupClassroomSocketListeners(id);
-    
-    // Load the initial data for this classroom
-    loadAssessments();
-    loadLibraryFiles();
-    fetchWhiteboardHistory(); // Load whiteboard history for the current page
-    
-    // ... rest of your UI-related logic (e.g., broadcast buttons) ...
-
-    // Reset broadcast buttons state based on role
-    if (currentUser && currentUser.role === 'admin') {
-        startBroadcastBtn.disabled = false;
-        endBroadcastBtn.disabled = true;
-        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
-    } else {
-        startBroadcastBtn.classList.add('hidden');
-        endBroadcastBtn.classList.add('hidden');
-        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
     }
 
-    shareLinkDisplay.classList.add('hidden');
-    shareLinkInput.value = '';
-}
+    // --- Classroom Functions ---
 
-/**
- * Leaves a classroom, cleans up resources, and returns to the dashboard.
- */
-function leaveClassroom() {
-    if (currentClassroomId) {
-        // Tell the server to leave the socket room
-        socket.emit('leave_classroom', { classroomId: currentClassroomId });
+    /**
+     * Enters a specific classroom, updates UI, initializes Socket.IO, and loads content.
+     * @param {string} id - The ID of the classroom.
+     * @param {string} name - The name of the classroom.
+     */
+    function enterClassroom(id, name) {
+        currentClassroom = { id: id, name: name };
+        localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
+        classroomIdDisplay.textContent = id;
+        classNameValue.textContent = name;
+        classCodeSpan.textContent = id;
+
+        showSection(classroomSection);
+        showClassroomSubSection(whiteboardArea);
+        updateNavActiveState(navWhiteboard);
+        updateUIBasedOnRole();
+
+        initializeSocketIO();
+        setupWhiteboardControls(); // Call the integrated setup
+        setupChatControls(); // Ensure chat controls are also set up
+
+        // Reset broadcast buttons state based on role
+        if (currentUser && currentUser.role === 'admin') {
+            startBroadcastBtn.disabled = false;
+            endBroadcastBtn.disabled = true;
+            // Ensure broadcast type radios are visible for admin
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
+        } else {
+            startBroadcastBtn.classList.add('hidden');
+            endBroadcastBtn.classList.add('hidden');
+            // Hide broadcast type radios for non-admins
+            broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
+        }
+
+        shareLinkDisplay.classList.add('hidden');
+        shareLinkInput.value = '';
+
+        loadAssessments();
+        loadLibraryFiles();
+        fetchWhiteboardHistory(); // Load whiteboard history for the current page
     }
-    
-    // Clean up listeners and reset UI
-    removeClassroomSocketListeners();
-    currentClassroomId = null;
-    currentClassroomName = null;
-    currentWhiteboardPage = 1;
-    endBroadcast(); // Clean up all WebRTC resources
-    
-    // Go back to dashboard view
-    showSection(dashboardSection);
-    updateNavActiveState(navDashboard);
-    loadAvailableClassrooms(); // Reload the dashboard list
-}
 
-/**
- * Sets up all real-time event listeners for a specific classroom.
- * @param {string} classroomId The classroom ID.
- */
-function setupClassroomSocketListeners(classroomId) {
-    // Listener for chat messages
-    const chatListener = (message) => {
-        if (message.classroomId === classroomId) {
-            appendChatMessage(message);
+    /**
+     * Cleans up classroom-related resources when leaving a classroom.
+     */
+    function cleanupClassroomResources() {
+        if (socket && currentClassroom && currentClassroom.id) {
+            socket.emit('leave', { 'classroomId': currentClassroom.id });
+            socket.disconnect();
+            socket = null;
+        } else if (socket) {
+            socket.disconnect();
+            socket = null;
         }
-    };
-    socket.on('chat_message', chatListener);
-    activeSocketListeners.set('chat_message', chatListener);
-    
-    // Listener for whiteboard updates
-    const whiteboardListener = (data) => {
-        if (data.classroomId === classroomId) {
-            updateWhiteboard(data.drawingData);
-        }
-    };
-    socket.on('whiteboard_draw', whiteboardListener);
-    activeSocketListeners.set('whiteboard_draw', whiteboardListener);
+        endBroadcast(); // Clean up all WebRTC resources
 
-    // Listener for admin actions (e.g., new file uploads, new assessments)
-    const adminActionListener = (data) => {
-        if (data.classroomId === classroomId) {
-            showNotification(data.message);
-            if (data.message.includes('file(s) uploaded')) {
-                 loadLibraryFiles();
-            }
-            if (data.message.includes('created a new assessment')) {
-                loadAssessments();
-            }
-        }
-    };
-    socket.on('admin_action_update', adminActionListener);
-    activeSocketListeners.set('admin_action_update', adminActionListener);
-}
-
-/**
- * Removes all classroom-specific socket listeners.
- */
-function removeClassroomSocketListeners() {
-    activeSocketListeners.forEach((listener, eventName) => {
-        socket.off(eventName, listener);
-    });
-    activeSocketListeners.clear();
-}
-
-    
-            
-
-    
         // Clear whiteboard canvas and reset state
         if (whiteboardCtx && whiteboardCanvas) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
@@ -2755,97 +2671,81 @@ async function submitAssessment() {
     }
 
 
-    /**
- * Enters a specific classroom, updates UI, joins the Socket.IO room, and loads content.
- * @param {string} id - The ID of the classroom.
- * @param {string} name - The name of the classroom.
- */
-function enterClassroom(id, name) {
-    // Store classroom data locally
-    currentClassroom = { id: id, name: name };
-    localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom));
+    // --- Event Listeners ---
 
-    // Update UI labels
-    classroomIdDisplay.textContent = id;
-    classNameValue.textContent = name;
-    classCodeSpan.textContent = id;
+    // Auth Section
+    if (showRegisterLink) showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginContainer.classList.add('hidden'); registerContainer.classList.remove('hidden'); authMessage.textContent = ''; });
+    if (showLoginLink) showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerContainer.classList.add('hidden'); loginContainer.classList.remove('hidden'); authMessage.textContent = ''; });
 
-    // Show classroom section UI
-    showSection(classroomSection);
-    showClassroomSubSection(whiteboardArea);
-    updateNavActiveState(navWhiteboard);
-    updateUIBasedOnRole();
-
-    // Make sure socket exists before using it
-    if (socket) {
-        socket.emit('join_classroom', { classroomId: id });  // Correct event name
-    } else {
-        initializeSocketIO(() => {
-            if (socket) socket.emit('join_classroom', { classroomId: id });
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            try {
+                const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+                const result = await response.json();
+                if (response.ok) {
+                    currentUser = result.user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    sessionStorage.setItem('user_id', currentUser.id); // Store user_id in sessionStorage
+                    displayMessage(authMessage, result.message, false);
+                    checkLoginStatus();
+                } else {
+                    displayMessage(authMessage, result.error, true);
+                }
+            } catch (error) {
+                console.error('Error during login:', error);
+                displayMessage(authMessage, 'An error occurred during login.', true);
+            }
         });
     }
 
-    // Setup whiteboard & chat controls once inside the classroom
-    setupWhiteboardControls?.();
-    setupChatControls?.();
-
-    // Reset broadcast buttons based on role
-    if (currentUser && currentUser.role === 'admin') {
-        startBroadcastBtn.disabled = false;
-        endBroadcastBtn.disabled = true;
-        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.remove('hidden'));
-    } else {
-        startBroadcastBtn.classList.add('hidden');
-        endBroadcastBtn.classList.add('hidden');
-        broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            const role = document.getElementById('register-role').value;
+            try {
+                const response = await fetch('/api/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, email, password, role }) });
+                const result = await response.json();
+                if (response.ok) {
+                    displayMessage(authMessage, result.message + " Please log in.", false);
+                    registerForm.reset();
+                    loginContainer.classList.remove('hidden');
+                    registerContainer.classList.add('hidden');
+                } else {
+                    displayMessage(authMessage, result.error, true);
+                }
+            } catch (error) {
+                console.error('Error during registration:', error);
+                displayMessage(authMessage, 'An error occurred during registration.', true);
+            }
+        });
     }
 
-    // Hide share link by default
-    shareLinkDisplay.classList.add('hidden');
-    shareLinkInput.value = '';
-
-    // Load initial classroom data
-    loadAssessments?.();
-    loadLibraryFiles?.();
-    fetchWhiteboardHistory?.(); // Load whiteboard history for current page
-}
-
-/**
- * Cleans up classroom-related resources when leaving a classroom.
- */
-function cleanupClassroomResources() {
-    if (socket && currentClassroom && currentClassroom.id) {
-        socket.emit('leave_classroom', { classroomId: currentClassroom.id }); // Correct event name
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST' });
+                if (response.ok) {
+                    localStorage.removeItem('currentUser');
+                    sessionStorage.removeItem('user_id'); // Clear user_id from sessionStorage
+                    currentUser = null;
+                    cleanupClassroomResources(); // Clean up all classroom-related state
+                    showSection(authSection);
+                    showNotification("Logged out successfully.");
+                } else {
+                    showNotification('Failed to logout.', true);
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+                showNotification('An error occurred during logout.', true);
+            }
+        });
     }
-
-    // Stop broadcast if active
-    if (typeof endBroadcast === 'function') {
-        endBroadcast();
-    }
-
-    // Clear current classroom
-    currentClassroom = null;
-    localStorage.removeItem('currentClassroom');
-
-    // Clear UI elements that belong to the classroom
-    if (chatMessages) chatMessages.innerHTML = '';
-    if (whiteboardCanvas && whiteboardCanvas.getContext) {
-        const ctx = whiteboardCanvas.getContext('2d');
-        ctx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
-    }
-
-    // Reset broadcast buttons state
-    startBroadcastBtn.disabled = true;
-    endBroadcastBtn.disabled = true;
-    broadcastTypeRadios.forEach(radio => radio.parentElement.classList.add('hidden'));
-
-    // Optional: show dashboard after cleanup
-    showSection(dashboardSection);
-    updateNavActiveState(navDashboard);
-}
-
 
     // Dashboard Section
     if (createClassroomBtn) {
