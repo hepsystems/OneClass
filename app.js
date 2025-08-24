@@ -115,12 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const notificationsContainer = document.getElementById('notifications-container');
 
-    colorPicker.addEventListener('input', updateColor);
-    brushSizeSlider.addEventListener('input', updateBrushSize);
-    undoButton.addEventListener('click', undo);
-    redoButton.addEventListener('click', redo);
-    clearButton.addEventListener('click', clearWhiteboard);
-
+    
 
 
     // --- Global Variables ---
@@ -1190,8 +1185,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
 
 
-    
-    // --- Whiteboard Functions (Integrated from whiteboard.js) ---
+
+
+        // --- Whiteboard Functions (Integrated from whiteboard.js) ---
 
     /**
      * Initializes whiteboard canvas and attaches event listeners.
@@ -1243,6 +1239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUndoRedoButtons();
     }
 
+    
     /**
      * Resizes the whiteboard canvas to fit its container while maintaining aspect ratio.
      */
