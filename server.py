@@ -315,7 +315,7 @@ def delete_library_file(fileId):
     if os.path.exists(filepath):
         os.remove(filepath)
     
-    result = library_files_collection.delete_one({"id": fileId})
+    result = library_files_collection.delete_one({"id": fileId")
     if result.deleted_count > 0:
         # Emit admin action update
         socketio.emit('admin_action_update', {
@@ -719,7 +719,7 @@ def delete_assessment(assessmentId):
     if not user_id or user_role != 'admin':
         return jsonify({"error": "Unauthorized: Only admins can delete assessments"}), 403
 
-    assessment = assessments_collection.find_one({"id": assessmentId})
+    assessment = assessments_collection.find_one({"id": assessmentId")
     if not assessment:
         return jsonify({"error": "Assessment not found"}), 404
 
@@ -750,7 +750,8 @@ def create_classroom():
     classroom_name = data.get('name')
 
     if not classroom_name:
-        return jsonify({"error": "Classroom name is required"}), 400
+        return jsonify({"error": "Classroom name is required"),
+ 400
 
     classroom_id = str(uuid.uuid4())
     classrooms_collection.insert_one({
@@ -860,7 +861,7 @@ def join_classroom(classroomId):
         print(f"User {username} already in classroom {classroomId}")
         return jsonify({"message": "Already a participant"}), 200
 
-@app.route('/api/classrooms/<classroomId>/leave', methods=['POST'])
+@app.route('/api/classrooms/<classroomId>/leave', methods['POST'])
 def leave_classroom(classroomId):
     user_id = session.get('user_id')
     username = session.get('username')
@@ -935,6 +936,43 @@ def delete_classroom(classroomId):
     print(f"Attempted to delete classroom {classroomId} but not found in DB.")
     return jsonify({"error": "Classroom not found"}), 404
 
+# --- NEW: Whiteboard API Endpoints ---
+@app.route('/api/whiteboard-history/<classroomId>', methods=['GET'])
+def get_whiteboard_history(classroomId):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    classroom = classrooms_collection.find_one({"id": classroomId, "participants": user_id})
+    if not classroom:
+        return jsonify({"error": "Classroom not found or access denied"}), 404
+
+    # Get all whiteboard actions and organize by page
+    whiteboard_actions = list(whiteboard_collection.find(
+        {"classroomId": classroomId}, 
+        {"_id": 0}
+    ).sort("timestamp", 1))
+
+    # Organize data by page index
+    pages = {}
+    for action in whiteboard_actions:
+        page_index = action.get('pageIndex', 0)
+        if page_index not in pages:
+            pages[page_index] = []
+        
+        if action['action'] == 'draw':
+            pages[page_index].append({'action': 'draw', 'data': action['data']})
+        elif action['action'] == 'clear':
+            pages[page_index] = []  # Clear resets the page
+
+    # Convert to array format expected by client
+    history = []
+    max_page = max(pages.keys()) if pages else 0
+    for i in range(max_page + 1):
+        history.append(pages.get(i, []))
+
+    return jsonify({"history": history}), 200
+
 # --- Socket.IO Event Handlers ---
 @socketio.on('connect')
 def handle_connect():
@@ -953,64 +991,68 @@ def handle_disconnect():
     if user_id:
         print(f"User {username} ({user_id}) disconnected. SID: {request.sid}")
 
-@socketio.on('join_classroom')
+@socketio.on('join')
 def handle_join_classroom(data):
     user_id = session.get('user_id')
     username = session.get('username')
     classroom_id = data.get('classroomId')
-    if not user_id or not classroom_id:
+    role = data.get('role')
+    
+    if not all([user_id, username, classroom_id, role]):
         return
 
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
     if classroom:
         join_room(classroom_id)
         print(f"User {username} joined Socket.IO room for classroom {classroom_id}")
-        chat_message_id = str(uuid.uuid4())
-        chat_message = {
-            "id": chat_message_id,
-            "classroomId": classroom_id,
-            "userId": user_id,
-            "username": username,
-            "message": f"{username} joined the classroom.",
-            "timestamp": datetime.utcnow(),
-            "isSystemMessage": True
-        }
-        chat_messages_collection.insert_one(chat_message)
-        emit('chat_message', chat_message, room=classroom_id, include_self=True)
+        
+        # Emit user joined event to all participants
+        emit('user_joined', {
+            'sid': request.sid,
+            'user_id': user_id,
+            'username': username,
+            'role': role
+        }, room=classroom_id, include_self=False)
+        
+        # Send chat history to the joining user
+        chat_messages = list(chat_messages_collection.find(
+            {"classroomId": classroom_id}, 
+            {"_id": 0}
+        ).sort("timestamp", 1).limit(100))
+        
+        emit('chat_history', chat_messages, room=request.sid)
+        
     else:
         print(f"User {username} attempted to join classroom {classroom_id} without access.")
 
-@socketio.on('leave_classroom')
+@socketio.on('leave')
 def handle_leave_classroom(data):
     user_id = session.get('user_id')
     username = session.get('username')
     classroom_id = data.get('classroomId')
-    if not user_id or not classroom_id:
+    
+    if not all([user_id, username, classroom_id]):
         return
 
     leave_room(classroom_id)
     print(f"User {username} left Socket.IO room for classroom {classroom_id}")
-    chat_message_id = str(uuid.uuid4())
-    chat_message = {
-        "id": chat_message_id,
-        "classroomId": classroom_id,
-        "userId": user_id,
-        "username": username,
-        "message": f"{username} left the classroom.",
-        "timestamp": datetime.utcnow(),
-        "isSystemMessage": True
-    }
-    chat_messages_collection.insert_one(chat_message)
-    emit('chat_message', chat_message, room=classroom_id)
+    
+    # Emit user left event to all participants
+    emit('user_left', {
+        'sid': request.sid,
+        'user_id': user_id,
+        'username': username
+    }, room=classroom_id, include_self=False)
 
-@socketio.on('chat_message')
+@socketio.on('message')
 def handle_chat_message(data):
     user_id = session.get('user_id')
     username = session.get('username')
+    role = session.get('role')
     classroom_id = data.get('classroomId')
     message_text = data.get('message')
 
-    if not all([user_id, username, classroom_id, message_text]):
+    if not all([user_id, username, role, classroom_id, message_text]):
         return
 
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
@@ -1021,56 +1063,110 @@ def handle_chat_message(data):
     chat_message = {
         "id": chat_message_id,
         "classroomId": classroom_id,
-        "userId": user_id,
+        "user_id": user_id,
         "username": username,
+        "role": role,
         "message": message_text,
-        "timestamp": datetime.utcnow(),
-        "isSystemMessage": False
+        "timestamp": datetime.utcnow()
     }
+    
     chat_messages_collection.insert_one(chat_message)
-    emit('chat_message', chat_message, room=classroom_id)
+    
+    # Emit to all users in the classroom
+    emit('message', {
+        'id': chat_message_id,
+        'user_id': user_id,
+        'username': username,
+        'role': role,
+        'message': message_text,
+        'timestamp': chat_message['timestamp'].isoformat()
+    }, room=classroom_id)
+    
     print(f"Chat message from {username} in classroom {classroom_id}: {message_text}")
 
-@socketio.on('whiteboard_draw')
-def handle_whiteboard_draw(data):
+# --- NEW: Whiteboard Socket.IO Event Handlers ---
+@socketio.on('whiteboard_data')
+def handle_whiteboard_data(data):
     user_id = session.get('user_id')
     username = session.get('username')
     classroom_id = data.get('classroomId')
-    drawing_data = data.get('drawingData')
+    action = data.get('action')
+    drawing_data = data.get('data')
+    page_index = data.get('pageIndex', 0)
 
-    if not all([user_id, classroom_id, drawing_data]):
+    if not all([user_id, classroom_id, action]):
+        print(f"Missing required fields for whiteboard data: user_id={user_id}, classroom_id={classroom_id}, action={action}")
         return
 
     classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
     if not classroom:
+        print(f"User {username} attempted to send whiteboard data to classroom {classroom_id} without access.")
         return
 
-    whiteboard_collection.update_one(
-        {"classroomId": classroom_id},
-        {"$set": {
-            "classroomId": classroom_id,
-            "drawingData": drawing_data,
-            "lastUpdatedBy": user_id,
-            "lastUpdatedByUsername": username,
-            "timestamp": datetime.utcnow()
-        }},
-        upsert=True
-    )
-    emit('whiteboard_draw', data, room=classroom_id, include_self=False)
-    print(f"Whiteboard drawing update from {username} in classroom {classroom_id}")
+    # Store whiteboard data in database
+    whiteboard_doc = {
+        "classroomId": classroom_id,
+        "action": action,
+        "data": drawing_data,
+        "pageIndex": page_index,
+        "userId": user_id,
+        "username": username,
+        "timestamp": datetime.utcnow()
+    }
+    
+    whiteboard_collection.insert_one(whiteboard_doc)
+
+    # Broadcast to all users in the classroom (including sender)
+    emit('whiteboard_data', {
+        'action': action,
+        'data': drawing_data,
+        'pageIndex': page_index,
+        'userId': user_id,
+        'username': username,
+        'timestamp': datetime.utcnow().isoformat()
+    }, room=classroom_id, include_self=True)
+    
+    print(f"Whiteboard {action} from {username} in classroom {classroom_id}, page {page_index}")
+
+@socketio.on('whiteboard_page_change')
+def handle_whiteboard_page_change(data):
+    user_id = session.get('user_id')
+    username = session.get('username')
+    classroom_id = data.get('classroomId')
+    new_page_index = data.get('newPageIndex')
+    action = data.get('action', 'navigate')  # 'navigate' or 'add_page'
+
+    if not all([user_id, classroom_id, new_page_index is not None]):
+        print(f"Missing required fields for page change: user_id={user_id}, classroom_id={classroom_id}, new_page_index={new_page_index}")
+        return
+
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
+    if not classroom:
+        print(f"User {username} attempted to change page in classroom {classroom_id} without access.")
+        return
+
+    # Broadcast page change to all users (excluding sender to avoid double navigation)
+    emit('whiteboard_page_change', {
+        'newPageIndex': new_page_index,
+        'action': action,
+        'userId': user_id,
+        'username': username
+    }, room=classroom_id, include_self=False)
+    
+    print(f"Whiteboard page change to {new_page_index} by {username} in classroom {classroom_id}, action: {action}")
 
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
     user_id = session.get('user_id')
     username = session.get('username')
-    target_user_id = data.get('targetUserId')
+    recipient_id = data.get('recipient_id')
     classroom_id = data.get('classroomId')
     offer = data.get('offer')
 
-    if not all([user_id, target_user_id, classroom_id, offer]):
+    if not all([user_id, recipient_id, classroom_id, offer]):
         return
 
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
     if not classroom:
         return
 
@@ -1081,30 +1177,31 @@ def handle_webrtc_offer(data):
         "classroomId": classroom_id,
         "fromUserId": user_id,
         "fromUsername": username,
-        "toUserId": target_user_id,
+        "toUserId": recipient_id,
         "signalData": offer,
         "timestamp": datetime.utcnow()
     })
 
     emit('webrtc_offer', {
-        'fromUserId': user_id,
-        'fromUsername': username,
-        'offer': offer
-    }, room=target_user_id)
-    print(f"WebRTC offer from {username} ({user_id}) to {target_user_id} in classroom {classroom_id}")
+        'sender_id': request.sid,
+        'offer': offer,
+        'username': username
+    }, room=recipient_id)
+    
+    print(f"WebRTC offer from {username} ({user_id}) to {recipient_id} in classroom {classroom_id}")
 
 @socketio.on('webrtc_answer')
 def handle_webrtc_answer(data):
     user_id = session.get('user_id')
     username = session.get('username')
-    target_user_id = data.get('targetUserId')
+    recipient_id = data.get('recipient_id')
     classroom_id = data.get('classroomId')
     answer = data.get('answer')
 
-    if not all([user_id, target_user_id, classroom_id, answer]):
+    if not all([user_id, recipient_id, classroom_id, answer]):
         return
 
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
     if not classroom:
         return
 
@@ -1115,30 +1212,31 @@ def handle_webrtc_answer(data):
         "classroomId": classroom_id,
         "fromUserId": user_id,
         "fromUsername": username,
-        "toUserId": target_user_id,
+        "toUserId": recipient_id,
         "signalData": answer,
         "timestamp": datetime.utcnow()
     })
 
     emit('webrtc_answer', {
-        'fromUserId': user_id,
-        'fromUsername': username,
-        'answer': answer
-    }, room=target_user_id)
-    print(f"WebRTC answer from {username} ({user_id}) to {target_user_id} in classroom {classroom_id}")
+        'sender_id': request.sid,
+        'answer': answer,
+        'username': username
+    }, room=recipient_id)
+    
+    print(f"WebRTC answer from {username} ({user_id}) to {recipient_id} in classroom {classroom_id}")
 
 @socketio.on('webrtc_ice_candidate')
 def handle_webrtc_ice_candidate(data):
     user_id = session.get('user_id')
     username = session.get('username')
-    target_user_id = data.get('targetUserId')
+    recipient_id = data.get('recipient_id')
     classroom_id = data.get('classroomId')
     candidate = data.get('candidate')
 
-    if not all([user_id, target_user_id, classroom_id, candidate]):
+    if not all([user_id, recipient_id, classroom_id, candidate]):
         return
 
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, target_user_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
     if not classroom:
         return
 
@@ -1148,18 +1246,33 @@ def handle_webrtc_ice_candidate(data):
         "type": "ice_candidate",
         "classroomId": classroom_id,
         "fromUserId": user_id,
-        "fromUsername": username,
-        "toUserId": target_user_id,
+        "fromUsername': username,
+        "toUserId": recipient_id,
         "signalData": candidate,
         "timestamp": datetime.utcnow()
     })
 
     emit('webrtc_ice_candidate', {
-        'fromUserId': user_id,
-        'fromUsername': username,
-        'candidate': candidate
-    }, room=target_user_id)
-    print(f"WebRTC ICE candidate from {username} ({user_id}) to {target_user_id} in classroom {classroom_id}")
+        'sender_id': request.sid,
+        'candidate': candidate,
+        'username': username
+    }, room=recipient_id)
+    
+    print(f"WebRTC ICE candidate from {username} ({user_id}) to {recipient_id} in classroom {classroom_id}")
+
+@socketio.on('webrtc_peer_disconnected')
+def handle_webrtc_peer_disconnected(data):
+    peer_id = data.get('peer_id')
+    classroom_id = data.get('classroomId')
+    
+    if not all([peer_id, classroom_id]):
+        return
+
+    emit('webrtc_peer_disconnected', {
+        'peer_id': peer_id
+    }, room=classroom_id, include_self=False)
+    
+    print(f"WebRTC peer disconnected: {peer_id} in classroom {classroom_id}")
 
 # New endpoint to fetch pending WebRTC signals for a user upon connection
 @app.route('/api/webrtc-signals', methods=['GET'])
