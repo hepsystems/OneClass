@@ -1362,10 +1362,7 @@ function handleMouseDown(e) {
         }
     }
 
-    /**
-     * Handles mouse/touch up events on the whiteboard canvas.
-     * @param {MouseEvent|TouchEvent} e - The event object.*/
-     function handleMouseUp(e) {
+    function handleMouseUp(e) {
     if (!isDrawing || currentUser.role !== 'admin') return;
     isDrawing = false;
 
@@ -1400,23 +1397,51 @@ function handleMouseDown(e) {
         currentStrokePoints = [];
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
         const coords = getCoords(e);
-        const shapeData = {
-            startX, startY,
-            endX: coords.x,
-            endY: coords.y,
-            color: currentColor,
-            width: currentBrushSize,
-            tool: currentTool
-        };
-        
-        // This is the correct order of operations to make the shape permanent:
-        // 1. Add the shape data to the history array
+        let shapeData;
+
+        // Create the correct shape data object based on the current tool
+        if (currentTool === 'rectangle') {
+            shapeData = {
+                tool: 'rectangle',
+                startX: startX,
+                startY: startY,
+                width: coords.x - startX,
+                height: coords.y - startY,
+                color: currentColor,
+                size: currentBrushSize,
+                pageIndex: currentPageIndex
+            };
+        } else if (currentTool === 'line') {
+            shapeData = {
+                tool: 'line',
+                startX: startX,
+                startY: startY,
+                endX: coords.x,
+                endY: coords.y,
+                color: currentColor,
+                size: currentBrushSize,
+                pageIndex: currentPageIndex
+            };
+        } else if (currentTool === 'circle') {
+            const radius = Math.sqrt(Math.pow(coords.x - startX, 2) + Math.pow(coords.y - startY, 2));
+            shapeData = {
+                tool: 'circle',
+                centerX: startX,
+                centerY: startY,
+                radius: radius,
+                color: currentColor,
+                size: currentBrushSize,
+                pageIndex: currentPageIndex
+            };
+        }
+
+        // Add the completed shape data to the whiteboard history
         whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
 
-        // 2. Re-render the entire whiteboard to draw all saved items, including the new one
+        // Re-render the entire whiteboard to make the new shape persistent
         renderCurrentWhiteboardPage();
 
-        // 3. Emit the data to the server for other users
+        // Broadcast the new drawing to other users
         socket.emit('whiteboard_data', {
             action: 'draw',
             classroomId: currentClassroom.id,
@@ -1424,11 +1449,10 @@ function handleMouseDown(e) {
             pageIndex: currentPageIndex
         });
     }
-    
-    whiteboardCtx.globalCompositeOperation = 'source-over'; // Reset to default blending
-    saveState(); // Save canvas state for undo/redo
-}
 
+    whiteboardCtx.globalCompositeOperation = 'source-over';
+    saveState();
+}
     /**
      * Draws a whiteboard item (stroke, shape, or text) onto the canvas.
      * This function applies styling before drawing and restores context after.
