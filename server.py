@@ -719,7 +719,7 @@ def delete_assessment(assessmentId):
     if not user_id or user_role != 'admin':
         return jsonify({"error": "Unauthorized: Only admins can delete assessments"}), 403
 
-    assessment = assessments_collection.find_one({"id": assessmentId")
+    assessment = assessments_collection.find_one({"id": assessmentId})
     if not assessment:
         return jsonify({"error": "Assessment not found"}), 404
 
