@@ -1190,39 +1190,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, { passive: false }); // Use passive: false to allow preventDefault for wheel event
 
 
-        // Inside the DOMContentLoaded event listener...
-const undoStack = []; // Your existing undo stack
-const redoStack = []; // Your existing redo stack
-
-// ... Your drawing logic for mouse and touch events...
-
-// This is the new logic to add inside your `mouseup` or `touchend` event handler
-// after a new drawing action has been completed.
-function onNewDrawingAction(drawingData) {
-    // Push the new action onto the undo stack
-    undoStack.push(drawingData);
-    // Crucially, clear the redo stack because a new history branch has started
-    redoStack.length = 0;
-}
-
-// When the 'undo' button is clicked
-function onUndo() {
-    if (undoStack.length > 0) {
-        const lastAction = undoStack.pop();
-        redoStack.push(lastAction);
-        // ... Logic to redraw the canvas without the last action
-    }
-}
-
-// When the 'redo' button is clicked
-function onRedo() {
-    if (redoStack.length > 0) {
-        const nextAction = redoStack.pop();
-        undoStack.push(nextAction);
-        // ... Logic to redraw the canvas with the next action
-    }
-}
-    }
     
     // --- Whiteboard Functions (Integrated from whiteboard.js) ---
 
