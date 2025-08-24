@@ -1364,66 +1364,70 @@ function handleMouseDown(e) {
 
     /**
      * Handles mouse/touch up events on the whiteboard canvas.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     */
-    function handleMouseUp(e) {
-        if (!isDrawing || currentUser.role !== 'admin') return; // Only process if actively drawing and admin
-        isDrawing = false; // Stop drawing
+     * @param {MouseEvent|TouchEvent} e - The event object.*/
+     function handleMouseUp(e) {
+    if (!isDrawing || currentUser.role !== 'admin') return;
+    isDrawing = false;
 
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            // If it was just a click (single point), draw a dot
-            if (currentStrokePoints.length === 1) {
-                const p = currentStrokePoints[0];
-                whiteboardCtx.save();
-                whiteboardCtx.strokeStyle = currentColor;
-                whiteboardCtx.fillStyle = currentColor;
-                whiteboardCtx.lineWidth = p.width;
-                whiteboardCtx.globalCompositeOperation = (currentTool === 'eraser') ? 'destination-out' : 'source-over';
-                whiteboardCtx.beginPath();
-                whiteboardCtx.arc(p.x, p.y, p.width / 2, 0, Math.PI * 2);
-                whiteboardCtx.fill();
-                whiteboardCtx.restore();
-            }
-
-            const strokeData = {
-                points: currentStrokePoints,
-                color: currentColor,
-                tool: currentTool,
-                width: currentBrushSize // Include the base brush size for consistency/fallback
-            };
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: strokeData,
-                pageIndex: currentPageIndex
-            });
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
-            // Re-render the current page to ensure all strokes are permanently drawn
-            renderCurrentWhiteboardPage();
-            currentStrokePoints = []; // Reset for next stroke
-        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            const coords = getCoords(e);
-            const shapeData = {
-                startX, startY,
-                endX: coords.x,
-                endY: coords.y,
-                color: currentColor,
-                width: currentBrushSize,
-                tool: currentTool
-            };
-            // Draw final shape
-            drawWhiteboardItem(shapeData);
-            socket.emit('whiteboard_data', {
-                action: 'draw',
-                classroomId: currentClassroom.id,
-                data: shapeData,
-                pageIndex: currentPageIndex
-            });
-            whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentStrokePoints.length === 1) {
+            const p = currentStrokePoints[0];
+            whiteboardCtx.save();
+            whiteboardCtx.strokeStyle = currentColor;
+            whiteboardCtx.fillStyle = currentColor;
+            whiteboardCtx.lineWidth = p.width;
+            whiteboardCtx.globalCompositeOperation = (currentTool === 'eraser') ? 'destination-out' : 'source-over';
+            whiteboardCtx.beginPath();
+            whiteboardCtx.arc(p.x, p.y, p.width / 2, 0, Math.PI * 2);
+            whiteboardCtx.fill();
+            whiteboardCtx.restore();
         }
-        whiteboardCtx.globalCompositeOperation = 'source-over'; // Reset to default blending
-        saveState(); // Save canvas state for undo/redo
+
+        const strokeData = {
+            points: currentStrokePoints,
+            color: currentColor,
+            tool: currentTool,
+            width: currentBrushSize
+        };
+        socket.emit('whiteboard_data', {
+            action: 'draw',
+            classroomId: currentClassroom.id,
+            data: strokeData,
+            pageIndex: currentPageIndex
+        });
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: strokeData });
+        renderCurrentWhiteboardPage();
+        currentStrokePoints = [];
+    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        const coords = getCoords(e);
+        const shapeData = {
+            startX, startY,
+            endX: coords.x,
+            endY: coords.y,
+            color: currentColor,
+            width: currentBrushSize,
+            tool: currentTool
+        };
+        
+        // This is the correct order of operations to make the shape permanent:
+        // 1. Add the shape data to the history array
+        whiteboardPages[currentPageIndex].push({ action: 'draw', data: shapeData });
+
+        // 2. Re-render the entire whiteboard to draw all saved items, including the new one
+        renderCurrentWhiteboardPage();
+
+        // 3. Emit the data to the server for other users
+        socket.emit('whiteboard_data', {
+            action: 'draw',
+            classroomId: currentClassroom.id,
+            data: shapeData,
+            pageIndex: currentPageIndex
+        });
     }
+    
+    whiteboardCtx.globalCompositeOperation = 'source-over'; // Reset to default blending
+    saveState(); // Save canvas state for undo/redo
+}
 
     /**
      * Draws a whiteboard item (stroke, shape, or text) onto the canvas.
@@ -1491,6 +1495,34 @@ function handleMouseDown(e) {
                 break;
         }
     }
+
+
+    // This function adds a new drawing item to the current page's history
+function saveDrawingItem(drawingItem) {
+    if (!whiteboardPages[currentPageIndex]) {
+        whiteboardPages[currentPageIndex] = [];
+    }
+    // Add the new drawing item to the local history
+    whiteboardPages[currentPageIndex].push(drawingItem);
+
+    // Push the new state to the undo stack
+    undoStack.push(JSON.stringify(whiteboardPages));
+    if (undoStack.length > MAX_HISTORY_STEPS) {
+        undoStack.shift();
+    }
+    redoStack = []; // Clear redo stack on new action
+    updateUndoRedoButtons();
+
+    // Re-render the entire page to ensure all drawings are present
+    renderCurrentWhiteboardPage();
+
+    // Broadcast the new drawing to other users
+    socket.emit('whiteboard_data', {
+        action: 'draw',
+        data: drawingItem,
+        pageIndex: currentPageIndex
+    });
+}
 
     /**
      * Gets mouse or touch coordinates relative to the canvas.
