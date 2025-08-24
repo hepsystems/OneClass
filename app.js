@@ -327,111 +327,124 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Dashboard Functions ---
+
+   // --- Dashboard Functions ---
 
     /**
-     * Loads all available classrooms and displays them, categorized by user's participation.
-     * Filters classrooms based on the search input.
+     * Loads classrooms and displays them, categorized by user's participation.
+     * It makes separate calls to the backend to get "your" classrooms and "available" classrooms.
      */
     async function loadAvailableClassrooms() {
         if (!currentUser || !currentUser.id) {
             classroomList.innerHTML = '<li>Please log in to see available classrooms.</li>';
             return;
         }
+
         try {
-            const response = await fetch('/api/classrooms');
-            let classrooms = await response.json();
-
             const searchTerm = classroomSearchInput.value.toLowerCase();
+            const urlJoined = new URL('/api/classrooms', window.location.origin);
+            const urlAll = new URL('/api/classrooms', window.location.origin);
+            
+            // Set the 'joined' type for the first fetch
+            urlJoined.searchParams.append('type', 'joined');
             if (searchTerm) {
-                classrooms = classrooms.filter(cls =>
-                    cls.name.toLowerCase().includes(searchTerm) ||
-                    cls.id.toLowerCase().includes(searchTerm)
-                );
+                urlJoined.searchParams.append('search', searchTerm);
             }
 
-            classroomList.innerHTML = '';
+            // Set the 'all' type for the second fetch
+            urlAll.searchParams.append('type', 'all');
+            if (searchTerm) {
+                urlAll.searchParams.append('search', searchTerm);
+            }
 
-            if (classrooms.length === 0) {
-                classroomList.innerHTML = '<li>No classrooms found matching your search.</li>';
-            } else {
-                const userJoinedClassrooms = classrooms.filter(cls =>
-                    cls.creator_id === currentUser.id || (cls.participants && cls.participants.includes(currentUser.id))
-                );
-                const otherClassrooms = classrooms.filter(cls =>
-                    cls.creator_id !== currentUser.id && (!cls.participants || !cls.participants.includes(currentUser.id))
-                );
+            const [joinedResponse, allResponse] = await Promise.all([
+                fetch(urlJoined.toString()),
+                fetch(urlAll.toString())
+            ]);
 
-                if (userJoinedClassrooms.length > 0) {
-                    const h3 = document.createElement('h3');
-                    h3.textContent = 'Your Classrooms';
-                    classroomList.appendChild(h3);
-                    userJoinedClassrooms.forEach(classroom => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <span>${classroom.name} (ID: ${classroom.id})</span>
-                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
-                        `;
-                        classroomList.appendChild(li);
-                    });
-                }
+            const userJoinedClassrooms = await joinedResponse.json();
+            let allClassrooms = await allResponse.json();
 
-                if (otherClassrooms.length > 0) {
-                    const h3 = document.createElement('h3');
-                    h3.textContent = 'Available Classrooms to Join';
-                    classroomList.appendChild(h3);
-                    otherClassrooms.forEach(classroom => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <span>${classroom.name} (ID: ${classroom.id})</span>
-                            <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="join-classroom-btn">Join Classroom</button>
-                        `;
-                        classroomList.appendChild(li);
-                    });
-                }
+            // Filter out joined classrooms from the 'all' list to avoid duplicates
+            const joinedIds = new Set(userJoinedClassrooms.map(cls => cls.id));
+            const otherClassrooms = allClassrooms.filter(cls => !joinedIds.has(cls.id));
 
-                if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
-                    classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
-                }
+            classroomList.innerHTML = ''; // Clear the list
 
-                document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
-                    button.addEventListener('click', (e) => {
-                        const id = e.target.dataset.classroomId;
-                        const name = e.target.dataset.classroomName;
-                        enterClassroom(id, name);
-                    });
+            if (userJoinedClassrooms.length > 0) {
+                const h3 = document.createElement('h3');
+                h3.textContent = 'Your Classrooms';
+                classroomList.appendChild(h3);
+                userJoinedClassrooms.forEach(classroom => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${classroom.name} (ID: ${classroom.id})</span>
+                        <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="go-to-classroom-btn">Enter Classroom</button>
+                    `;
+                    classroomList.appendChild(li);
                 });
+            }
 
-                document.querySelectorAll('.join-classroom-btn').forEach(button => {
-                    button.addEventListener('click', async (e) => {
-                        const id = e.target.dataset.classroomId;
-                        const name = e.target.dataset.classroomName;
-                        try {
-                            const response = await fetch('/api/join-classroom', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ classroomId: id })
-                            });
-                            const result = await response.json();
-                            if (response.ok) {
-                                showNotification(result.message);
-                                loadAvailableClassrooms(); // Reload list to update status
-                                enterClassroom(id, name); // Immediately enter after joining
-                            } else {
-                                showNotification(result.error, true);
-                            }
-                        } catch (error) {
-                            console.error('Error joining classroom:', error);
-                            showNotification('An error occurred during joining.', true);
+            if (otherClassrooms.length > 0) {
+                const h3 = document.createElement('h3');
+                h3.textContent = 'Available Classrooms to Join';
+                classroomList.appendChild(h3);
+                otherClassrooms.forEach(classroom => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${classroom.name} (ID: ${classroom.id})</span>
+                        <button data-classroom-id="${classroom.id}" data-classroom-name="${classroom.name}" class="join-classroom-btn">Join Classroom</button>
+                    `;
+                    classroomList.appendChild(li);
+                });
+            }
+
+            if (userJoinedClassrooms.length === 0 && otherClassrooms.length === 0) {
+                classroomList.innerHTML = '<li>No classrooms found. Create one or wait for an admin to create one!</li>';
+            }
+
+            // Re-attach event listeners
+            document.querySelectorAll('.go-to-classroom-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const id = e.target.dataset.classroomId;
+                    const name = e.target.dataset.classroomName;
+                    enterClassroom(id, name);
+                });
+            });
+
+            document.querySelectorAll('.join-classroom-btn').forEach(button => {
+                button.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.classroomId;
+                    const name = e.target.dataset.classroomName;
+                    try {
+                        const response = await fetch('/api/classrooms/' + id + '/join', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ classroomId: id })
+                        });
+                        const result = await response.json();
+                        if (response.ok) {
+                            showNotification(result.message);
+                            await loadAvailableClassrooms(); // Reload list to update status
+                            enterClassroom(id, name); // Immediately enter after joining
+                        } else {
+                            showNotification(result.error, true);
                         }
-                    });
+                    } catch (error) {
+                        console.error('Error joining classroom:', error);
+                        showNotification('An error occurred during joining.', true);
+                    }
                 });
-            }
+            });
+
         } catch (error) {
             console.error('Error loading classrooms:', error);
             classroomList.innerHTML = '<li>Failed to load classrooms.</li>';
         }
-    }
+    } 
+
+    
+            
 
     // --- Classroom Functions ---
 
