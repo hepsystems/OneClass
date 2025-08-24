@@ -315,7 +315,7 @@ def delete_library_file(fileId):
     if os.path.exists(filepath):
         os.remove(filepath)
     
-    result = library_files_collection.delete_one({"id": fileId")
+    result = library_files_collection.delete_one({"id": fileId})
     if result.deleted_count > 0:
         # Emit admin action update
         socketio.emit('admin_action_update', {
