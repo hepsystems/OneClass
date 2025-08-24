@@ -1245,7 +1245,7 @@ def handle_webrtc_ice_candidate(data):
         "type": "ice_candidate",
         "classroomId": classroom_id,
         "fromUserId": user_id,
-        "fromUsername': username,
+        "fromUsername": username,
         "toUserId": recipient_id,
         "signalData": candidate,
         "timestamp": datetime.utcnow()
