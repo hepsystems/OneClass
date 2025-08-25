@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const librarySection = document.getElementById('library-section');
     const assessmentsSection = document.getElementById('assessments-section');
 
-    // Settings Section Elements
     const settingsSection = document.getElementById('settings-section');
     const updateProfileForm = document.getElementById('update-profile-form');
     const settingsUsernameInput = document.getElementById('settings-username');
@@ -1604,6 +1603,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            // Debugging: Log coordinates before building shape data
+            console.log(`[ShapeDebug][Move] Start: (${startX}, ${startY}), Current: (${currentX}, ${currentY}) for tool: ${currentTool}`);
             temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
             renderCurrentWhiteboardPage(); // Render all committed items
             drawWhiteboardItem(temporaryShapeData); // Then draw the temporary shape on top
@@ -1667,6 +1668,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             currentStrokePoints = [];
         } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            // Debugging: Log coordinates before building final shape data
+            console.log(`[ShapeDebug][End] Start: (${startX}, ${startY}), End: (${endX}, ${endY}) for tool: ${currentTool}`);
             const finalShapeData = buildShapeData(currentTool, startX, startY, endX, endY);
             
             const minSizeThreshold = 2; // Minimum pixel size for a shape to be considered meaningful
@@ -1742,17 +1745,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const baseData = { id: crypto.randomUUID(), type: tool, color: currentColor, size: currentBrushSize }; // Assign unique ID
         switch (tool) {
             case 'line':
+                console.log(`[ShapeDebug][Build] Line Data: sx=${sx}, sy=${sy}, ex=${ex}, ey=${ey}`);
                 return { ...baseData, startX: sx, startY: sy, endX: ex, endY: ey };
             case 'rectangle':
                 const rectX = Math.min(sx, ex);
                 const rectY = Math.min(sy, ey);
                 const width = Math.abs(ex - sx);
                 const height = Math.abs(ey - sy);
+                console.log(`[ShapeDebug][Build] Rect Data: x=${rectX}, y=${rectY}, w=${width}, h=${height}`);
                 return { ...baseData, x: rectX, y: rectY, width: width, height: height };
             case 'circle':
                 const centerX = sx;
                 const centerY = sy;
                 const radius = Math.sqrt(Math.pow(ex - sx, 2) + Math.pow(ey - sy, 2));
+                console.log(`[ShapeDebug][Build] Circle Data: cx=${centerX}, cy=${centerY}, r=${radius}`);
                 return { ...baseData, x: centerX, y: centerY, radius: radius };
             default:
                 return baseData;
@@ -1806,6 +1812,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'line':
+                console.log(`[ShapeDebug][Draw] Line: sx=${item.startX}, sy=${item.startY}, ex=${item.endX}, ey=${item.endY}`);
                 whiteboardCtx.beginPath();
                 whiteboardCtx.moveTo(item.startX, item.startY);
                 whiteboardCtx.lineTo(item.endX, item.endY);
@@ -1813,14 +1820,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'rectangle':
+                console.log(`[ShapeDebug][Draw] Rect: x=${item.x}, y=${item.y}, w=${item.width}, h=${item.height}`);
+                if (item.width === 0 || item.height === 0) {
+                    console.warn(`[ShapeDebug][Draw] Skipping zero-sized rectangle: w=${item.width}, h=${item.height}`);
+                    break; // Don't draw zero-sized rectangles
+                }
                 whiteboardCtx.beginPath();
-                // Rectangle drawing uses x, y, width, height from buildShapeData
                 whiteboardCtx.strokeRect(item.x, item.y, item.width, item.height);
                 break;
 
             case 'circle':
+                console.log(`[ShapeDebug][Draw] Circle: cx=${item.x}, cy=${item.y}, r=${item.radius}`);
+                 if (item.radius === 0) {
+                    console.warn(`[ShapeDebug][Draw] Skipping zero-radius circle.`);
+                    break; // Don't draw zero-radius circles
+                }
                 whiteboardCtx.beginPath();
-                // Circle drawing uses x (center), y (center), radius from buildShapeData
                 whiteboardCtx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
                 whiteboardCtx.stroke();
                 break;
@@ -2153,7 +2168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (whiteboardPages.length === 0) {
                 whiteboardPages = [[]];
             }
-            currentPageIndex = 0;
+            currentPageIndex = 0; // Reset to the first page on history load
             renderCurrentWhiteboardPage();
             updateWhiteboardPageDisplay();
             pushToUndoStack();
@@ -2987,7 +3002,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return '--:--:--';
         }
         const totalSeconds = Math.floor(ms / 1000);
-        const hours = Math.floor(totalSeconds / 3600);
+        const hours = Math.floor((totalSeconds / 3600));
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
