@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveButton = document.getElementById('saveButton');
     const whiteboardRoleMessage = document.getElementById('whiteboard-role-message'); // Admin/User specific message
     const prevWhiteboardPageBtn = document.getElementById('prev-whiteboard-page-btn');
-    const nextWhiteboardPageBtn = document.getElementById('next-whiteboard-page-btn');
+    const nextWhiteboardPageBtn = document = document.getElementById('next-whiteboard-page-btn');
     const whiteboardPageDisplay = document.getElementById('whiteboard-page-display'); // Displays current page number
     const shareWhiteboardBtn = document.getElementById('share-whiteboard-btn'); // Button to generate share link for whiteboard
     const textToolButton = document.getElementById('textTool'); // Button for text tool
@@ -851,7 +851,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (pageIndex === currentPageIndex) {
                     renderCurrentWhiteboardPage(); // Re-render the entire page to include the new item
                 }
-            } else if (action === 'clear') {
+            } else if (action === 'update') { // NEW: Handle update action for existing items
+                const updatedItem = data.data;
+                if (!updatedItem || !updatedItem.id) {
+                    console.error('[Whiteboard] Received invalid update item, missing ID:', updatedItem);
+                    return;
+                }
+                while (whiteboardPages.length <= pageIndex) {
+                    whiteboardPages.push([]);
+                }
+                const pageItems = whiteboardPages[pageIndex];
+                const itemIndex = pageItems.findIndex(item => item.id === updatedItem.id);
+
+                if (itemIndex > -1) {
+                    // Update existing item in place
+                    pageItems[itemIndex] = updatedItem;
+                    console.log(`[Whiteboard] Updated item with ID ${updatedItem.id} on page ${pageIndex + 1}.`);
+                } else {
+                    console.warn(`[Whiteboard] Item with ID ${updatedItem.id} not found on page ${pageIndex + 1} for update. Adding as new.`);
+                    pageItems.push(updatedItem); // Fallback: if not found, add it
+                }
+
+                if (pageIndex === currentPageIndex) {
+                    renderCurrentWhiteboardPage();
+                }
+            }
+            else if (action === 'clear') {
                 // Clear local data for the specified page
                 if (whiteboardPages[pageIndex]) {
                     whiteboardPages[pageIndex] = [];
@@ -1569,6 +1594,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Emit segments for real-time sync with other users (optimize network usage)
                 if (currentStrokePoints.length % 5 === 0) {
                      const tempStroke = {
+                        id: crypto.randomUUID(), // Assign an ID to temporary strokes too
                         type: currentTool,
                         points: currentStrokePoints.slice(-5), // Send only the last few points
                         color: (currentTool === 'eraser') ? '#000000' : currentColor,
@@ -1599,9 +1625,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isDraggingText = false;
             if (draggedTextItemIndex !== -1) {
                 const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
-                // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
-                // (Comparing against a deep copy from undoStack is more robust but simpler check here for now)
-                emitWhiteboardData('draw', textItem);
+                // Emit 'update' action for text item that was dragged
+                emitWhiteboardData('update', textItem); // Use 'update' action here
                 pushToUndoStack();
                 console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
             }
@@ -1619,6 +1644,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentStrokePoints.length <= 1) { // If it was just a click or tiny drag, treat as a dot
                 const p = currentStrokePoints[0] || { x: startX, y: startY };
                 const dotData = {
+                    id: crypto.randomUUID(), // Assign unique ID
                     type: currentTool,
                     points: [{ x: p.x, y: p.y, width: currentBrushSize }],
                     color: (currentTool === 'eraser') ? '#000000' : currentColor,
@@ -1629,6 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`[Whiteboard] Emitted dot data: (${p.x}, ${p.y}) for tool '${currentTool}'`);
             } else if (currentStrokePoints.length > 1) {
                 const strokeData = {
+                    id: crypto.randomUUID(), // Assign unique ID
                     type: currentTool,
                     points: currentStrokePoints,
                     color: (currentTool === 'eraser') ? '#000000' : currentColor,
@@ -1712,7 +1739,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * @returns {object} The shape data object.
      */
     function buildShapeData(tool, sx, sy, ex, ey) {
-        const baseData = { type: tool, color: currentColor, size: currentBrushSize };
+        const baseData = { id: crypto.randomUUID(), type: tool, color: currentColor, size: currentBrushSize }; // Assign unique ID
         switch (tool) {
             case 'line':
                 return { ...baseData, startX: sx, startY: sy, endX: ex, endY: ey };
@@ -1945,6 +1972,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const textY = parseInt(activeTextInput.style.top, 10) - whiteboardCanvas.offsetTop;
 
         const textData = {
+            id: crypto.randomUUID(), // Assign unique ID
             type: 'text',
             text: text,
             x: textX,
@@ -2246,16 +2274,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Emits whiteboard drawing/clear data to the Socket.IO server.
-     * @param {string} action - The action type (e.g., 'draw', 'clear').
-     * @param {object} data - The drawing-specific data (e.g., stroke points, shape properties).
+     * Emits whiteboard drawing/clear/update data to the Socket.IO server.
+     * @param {string} action - The action type (e.g., 'draw', 'clear', 'update').
+     * @param {object} data - The drawing-specific data (e.g., stroke points, shape properties, or updated item).
      */
     function emitWhiteboardData(action, data) {
         if (socket && socket.connected && currentClassroom && currentClassroom.id) {
             const payload = {
                 classroomId: currentClassroom.id,
                 pageIndex: currentPageIndex,
-                action: action,
+                action: action, // 'draw' or 'update' or 'clear'
                 data: data,
                 userId: currentUser.id,
                 username: currentUser.username,
@@ -3205,7 +3233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <form id="marking-form-${submission.id}">
             `;
 
-            // Render each question/answer with marking controls
+            // Render each question and answer with marking controls
             submission.answers.forEach((answer, index) => {
                 markingHtml += `
                     <div class="marking-question-item">
