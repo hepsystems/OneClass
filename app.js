@@ -663,7 +663,7 @@ document.addEventListener('DOMContentLoaded', () => {
         socket = io(); // Initialize a new Socket.IO client instance
 
         // Event listener for successful connection
-        socket.on('connect', () => {
+        socket.on('connect', async () => {
             console.log('[Socket.IO] Connected. Session ID (SID):', socket.id);
             // Attempt to join the classroom if `currentClassroom` is set
             if (currentClassroom && currentClassroom.id && currentUser && currentUser.role) {
@@ -675,6 +675,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     'userId': currentUser.id // Include userId for server identification
                 });
                 showNotification(`Connected to classroom: ${currentClassroom.name}`);
+
+                // Fetch pending WebRTC signals that might have been stored on the server
+                try {
+                    const response = await fetch('/api/webrtc-signals');
+                    if (response.ok) {
+                        const signals = await response.json();
+                        console.log(`[WebRTC] Fetched ${signals.length} pending signals.`);
+                        signals.forEach(signal => {
+                            // Assuming handleWebRTCSignal processes signals correctly
+                            handleWebRTCSignal(signal);
+                        });
+                    } else {
+                        console.error('[WebRTC] Failed to fetch pending signals.', await response.json());
+                    }
+                } catch (err) {
+                    console.error('[WebRTC] Error fetching pending signals:', err);
+                }
+
+                // Join a private room for user-specific notifications if needed (optional, depends on backend)
+                console.log(`[Socket.IO] Emitting 'join_private_room' for user ${currentUser.id}`);
+                socket.emit('join_private_room', { 'userId': currentUser.id });
+
 
                 // IMPORTANT: Fetch whiteboard history *after* ensuring the user has joined the room.
                 // A small delay gives the server time to process the 'join' event.
@@ -816,86 +838,76 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Whiteboard data synchronization event
-        socket.on('whiteboard_data', (data) => {
-            if (!whiteboardCtx) {
-                console.warn('[Whiteboard] Cannot draw: whiteboardCtx is null when receiving whiteboard data. This might happen if whiteboard is not active.');
-                showNotification('Whiteboard rendering error. Please try navigating to the whiteboard again.', true);
-                return;
+        socket.on('whiteboard_history', (history) => {
+            console.log('[Whiteboard] Received history:', history);
+            whiteboardPages = history;
+            if (whiteboardPages.length === 0) {
+                whiteboardPages.push([]);
             }
+            currentPageIndex = 0;
+            updateWhiteboardPageDisplay();
+            renderCurrentWhiteboardPage();
+            showNotification('Whiteboard history loaded.');
+            pushToUndoStack();
+        });
 
-            // Validate incoming whiteboard data structure
-            if (!data || typeof data.action === 'undefined' || typeof data.pageIndex === 'undefined') {
-                console.error('[Whiteboard] Received malformed whiteboard data, missing action or pageIndex:', data);
-                return;
-            }
-
-            const { action, pageIndex } = data;
-
-            if (action === 'draw') {
-                const drawingItem = data.data;
-                if (!drawingItem || typeof drawingItem.type === 'undefined') {
-                    console.error('[Whiteboard] Received invalid drawing item, missing type:', drawingItem);
-                    return;
+        socket.on('draw', (data) => {
+            if (data.pageIndex === currentPageIndex) {
+                drawWhiteboardItem(data.item);
+                if (data.item.type !== 'temp-stroke-segment') {
+                    const lastItem = whiteboardPages[currentPageIndex][whiteboardPages[currentPageIndex].length - 1];
+                    if (!lastItem || JSON.stringify(lastItem) !== JSON.stringify(data.item)) {
+                        whiteboardPages[currentPageIndex].push(data.item);
+                        pushToUndoStack();
+                    }
                 }
-
-                // Ensure the target page exists locally; create if it's a new page
-                while (whiteboardPages.length <= pageIndex) {
-                    whiteboardPages.push([]);
+            } else {
+                if (whiteboardPages[data.pageIndex]) {
+                    whiteboardPages[data.pageIndex].push(data.item);
+                } else {
+                    console.warn(`[Whiteboard] Received draw event for non-existent page: ${data.pageIndex}`);
                 }
-                whiteboardPages[pageIndex].push(drawingItem); // Store the drawing command
-
-                // Only render if it's the currently active page
-                if (pageIndex === currentPageIndex) {
-                    renderCurrentWhiteboardPage(); // Re-render the entire page to include the new item
-                }
-            } else if (action === 'clear') {
-                // Clear local data for the specified page
-                if (whiteboardPages[pageIndex]) {
-                    whiteboardPages[pageIndex] = [];
-                    showNotification(`Whiteboard page ${pageIndex + 1} cleared by admin.`);
-                }
-                // If it's the current page, clear the canvas visually and redraw
-                if (pageIndex === currentPageIndex) {
-                    renderCurrentWhiteboardPage(); // Re-render effectively clears and sets background
-                }
-            } else if (action === 'history' && Array.isArray(data.history)) {
-                // Initial load of whiteboard history for all pages
-                console.log('[Whiteboard] Received whiteboard history from server:', data.history);
-                whiteboardPages = data.history;
-                if (whiteboardPages.length === 0) {
-                    whiteboardPages = [[]]; // Ensure at least one page
-                }
-                currentPageIndex = 0; // Reset to the first page on history load
-                renderCurrentWhiteboardPage(); // Render the first page
-                updateWhiteboardPageDisplay(); // Update page display and buttons
-                pushToUndoStack(); // Save initial loaded history to undo stack
-                showNotification('Whiteboard history loaded.');
             }
         });
 
-        // Whiteboard page change synchronization event
-        socket.on('whiteboard_page_change', (data) => {
-            // Validate incoming page index
-            const { newPageIndex } = data;
-            if (typeof newPageIndex !== 'number' || newPageIndex < 0) {
-                console.error('[Whiteboard] Received invalid newPageIndex for page change:', newPageIndex);
-                return;
+        socket.on('clear', (data) => {
+            console.log(`[Whiteboard] Received clear event for page ${data.pageIndex}.`);
+            if (data.pageIndex >= 0 && data.pageIndex < whiteboardPages.length) {
+                whiteboardPages[data.pageIndex] = [];
+                if (data.pageIndex === currentPageIndex) {
+                    renderCurrentWhiteboardPage();
+                }
             }
+        });
 
-            // Handle creation of new pages if `newPageIndex` is beyond current `whiteboardPages.length`
-            while (whiteboardPages.length <= newPageIndex) {
-                whiteboardPages.push([]); // Add new empty pages until `newPageIndex` is valid
-                console.log(`[Whiteboard] Auto-created new local whiteboard page: ${whiteboardPages.length}`);
+        socket.on('whiteboard_page_add', (data) => {
+            console.log('[Whiteboard] Received page_add event.');
+            if (data.index > whiteboardPages.length) {
+                console.warn('[Whiteboard] Received page_add event for an index out of bounds. Appending to end.');
+                whiteboardPages.push([]);
+            } else {
+                whiteboardPages.splice(data.index, 0, []);
             }
-
-            // Update local page index and re-render
-            currentPageIndex = newPageIndex;
-            renderCurrentWhiteboardPage();
             updateWhiteboardPageDisplay();
-            showNotification(`Whiteboard page changed to ${newPageIndex + 1}`);
-            // Also push to undo stack for the new page
-            pushToUndoStack();
+            showNotification('New whiteboard page added.');
+        });
+
+        socket.on('whiteboard_page_remove', (data) => {
+            console.log(`[Whiteboard] Received page_remove event for page ${data.index}.`);
+            if (data.index >= 0 && data.index < whiteboardPages.length) {
+                whiteboardPages.splice(data.index, 1);
+                if (whiteboardPages.length === 0) {
+                    whiteboardPages.push([]);
+                }
+                if (currentPageIndex >= whiteboardPages.length) {
+                    currentPageIndex = whiteboardPages.length - 1;
+                }
+                updateWhiteboardPageDisplay();
+                renderCurrentWhiteboardPage();
+                showNotification('Whiteboard page removed.');
+            } else {
+                console.warn(`[Whiteboard] Received page_remove event for non-existent page: ${data.index}`);
+            }
         });
 
         // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
@@ -962,22 +974,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         showNotification(`WebRTC ICE error with ${peerId}: ${error.message}`, true);
                     }
                 }
-            }
-        });
-
-        // WebRTC peer disconnected signal from server
-        socket.on('webrtc_peer_disconnected', (data) => {
-            console.log(`[WebRTC] Peer disconnected signal received for: ${data.peer_id}`);
-            const peerId = data.peer_id;
-            // Close peer connection and remove video element
-            if (peerConnections[peerId]) {
-                peerConnections[peerId].close();
-                delete peerConnections[peerId];
-                const videoWrapper = document.getElementById(`video-wrapper-${peerId}`);
-                if (videoWrapper) {
-                    videoWrapper.remove();
-                }
-                showNotification(`User ${peerId.substring(0, 4)} disconnected from broadcast.`);
             }
         });
 
