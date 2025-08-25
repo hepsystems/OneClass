@@ -795,6 +795,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // New Socket.IO listener: The server sends back a list of active peers.
+socket.on('all_peers', (data) => {
+    const peers = data.peers;
+    console.log('[WebRTC] Received list of all peers:', peers);
+
+    // If the admin is broadcasting, create a WebRTC offer for each peer in the list.
+    if (currentUser && currentUser.role === 'admin' && localStream) {
+        peers.forEach(peer => {
+            // Only create an offer for other peers, not yourself.
+            if (peer.sid !== socket.id) {
+                console.log(`[WebRTC] Initiating offer for existing peer: ${peer.username} (${peer.sid})`);
+                // The `createPeerConnection` function already handles creating the offer if 'isCaller' is true.
+                createPeerConnection(peer.sid, true, peer.username);
+            }
+        });
+    }
+});
+
         // Event when a user leaves the classroom
         socket.on('user_left', (data) => {
             console.log(`[Socket.IO] User left: ${data.username} (${data.sid})`);
