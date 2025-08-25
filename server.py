@@ -1696,6 +1696,24 @@ def handle_whiteboard_page_change(data):
 # These handlers facilitate the exchange of WebRTC offers, answers, and ICE candidates
 # between peers, enabling real-time video/audio communication.
 
+@socketio.on('get_all_peers')
+def get_all_peers(data):
+    """
+    Handles a request from a peer (usually the admin) to get a list of all other peers in the room.
+    """
+    classroomId = data.get('classroomId')
+    if classroomId:
+        # Get the list of session IDs (SIDs) currently in the classroom room.
+        sids_in_room = rooms(sid=None, namespace=None)
+        
+        # Build a list of peers with their user info
+        peers = []
+        for sid in sids_in_room.get(classroomId, []):
+            if sid != request.sid: # Exclude the sender
+                peers.append({'sid': sid, 'username': 'Peer'}) # Username can be fetched from a session or global map if available
+        
+        # Send the list back to the requesting client only
+        emit('all_peers', {'peers': peers}, room=request.sid)
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
     """
