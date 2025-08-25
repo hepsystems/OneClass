@@ -794,25 +794,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 createPeerConnection(data.sid, true, data.username); // 'true' indicates this peer initiates the offer
             }
         });
-        
-        
-        // New Socket.IO listener: The server sends back a list of active peers.
-        socket.on('all_peers', (data) => {
-            const peers = data.peers;
-            console.log('[WebRTC] Received list of all peers:', peers);
-            
-            // If the admin is broadcasting, create a WebRTC offer for each peer in the list.
-            if (currentUser && currentUser.role === 'admin' && localStream) {
-                peers.forEach(peer => {
-                    // Only create an offer for other peers, not yourself.
-                    if (peer.sid !== socket.id) {
-                        console.log(`[WebRTC] Initiating offer for existing peer: ${peer.username} (${peer.sid})`);
-                        // The `createPeerConnection` function already handles creating the offer if 'isCaller' is true.
-                        createPeerConnection(peer.sid, true, peer.username);
-                    }
-                });
-            }
-        });
 
         // Event when a user leaves the classroom
         socket.on('user_left', (data) => {
@@ -1032,35 +1013,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- WebRTC Functions ---
 
-    // A CORRECTED startBroadcast function that initiates connections to all existing peers.
-async function startBroadcast() {
-    // [YOUR EXISTING CODE IS FINE HERE - Pre-flight checks and media constraints]
-    // ...
+    /**
+     * Initiates the video/audio broadcast for the current user (only if admin).
+     * Requests media access, sets up local video, and notifies other peers.
+     */
+    async function startBroadcast() {
+        // Pre-flight checks for user role, classroom, and socket connection
+        if (!currentClassroom || !currentClassroom.id || !socket || !currentUser || currentUser.role !== 'admin') {
+            showNotification("Only administrators can start a broadcast in a classroom.", true);
+            return;
+        }
 
-    try {
-        // Request user's media devices (camera and/or microphone)
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (localVideo) localVideo.srcObject = localStream;
-
-        if (startBroadcastBtn) startBroadcastBtn.disabled = true;
-        if (endBroadcastBtn) endBroadcastBtn.disabled = false;
-
-        showNotification(`Broadcast started: ${broadcastMode === 'video_audio' ? 'Video & Audio' : 'Audio Only'}`);
-        console.log(`[WebRTC] Admin ${currentUser.username} started a ${broadcastMode} broadcast.`);
-
-        // --- NEW CODE START ---
-        // Crucial step: Request the server to get a list of all current peers
-        // This makes sure the broadcaster can connect to users already in the room.
-        socket.emit('get_all_peers', { classroomId: currentClassroom.id });
-
-    } catch (err) {
-        console.error('[WebRTC] Error accessing media devices:', err);
-        showNotification(`Could not start broadcast. Error: ${err.message}. Please ensure camera and microphone access are granted.`, true);
-        localStream = null;
-        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
-        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
-    }
-}
+        // Prevent starting multiple broadcasts
+        if (localStream && localStream.active) {
+            showNotification("Broadcast already active. Stopping it first.", true);
+            endBroadcast(); // Stop existing broadcast gracefully
+            setTimeout(() => startBroadcast(), 500); // Re-attempt starting after a short delay
+            return;
+        }
 
         const selectedType = document.querySelector('input[name="broadcastType"]:checked');
         const broadcastMode = selectedType ? selectedType.value : 'audio_only'; // Default to audio if nothing selected
