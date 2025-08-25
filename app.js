@@ -1013,24 +1013,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- WebRTC Functions ---
 
-    /**
-     * Initiates the video/audio broadcast for the current user (only if admin).
-     * Requests media access, sets up local video, and notifies other peers.
-     */
-    async function startBroadcast() {
-        // Pre-flight checks for user role, classroom, and socket connection
-        if (!currentClassroom || !currentClassroom.id || !socket || !currentUser || currentUser.role !== 'admin') {
-            showNotification("Only administrators can start a broadcast in a classroom.", true);
-            return;
-        }
+    // A CORRECTED startBroadcast function that initiates connections to all existing peers.
+async function startBroadcast() {
+    // [YOUR EXISTING CODE IS FINE HERE - Pre-flight checks and media constraints]
+    // ...
 
-        // Prevent starting multiple broadcasts
-        if (localStream && localStream.active) {
-            showNotification("Broadcast already active. Stopping it first.", true);
-            endBroadcast(); // Stop existing broadcast gracefully
-            setTimeout(() => startBroadcast(), 500); // Re-attempt starting after a short delay
-            return;
-        }
+    try {
+        // Request user's media devices (camera and/or microphone)
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (localVideo) localVideo.srcObject = localStream;
+
+        if (startBroadcastBtn) startBroadcastBtn.disabled = true;
+        if (endBroadcastBtn) endBroadcastBtn.disabled = false;
+
+        showNotification(`Broadcast started: ${broadcastMode === 'video_audio' ? 'Video & Audio' : 'Audio Only'}`);
+        console.log(`[WebRTC] Admin ${currentUser.username} started a ${broadcastMode} broadcast.`);
+
+        // --- NEW CODE START ---
+        // Crucial step: Request the server to get a list of all current peers
+        // This makes sure the broadcaster can connect to users already in the room.
+        socket.emit('get_all_peers', { classroomId: currentClassroom.id });
+
+    } catch (err) {
+        console.error('[WebRTC] Error accessing media devices:', err);
+        showNotification(`Could not start broadcast. Error: ${err.message}. Please ensure camera and microphone access are granted.`, true);
+        localStream = null;
+        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+    }
+}
 
         const selectedType = document.querySelector('input[name="broadcastType"]:checked');
         const broadcastMode = selectedType ? selectedType.value : 'audio_only'; // Default to audio if nothing selected
