@@ -640,7 +640,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (assessmentTimerInterval) {
             clearInterval(assessmentTimerInterval);
             assessmentTimerInterval = null;
-            console.log('[Classroom] Assessment timer cleared.');
         }
         if (assessmentTimerDisplay) {
             assessmentTimerDisplay.textContent = 'Time Left: --:--:--';
@@ -1630,7 +1629,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Emit update for dragged text and push to undo stack
                 const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
                 // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
-                const originalTextItem = undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
+                const originalTextItem = undoStack[undoStack.length - 1] && undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
                 if (originalTextItem && (originalTextItem.x !== textItem.x || originalTextItem.y !== textItem.y)) {
                     emitWhiteboardData('draw', textItem); // Re-emit the updated text item
                     pushToUndoStack();
@@ -1767,11 +1766,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`[buildShapeData] Rect at (${rectX}, ${rectY}) with dimensions (${width}, ${height})`);
                 return { ...baseData, startX: rectX, startY: rectY, width: width, height: height };
             case 'circle':
-                // Calculate center and radius based on defining a bounding box by start/end points
-                const centerX = (sx + ex) / 2;
-                const centerY = (sy + ey) / 2;
-                // Radius is half the distance from start to end (diagonal of bounding box)
-                const radius = Math.sqrt(Math.pow(ex - sx, 2) + Math.pow(ey - sy, 2)) / 2;
+                // Calculate center and radius based on starting point as center and end point defining radius
+                const centerX = sx;
+                const centerY = sy;
+                // Radius is distance from start to current mouse position
+                const radius = Math.sqrt(Math.pow(ex - sx, 2) + Math.pow(ey - sy, 2));
                 console.log(`[buildShapeData] Circle at center (${centerX}, ${centerY}) with radius ${radius}`);
                 return { ...baseData, centerX: centerX, centerY: centerY, radius: radius };
             default:
@@ -1855,14 +1854,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'rectangle':
                 whiteboardCtx.beginPath();
-                // Stroke rectangles by default. Could add an 'item.fill' property if filled shapes are needed.
+                // User's suggested format uses 'x', 'y', 'width', 'height'. My buildShapeData
+                // already normalizes startX, startY to top-left and width/height to positive values.
+                // So, directly use item.startX, item.startY, item.width, item.height
                 whiteboardCtx.strokeRect(item.startX, item.startY, item.width, item.height);
                 break;
 
             case 'circle':
                 whiteboardCtx.beginPath();
+                // User's suggested format uses 'x', 'y', 'radius'. My buildShapeData uses centerX, centerY, radius.
                 whiteboardCtx.arc(item.centerX, item.centerY, item.radius, 0, Math.PI * 2);
-                // Stroke circles by default. Could add an 'item.fill' property if filled shapes are needed.
                 whiteboardCtx.stroke();
                 break;
 
