@@ -3464,26 +3464,7 @@ async function pollForWebRTCSignals() {
         // This function is illustrative. In a real application, you'd likely
         // have a dedicated UI section for students to review their marked assessments.
         console.log("Displaying feedback for submission (conceptual):", submission);
-        showNotification(`Feedback for your assessment "${submission.assessment_title}" is now available.`);
-
-        // Example of how you might dynamically create a modal or inject into a div:
-        // const feedbackModal = document.getElementById('student-feedback-modal');
-        // if (feedbackModal) {
-        //     let feedbackContent = `<h3>Feedback for: ${submission.assessment_title}</h3>`;
-        //     feedbackContent += `<p>Your Score: ${submission.score}/${submission.total_questions}</p>`;
-        //     submission.answers.forEach(answer => {
-        //         feedbackContent += `<div class="feedback-item">`;
-        //         feedbackContent += `<p><strong>Question:</strong> ${answer.question_text}</p>`;
-        //         feedbackContent += `<p><strong>Your Answer:</strong> ${answer.user_answer || 'N/A'}</p>`;
-        //         feedbackContent += `<p><strong>Correct:</strong> <span style="color: ${answer.is_correct ? 'green' : 'red'};">${answer.is_correct ? 'Yes' : 'No'}</span></p>`;
-        //         if (answer.admin_feedback) {
-        //             feedbackContent += `<p><strong>Admin Comment:</strong> ${answer.admin_feedback}</p>`;
-        //         }
-        //         feedbackContent += `</div>`;
-        //     });
-        //     feedbackModal.innerHTML = feedbackContent;
-        //     feedbackModal.classList.remove('hidden'); // Show the modal
-        // }
+        showNotification(`Feedback for your assessment "${submission.assessment_title}" is now available.`)  
     }
 
 
