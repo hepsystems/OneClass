@@ -1688,23 +1688,7 @@ def handle_whiteboard_data(data):
     print(f"Whiteboard '{action}' from '{username}' ({user_id}) in classroom {classroom_id}, page {page_index}.")
 
 
-// Inside initializeSocketIO() in app.js
-    socket.on('whiteboard_page_change', (data) => {
-        console.log(`[Socket] Received whiteboard page change command. New page: ${data.newPageIndex}`);
-        // Ensure the data has the required page index
-        if (data && typeof data.newPageIndex === 'number') {
-            // Update the current page index
-            currentPageIndex = data.newPageIndex;
-            // Render the content of the new page
-            renderCurrentWhiteboardPage();
-            // Update the display (e.g., page numbers, buttons)
-            updateWhiteboardPageDisplay();
-            // Update the undo/redo buttons
-            updateUndoRedoButtons();
-            
-            showNotification(`Admin changed page to ${currentPageIndex + 1}`);
-        }
-    });
+
 
 @socketio.on('whiteboard_page_change')
 def handle_whiteboard_page_change(data):
