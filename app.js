@@ -2572,6 +2572,27 @@ socket.on('whiteboard_clear', (data) => {
         console.log(`[Assessment] Added question field #${questionCounter}.`);
     }
 
+
+    // New function to poll for WebRTC signals from the server
+async function pollForWebRTCSignals() {
+    if (!currentUser || !currentClassroom) return;
+    try {
+        const response = await fetch('/api/webrtc-signals');
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const signals = await response.json();
+        if (signals.length > 0) {
+            console.log(`[WebRTC] Fetched ${signals.length} new signals from server.`);
+            signals.forEach(signal => {
+                handleWebRTCSignal(signal);
+            });
+        }
+    } catch (error) {
+        console.error("[WebRTC] Error polling for signals:", error);
+    }
+}
+
     /**
      * Submits a new assessment created by an administrator to the backend.
      * Performs client-side validation before submission.
