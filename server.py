@@ -1584,7 +1584,44 @@ def handle_chat_message(data):
     print(f"Chat message from '{username}' ({user_id}) in classroom {classroom_id}: '{message_text}'.")
 
 # --- Whiteboard Socket.IO Event Handlers ---
+@socketio.on('draw')
+def handle_draw(data):
+    """
+    Handles whiteboard drawing events.
+    Receives drawing data and broadcasts it to all other participants in the same classroom.
+    """
+    classroomId = data.get('classroomId')
+    if classroomId:
+        emit('draw', data, room=classroomId, include_self=False)
+        print(f"Whiteboard draw data received and broadcasted to room {classroomId}")
+    else:
+        print("Warning: Received draw event without a classroomId.")
 
+@socketio.on('whiteboard_clear')
+def handle_whiteboard_clear(data):
+    """
+    Handles whiteboard clear events.
+    Broadcasts the clear event to all participants in the same classroom.
+    """
+    classroomId = data.get('classroomId')
+    if classroomId:
+        emit('whiteboard_clear', data, room=classroomId, include_self=False)
+        print(f"Whiteboard clear event broadcasted to room {classroomId}")
+    else:
+        print("Warning: Received whiteboard_clear event without a classroomId.")
+
+@socketio.on('whiteboard_undo_redo')
+def handle_undo_redo(data):
+    """
+    Handles whiteboard undo/redo events.
+    Broadcasts the new page state to all participants in the same classroom.
+    """
+    classroomId = data.get('classroomId')
+    if classroomId:
+        emit('whiteboard_undo_redo', data, room=classroomId, include_self=False)
+        print(f"Whiteboard undo/redo event broadcasted to room {classroomId}")
+    else:
+        print("Warning: Received whiteboard_undo_redo event without a classroomId.")
 @socketio.on('whiteboard_data')
 def handle_whiteboard_data(data):
     """
