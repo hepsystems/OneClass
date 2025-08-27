@@ -870,6 +870,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+
+       socket.on('whiteboard_clear', (data) => {
+                    console.log('[Socket] Received whiteboard clear command.');
+                    // Clear the canvas and reset history to a single empty page
+                    if (whiteboardCtx) {
+                        whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                        whiteboardCtx.fillStyle = '#000000';
+                        whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+                    }
+                    whiteboardPages = [[]]; // Reset to a single, empty page
+                    currentPageIndex = 0;
+                    undoStack = [];
+                    redoStack = [];
+                    updateUndoRedoButtons();
+                    updateWhiteboardPageDisplay();
+                });
+            
+                socket.on('whiteboard_undo_redo', (data) => {
+                    console.log('[Socket] Received undo/redo command. Re-rendering page.');
+                    // This command re-renders the entire page based on the new state
+                    whiteboardPages = data.whiteboardPages;
+                    currentPageIndex = data.currentPageIndex;
+                    undoStack = data.undoStack;
+                    redoStack = data.redoStack;
+                    updateUndoRedoButtons();
+                    updateWhiteboardPageDisplay();
+                    renderCurrentWhiteboardPage();
+                });
+ 
+
+
+                
         socket.on('clear', (data) => {
             console.log(`[Whiteboard] Received clear event for page ${data.pageIndex}.`);
             if (data.pageIndex >= 0 && data.pageIndex < whiteboardPages.length) {
