@@ -873,6 +873,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 showNotification('Whiteboard history loaded.');
             }
         });
+socket.on('whiteboard_clear', (data) => {
+        console.log('[Socket] Received whiteboard clear command.');
+        // Clear the canvas and reset history to a single empty page
+        if (whiteboardCtx) {
+            whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+            whiteboardCtx.fillStyle = '#000000';
+            whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
+        }
+        whiteboardPages = [[]]; // Reset to a single, empty page
+        currentPageIndex = 0;
+        undoStack = [];
+        redoStack = [];
+        updateUndoRedoButtons();
+        updateWhiteboardPageDisplay();
+    });
+        
 
         // Whiteboard page change synchronization event
         socket.on('whiteboard_page_change', (data) => {
