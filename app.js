@@ -540,44 +540,55 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Classroom Functions ---
 
     /**
-     * Enters a specific classroom: updates global state, UI, initializes Socket.IO,
-     * and loads relevant classroom content (whiteboard, chat, library, assessments).
-     * @param {string} id - The unique ID of the classroom.
-     * @param {string} name - The display name of the classroom.
-     */
-    function enterClassroom(id, name) {
-        console.log(`[Classroom] Entering classroom: ${name} (ID: ${id})`);
-        currentClassroom = { id: id, name: name };
-        localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom)); // Persist classroom info
+ * Enters a specific classroom: updates global state, UI, initializes Socket.IO,
+ * and loads relevant classroom content (whiteboard, chat, library, assessments).
+ * @param {string} id - The unique ID of the classroom.
+ * @param {string} name - The display name of the classroom.
+ */
+function enterClassroom(id, name) {
+    console.log(`[Classroom] Entering classroom: ${name} (ID: ${id})`);
+    currentClassroom = { id: id, name: name };
+    localStorage.setItem('currentClassroom', JSON.stringify(currentClassroom)); // Persist classroom info
 
-        // Update UI elements in the classroom section
-        if (classroomIdDisplay) classroomIdDisplay.textContent = id;
-        if (classNameValue) classNameValue.textContent = name;
-        if (classCodeSpan) classCodeSpan.textContent = id;
+    // Update UI elements in the classroom section
+    if (classroomIdDisplay) classroomIdDisplay.textContent = id;
+    if (classNameValue) classNameValue.textContent = name;
+    if (classCodeSpan) classCodeSpan.textContent = id;
 
-        showSection(classroomSection); // Show the main classroom section
-        showClassroomSubSection(whiteboardArea); // Default to whiteboard sub-section
-        updateNavActiveState(navWhiteboard); // Highlight whiteboard nav button
-        updateUIBasedOnRole(); // Adjust UI based on user role within the classroom
+    showSection(classroomSection); // Show the main classroom section
+    showClassroomSubSection(whiteboardArea); // Default to whiteboard sub-section
+    updateNavActiveState(navWhiteboard); // Highlight whiteboard nav button
+    updateUIBasedOnRole(); // Adjust UI based on user role within the classroom
 
-        initializeSocketIO(); // Establish Socket.IO connection for real-time updates
-        setupWhiteboardControls(); // Prepare whiteboard canvas and tools
-        setupChatControls(); // Prepare chat input and send button
+    initializeSocketIO(); // Establish Socket.IO connection for real-time updates
+    setupWhiteboardControls(); // Prepare whiteboard canvas and tools
+    setupChatControls(); // Prepare chat input and send button
 
-        // Reset broadcast buttons state and visibility based on user role
-        if (currentUser && currentUser.role === 'admin') {
-            if (startBroadcastBtn) startBroadcastBtn.disabled = false;
-            if (endBroadcastBtn) endBroadcastBtn.disabled = true;
-            broadcastTypeRadios.forEach(radio => {
-                if (radio.parentElement) radio.parentElement.classList.remove('hidden');
-            });
-        } else {
-            if (startBroadcastBtn) startBroadcastBtn.classList.add('hidden');
-            if (endBroadcastBtn) endBroadcastBtn.classList.add('hidden');
-            broadcastTypeRadios.forEach(radio => {
-                if (radio.parentElement) radio.parentElement.classList.add('hidden');
-            });
-        }
+    // Reset broadcast buttons state and visibility based on user role
+    if (currentUser && currentUser.role === 'admin') {
+        if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+        if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+        broadcastTypeRadios.forEach(radio => {
+            if (radio.parentElement) radio.parentElement.classList.remove('hidden');
+        });
+    } else {
+        if (startBroadcastBtn) startBroadcastBtn.classList.add('hidden');
+        if (endBroadcastBtn) endBroadcastBtn.classList.add('hidden');
+        broadcastTypeRadios.forEach(radio => {
+            if (radio.parentElement) radio.parentElement.classList.add('hidden');
+        });
+    }
+
+    // Hide share link by default when entering a classroom
+    if (shareLinkDisplay) shareLinkDisplay.classList.add('hidden');
+    if (shareLinkInput) shareLinkInput.value = '';
+
+    // Start polling for WebRTC signals every second
+    setInterval(pollForWebRTCSignals, 1000);
+
+    loadAssessments(); // Load available assessments
+    loadLibraryFiles(); // Load library files.
+}
 
         // Hide share link by default when entering a classroom
         if (shareLinkDisplay) shareLinkDisplay.classList.add('hidden');
