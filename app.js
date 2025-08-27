@@ -539,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Classroom Functions ---
 
-    /**
+     /**
  * Enters a specific classroom: updates global state, UI, initializes Socket.IO,
  * and loads relevant classroom content (whiteboard, chat, library, assessments).
  * @param {string} id - The unique ID of the classroom.
@@ -589,16 +589,6 @@ function enterClassroom(id, name) {
     loadAssessments(); // Load available assessments
     loadLibraryFiles(); // Load library files.
 }
-
-        // Hide share link by default when entering a classroom
-        if (shareLinkDisplay) shareLinkDisplay.classList.add('hidden');
-        if (shareLinkInput) shareLinkInput.value = '';
-
-        loadAssessments(); // Load available assessments
-        loadLibraryFiles(); // Load library files
-
-        // Whiteboard history fetching is now triggered after socket 'connect' and 'join' events
-    }
 
     /**
      * Cleans up all classroom-related resources and state when leaving a classroom.
