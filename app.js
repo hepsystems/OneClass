@@ -537,9 +537,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Classroom Functions ---
+  // --- Classroom Functions ---
 
-     /**
+/**
  * Enters a specific classroom: updates global state, UI, initializes Socket.IO,
  * and loads relevant classroom content (whiteboard, chat, library, assessments).
  * @param {string} id - The unique ID of the classroom.
@@ -583,7 +583,7 @@ function enterClassroom(id, name) {
     if (shareLinkDisplay) shareLinkDisplay.classList.add('hidden');
     if (shareLinkInput) shareLinkInput.value = '';
 
-    // Start polling for WebRTC signals every second
+    // Start polling for WebRTC signals. This is crucial for students to receive a broadcast.
     setInterval(pollForWebRTCSignals, 1000);
 
     loadAssessments(); // Load available assessments
