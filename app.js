@@ -1134,32 +1134,8 @@ async function createPeerConnection(peerUserId, isCaller, peerUsername, peerSock
         });
     } else if (!isCaller) {
         console.log(`[WebRTC] This peer (${currentUser.id}) is a receiver. Not adding local tracks to UserId ${peerUserId}.`);
-
-       // A new helper function to broadcast the offer to all peers
-async function broadcastToAllPeers() {
-    try {
-        // Fetch the list of all active participants from the server
-        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`); // Returns user_ids
-        if (!response.ok) {
-            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
-        }
-        const participants = await response.json();
-
-        // For each participant (who is not the current user), create a peer connection and send an offer
-        for (const participant of participants) {
-            if (participant.id !== currentUser.id) { // Ensure not to connect to self
-                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
-                // Call createPeerConnection with the participant's USER_ID as the primary identifier
-                // We don't have their SID yet when initiating, so pass null. It will be updated later.
-                createPeerConnection(participant.id, true, participant.username, null); // peerId is now participant.id
-            }
-        }
-    } catch (error) {
-        console.error('[WebRTC] Error broadcasting to all peers:', error);
     }
-}
- 
-
+    
     // Event handler for when a remote track is received from the peer
     pc.ontrack = (event) => {
         console.log(`[WebRTC] Remote track (${event.track.kind}) received from UserId: ${peerUserId}`);
