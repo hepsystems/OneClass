@@ -757,6 +757,28 @@ function initializeSocketIO() {
         }
     });
 
+    // Event for broadcast status updates from admin
+    socket.on('broadcast_status_update', (data) => {
+        console.log('[Broadcast Status Update] Received:', data.message);
+        showNotification(data.message);
+        // If broadcast ended, ensure participant's remote video is also cleaned up
+        if (!data.isBroadcasting) {
+            console.log(`[Broadcast Status Update] Admin ended broadcast. Cleaning up remote video for ${data.adminUsername} (UserID: ${data.adminUsername} if available).`);
+            // Assuming adminUsername can be used to derive admin's UserId if not directly provided
+            // For now, let's just clear all remote videos for simplicity if the admin explicitly ends broadcast
+            if (remoteVideoContainer) {
+                remoteVideoContainer.innerHTML = '';
+            }
+            // Clear all peer connections, as the broadcast from admin is over
+            for (const peerUserId in peerConnections) {
+                if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+                    peerConnections[peerUserId].pc.close();
+                    delete peerConnections[peerUserId];
+                }
+            }
+        }
+    });
+
     // Event for receiving new chat messages
     socket.on('message', (data) => {
         console.log('Received chat message:', data);
@@ -920,10 +942,6 @@ function initializeSocketIO() {
 
     // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
     socket.on('webrtc_offer', async (data) => {
-        // No longer check sender_id === socket.id directly here
-        // because data.offerer_socket_id is the SID, not the local socket.id.
-        // The server prevents self-emission by only sending to recipient_user_id.
-
         console.log(`[WebRTC] Received WebRTC Offer from: ${data.username} (UserID: ${data.offerer_user_id}, SID: ${data.offerer_socket_id}) to ${currentUser.id}`);
 
         const offererUserId = data.offerer_user_id;       // The user_id of the offerer (admin)
@@ -931,64 +949,73 @@ function initializeSocketIO() {
         const peerUsername = data.username || `Peer ${offererUserId.substring(0, 4)}`;
 
         // Create a new peer connection if one doesn't exist for this offerer's USER_ID
-        if (!peerConnections[offererUserId]) { // Key by user_id
-            createPeerConnection(offererUserId, false, peerUsername, offererSocketId); // Pass SID for internal use
+        // This is crucial for participants: they need to create a PC to respond to the admin's offer.
+        if (!peerConnections[offererUserId] || !peerConnections[offererUserId].pc) { // Key by user_id
+            console.log(`[WebRTC] No valid existing PC for offerer UserId ${offererUserId}. Creating new peer connection as receiver.`);
+            // This is the participant's side, so they are the receiver (isCaller = false)
+            await createPeerConnection(offererUserId, false, peerUsername, offererSocketId); 
         } else {
             // If PC already exists, update the socketId if it's different/newer
-            peerConnections[offererUserId].socketId = offererSocketId;
-            console.log(`[WebRTC] Updating existing PC for UserId ${offererUserId} with new SocketId: ${offererSocketId}`);
+            if (offererSocketId && peerConnections[offererUserId].socketId !== offererSocketId) {
+                peerConnections[offererUserId].socketId = offererSocketId;
+                console.log(`[WebRTC] Updating existing PC for UserId ${offererUserId} with new SocketId: ${offererSocketId}`);
+            }
+            console.log(`[WebRTC] Reusing existing valid PC for offerer UserId ${offererUserId}.`);
         }
 
         try {
             const pcInfo = peerConnections[offererUserId]; // Look up PC by user_id
             if (!pcInfo || !pcInfo.pc) {
-                console.error(`[WebRTC] PeerConnection object not found for offerer UserId ${offererUserId} after offer.`);
+                console.error(`[WebRTC] PeerConnection object not found for offerer UserId ${offererUserId} AFTER creation/lookup. This is a critical error.`);
                 showNotification(`WebRTC error: Peer connection missing for ${peerUsername}.`, true);
                 return;
             }
             const pc = pcInfo.pc;
 
+            // Set remote description from the offer
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            console.log(`[WebRTC] Set remote description (offer) for UserId ${offererUserId}.`);
+
+            // Create and set local answer
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            console.log(`[WebRTC] Created and set local description (answer) for UserId ${offererUserId}.`);
 
-            // Send the answer back to the offering peer, using their USER_ID as the recipient_id
+            // Send the answer back to the offering peer
             socket.emit('webrtc_answer', {
                 classroomId: currentClassroom.id,
-                recipient_id: offererUserId, // *** CRUCIAL CHANGE: Use the offerer's USER_ID ***
+                recipient_id: offererUserId, // *** CRUCIAL: Send answer back to the offerer's USER_ID ***
                 answer: pc.localDescription
             });
             console.log(`[WebRTC] Sent WebRTC Answer to user: ${offererUserId} (via SID: ${offererSocketId}) from ${currentUser.id}`);
         } catch (error) {
-            console.error('[WebRTC] Error handling WebRTC offer:', error);
+            console.error(`[WebRTC] Error handling WebRTC offer for UserId ${offererUserId}:`, error);
             showNotification(`WebRTC error with ${peerUsername}: ${error.message}`, true);
         }
     });
 
     // WebRTC signaling: Answer (from receiving peer)
     socket.on('webrtc_answer', async (data) => {
-        // The server emits the answer to the offerer's user_id room.
-        // The data received here will contain the student's Socket.IO SID as sender_socket_id.
-        // The admin (offerer) needs to identify the student by their SID to apply the answer.
-
-        if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (unlikely if targeting user_id room)
+        // This handler is primarily for the OFFERER (admin) to receive the student's answer.
+        // If a participant receives this, it's likely an echo or misroute, but we'll handle defensively.
+        if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (shouldn't happen with server logic)
         console.log(`[WebRTC] Received WebRTC Answer from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
 
-        const senderUserId = data.sender_user_id; // Use userId to look up PC
+        const senderUserId = data.sender_user_id; // The UserID of the student who sent the answer
         const senderSocketId = data.sender_socket_id;
-        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id
+        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id (this should be the admin's PC with the student)
 
         if (pcInfo && pcInfo.pc) {
             pcInfo.socketId = senderSocketId; // Update socketId if needed
             try {
                 await pcInfo.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                console.log(`[WebRTC] Set remote description for peer UserID ${senderUserId} (SID: ${senderSocketId}) with answer.`);
+                console.log(`[WebRTC] Set remote description (answer) for peer UserID ${senderUserId} (SID: ${senderSocketId}).`);
             } catch (error) {
                 console.error('[WebRTC] Error handling WebRTC answer:', error);
                 showNotification(`WebRTC error with ${senderUserId}: ${error.message}`, true);
             }
         } else {
-             console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer.`);
+             console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer. This might be expected if a participant received an answer meant for the admin.`);
         }
     });
 
@@ -1012,7 +1039,7 @@ function initializeSocketIO() {
                 }
             }
         } else {
-            console.warn(`[WebRTC] PeerConnection not found for UserID ${senderUserId} or no candidate data.`);
+            console.warn(`[WebRTC] PeerConnection not found for UserID ${senderUserId} or no candidate data. Candidate might be for an uninitialized PC.`);
         }
     });
 
@@ -1067,7 +1094,6 @@ function initializeSocketIO() {
         }
     });
 }
-
 
     /**
  * Toggles the visibility of the start/stop broadcast buttons.
