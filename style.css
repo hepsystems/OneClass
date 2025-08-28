@@ -17,14 +17,14 @@
    ========================================================================= */
 
 :root {
-    /* Sophisticated Dark Color Palette */
-    --color-bg-primary: #121926;
-    --color-bg-secondary: #1a2332;
+    /* Updated Color Palette */
+    --color-bg-primary: #1e1e2d; /* A deep, rich purple-black */
+    --color-bg-secondary: #2a2a3e; /* A slightly lighter shade for contrast */
     --color-text-light: #f0f4f9;
-    --color-text-muted: #8c96a5;
-    --color-border: #2c384d;
-    --color-accent: #3795ff; /* Electric blue for highlights */
-    --color-accent-dark: #2a72c7;
+    --color-text-muted: #a4a4b8;
+    --color-border: #44445b;
+    --color-accent: #ff6b6b; /* Vibrant coral for highlights */
+    --color-accent-dark: #e65c5c;
 
     /* Semantic Colors */
     --color-success: #44c767;
@@ -35,293 +35,100 @@
 
     /* Glass & Shadows */
     --glass-blur-strength: 30px;
-    --glass-border: 1px solid rgba(255, 255, 255, 0.05);
-    --shadow-deep: 0 10px 40px rgba(0, 0, 0, 0.4);
-    --shadow-subtle: 0 4px 15px rgba(0, 0, 0, 0.2);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --shadow-light: 0 4px 15px rgba(0, 0, 0, 0.2);
+    --shadow-heavy: 0 10px 30px rgba(0, 0, 0, 0.3);
 
-    /* Spacing & Radii */
+    /* Spacing & Sizing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
     --spacing-md: 16px;
     --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    --border-radius-sm: 6px;
+    --spacing-xl: 48px;
+
+    /* Typography */
+    --font-family-primary: 'Inter', sans-serif;
+    --font-size-base: 16px;
+    --font-size-lg: 1.25rem;
+    --font-size-xl: 1.5rem;
+    --font-size-xxl: 2rem;
+
+    /* Component Sizing */
+    --border-radius-sm: 8px;
     --border-radius-md: 12px;
-    --border-radius-lg: 24px;
+    --border-radius-lg: 16px;
+    --border-radius-full: 9999px;
 
-    /* Transitions & Animations */
-    --transition-ease: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    /* Transitions */
     --transition-fast: 0.2s ease-in-out;
-}
-
-* {
-    box-sizing: border-box;
+    --transition-slow: 0.4s ease-in-out;
 }
 
 body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family-primary);
     background-color: var(--color-bg-primary);
-    font-family: 'Inter', sans-serif;
     color: var(--color-text-light);
-    line-height: 1.6;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: var(--spacing-md);
-    animation: fadeInBackground 1.5s var(--transition-ease);
-}
-
-@keyframes fadeInBackground {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    overflow: hidden;
 }
 
 /* =========================================================================
-   2. Main App & Section Layout
+   2. Classroom & Whiteboard Layout (Full-Screen Whiteboard)
    ========================================================================= */
 
-#app {
+.classroom-container {
+    height: 100%;
     width: 100%;
-    max-width: 1500px;
-    min-height: 95vh;
-    background: var(--color-bg-secondary);
+    display: grid;
+    grid-template-areas: "whiteboard";
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    gap: 0; /* No gap for full-screen effect */
+}
+
+#whiteboard-container {
+    grid-area: whiteboard;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-bg-secondary);
+    border-radius: 0; /* Fill the whole screen */
+    box-shadow: none; /* No shadow for full-screen */
+}
+
+/* =========================================================================
+   3. Whiteboard Controls (Larger & More Prominent)
+   ========================================================================= */
+
+#whiteboard-controls {
+    position: absolute;
+    bottom: var(--spacing-lg);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur-strength));
     border: var(--glass-border);
     border-radius: var(--border-radius-lg);
-    box-shadow: var(--shadow-deep);
-    padding: var(--spacing-lg);
-    display: flex;
-    flex-direction: column;
+    box-shadow: var(--shadow-heavy);
+    z-index: 10;
 }
 
-section {
-    padding: var(--spacing-lg);
-    border-radius: var(--border-radius-md);
-    background-color: transparent;
-    border: var(--glass-border);
-    flex-grow: 1;
-    display: none;
-    transition: opacity var(--transition-ease);
-}
-
-section.active {
-    display: flex;
-    flex-direction: column;
-    animation: fadeInSection 0.6s var(--transition-ease) forwards;
-}
-
-@keyframes fadeInSection {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* =========================================================================
-   3. Navigation, Buttons & Inputs
-   ========================================================================= */
-
-/* Main Navigation */
-.main-nav {
-    display: flex;
-    justify-content: flex-start;
-    gap: var(--spacing-md);
-    margin-bottom: var(--spacing-xl);
-    padding-bottom: var(--spacing-md);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.main-nav button {
-    background: transparent;
-    border: none;
-    color: var(--color-text-muted);
-    font-weight: 500;
-    position: relative;
-    padding: var(--spacing-sm) var(--spacing-md);
-    transition: color var(--transition-fast), transform var(--transition-fast);
-    cursor: pointer;
-}
-
-.main-nav button:hover {
-    color: var(--color-text-light);
-    transform: translateY(-2px);
-}
-
-.main-nav button.active-nav {
-    color: var(--color-text-light);
-    transform: translateY(0);
-}
-
-.main-nav button.active-nav::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80%;
-    height: 3px;
-    background: var(--color-accent);
-    border-radius: 2px;
-    animation: nav-underline-grow 0.4s var(--transition-ease);
-}
-
-@keyframes nav-underline-grow {
-    from { width: 0; }
-    to { width: 80%; }
-}
-
-/* Hamburger Menu Icon */
-.hamburger-menu {
-    width: 48px;
-    height: 48px;
-    background: transparent;
-    border: 1px solid var(--color-border);
-    border-radius: var(--border-radius-md);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.hamburger-menu:hover {
-    background-color: var(--color-accent);
-    border-color: var(--color-accent);
-    transform: scale(1.05);
-}
-
-.hamburger-menu span {
-    display: block;
-    width: 28px;
-    height: 3px;
-    background-color: var(--color-text-light);
-    border-radius: 2px;
-    transition: all var(--transition-fast);
-}
-
-.hamburger-menu:hover span {
-    background-color: white;
-}
-
-/* Base Button Styles */
-.btn-base {
-    border: none;
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    font-weight: 500;
-    padding: 12px 20px;
-    transition: all var(--transition-fast);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-sm);
-}
-
-.btn-base:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
-}
-
-.btn-base:active {
-    transform: translateY(0);
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.4);
-}
-
-.btn-primary { background-color: var(--color-accent); color: var(--color-text-light); }
-.btn-primary:hover { background-color: var(--color-accent-dark); }
-.btn-success { background-color: var(--color-success); color: var(--color-bg-primary); }
-.btn-success:hover { background-color: var(--color-success-dark); }
-.btn-danger { background-color: var(--color-danger); color: var(--color-text-light); }
-.btn-danger:hover { background-color: var(--color-danger-dark); }
-.btn-secondary { background-color: var(--color-bg-secondary); color: var(--color-text-muted); border: 1px solid var(--color-border); }
-
-/* Inputs */
-input, textarea, select {
-    background: rgba(255, 255, 255, 0.05);
-    border: var(--glass-border);
-    border-radius: var(--border-radius-sm);
-    padding: var(--spacing-sm) var(--spacing-md);
-    color: var(--color-text-light);
-    width: 100%;
-    transition: all var(--transition-fast);
-}
-
-input:focus, textarea:focus, select:focus {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--color-accent);
-    outline: none;
-    box-shadow: 0 0 0 2px var(--color-accent-dark);
-}
-
-::placeholder { color: var(--color-text-muted); }
-
-/* =========================================================================
-   4. Classroom & Whiteboard Layout (The Main Event)
-   ========================================================================= */
-
-#classroom-section {
-    display: grid;
-    grid-template-areas: "whiteboard" "controls" "sidebar" "chat";
-    gap: var(--spacing-lg);
-    flex-grow: 1;
-    grid-template-columns: 1fr;
-    
-    /* Desktop layout */
-    @media (min-width: 1024px) {
-        grid-template-areas: "whiteboard chat"
-                             "whiteboard sidebar"
-                             "controls controls";
-        grid-template-columns: 3fr 1fr;
-        grid-template-rows: 2fr 1fr 0.2fr;
-    }
-}
-
-#whiteboard-area {
-    grid-area: whiteboard;
-    background-color: var(--color-bg-secondary);
-    border-radius: var(--border-radius-md);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-#whiteboard-canvas {
-    width: 100%;
-    flex-grow: 1; /* Makes the canvas take up all available vertical space */
-    border-radius: var(--border-radius-sm);
-    cursor: crosshair;
-    background-color: #f8f8f8; /* A light background for drawing visibility */
-    transition: all var(--transition-fast);
-}
-
-#whiteboard-canvas:active {
-    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="rgba(55,149,255,0.8)" d="M19 12h-2v2h-2v-2h-2v-2h2v-2h2v2h2v2zM12 2c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>'), auto;
-}
-
-/* Whiteboard Controls */
-#whiteboard-controls {
-    grid-area: controls;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    background-color: var(--color-bg-secondary);
-    border-radius: var(--border-radius-md);
-    border: var(--glass-border);
-}
-
-#whiteboard-controls button, #whiteboard-controls input[type="color"] {
-    width: 48px;
-    height: 48px;
-    min-width: 48px;
-    min-height: 48px;
+#whiteboard-controls button {
+    width: 60px; /* Increased size */
+    height: 60px; /* Increased size */
     border-radius: var(--border-radius-md);
     background-color: var(--color-bg-secondary);
     color: var(--color-text-muted);
-    font-size: 1.2rem;
+    font-size: 1.8rem; /* Larger icon size */
     transition: all var(--transition-fast);
     border: 1px solid var(--color-border);
     cursor: pointer;
@@ -332,7 +139,7 @@ input:focus, textarea:focus, select:focus {
 }
 
 #whiteboard-controls button:hover {
-    background-color: #263143;
+    background-color: #383852; /* Hover color to match new scheme */
     color: var(--color-text-light);
     transform: translateY(-2px);
 }
@@ -347,29 +154,69 @@ input:focus, textarea:focus, select:focus {
     color: white;
     border-color: var(--color-accent);
     transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(55, 149, 255, 0.4);
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4); /* Shadow to match new accent color */
 }
 
 /* =========================================================================
-   5. Chat & Library Sections
+   4. Chat & Library Sections (Removed for Full-Screen Whiteboard)
    ========================================================================= */
+#chat-section {
+    display: none;
+}
 
-#chat-section { grid-area: chat; }
-#library-section { grid-area: sidebar; }
+#library-section {
+    display: none;
+}
 
+/* =========================================================================
+   5. General Component Styling
+   ========================================================================= */
+/* (This section is kept for consistency but is not visible with the full-screen whiteboard) */
 .chat-message-item {
     background-color: rgba(255, 255, 255, 0.05);
-    padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
     margin-bottom: var(--spacing-sm);
-}
-
-.chat-input-area {
     display: flex;
-    gap: var(--spacing-sm);
-    margin-top: var(--spacing-md);
+    align-items: flex-start;
+    gap: var(--spacing-md);
 }
 
-/* Utility Classes */
-.hidden { display: none !important; }
-.active { display: flex !important; }
+.message-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-xs);
+}
+
+.message-text {
+    font-size: var(--font-size-base);
+    color: var(--color-text-light);
+    line-height: 1.5;
+}
+
+.library-item {
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.library-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
+.library-item-info {
+    font-size: var(--font-size-base);
+    color: var(--color-text-light);
+}
+
+.library-item-meta {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+}
