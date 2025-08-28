@@ -1068,7 +1068,62 @@ function initializeSocketIO() {
     });
 }
 
- 
+     /**
+     * Handles the start broadcast action, initiating local media stream and
+     * broadcasting it to all active participants in the current classroom.
+     * This function is typically called by an admin.
+     */
+    async function startBroadcastButton() {
+        console.log('[Broadcast] Attempting to start broadcast...');
+        if (!currentUser || currentUser.role !== 'admin') {
+            showNotification("Only administrators can start a broadcast.", true);
+            console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
+            return;
+        }
+
+        if (!currentClassroom || !currentClassroom.id) {
+            showNotification("Please join a classroom before starting a broadcast.", true);
+            console.warn('[Broadcast] No classroom joined for broadcast.');
+            return;
+        }
+
+        if (localStream) {
+            console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
+            stopLocalStream(); // Stop existing stream to prevent duplicates
+        }
+
+        try {
+            // Request access to user's media devices (audio and video)
+            // Use an object to specify constraints for audio and video
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            if (localVideo) {
+                localVideo.srcObject = localStream; // Attach local stream to the local video element
+                localVideo.muted = true; // Mute local video to prevent echo/feedback
+                console.log('[Broadcast] Local stream attached to localVideo element.');
+            } else {
+                console.error('[Broadcast] localVideo element not found.');
+                showNotification("Local video display element missing.", true);
+                stopLocalStream();
+                return;
+            }
+
+            showNotification("Broadcast started successfully!");
+            toggleBroadcastButtons(true); // Update UI to show 'Stop Broadcast' button
+
+            // Once local stream is active, broadcast to all existing peers
+            // This function (broadcastToAllPeers) will handle creating peer connections
+            // and sending offers to all other participants.
+            await broadcastToAllPeers();
+            console.log('[Broadcast] Offers sent to all participants.');
+
+        } catch (error) {
+            console.error('[Broadcast] Error starting broadcast:', error);
+            showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
+            toggleBroadcastButtons(false); // Ensure buttons are reset if error
+            stopLocalStream();
+        }
+    }
+
 /**
  * Creates and configures a new RTCPeerConnection for a given remote peer.
  * Sets up event handlers for tracks, ICE candidates, and connection state changes.
