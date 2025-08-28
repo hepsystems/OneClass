@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // WebRTC Variables for video/audio broadcasting
     let localStream; // Local media stream (camera/mic)
+    let currentBroadcastType = 'video_audio';
     // peerConnections will now be keyed by the REMOTE PEER'S USER_ID
     // Each entry will store an object: { pc: RTCPeerConnection, socketId: string|null, username: string }
     const peerConnections = {}; 
