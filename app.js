@@ -1210,34 +1210,8 @@ socket.on('whiteboard_clear', (data) => {
             pushToUndoStack();
         });
 
-        
-    
 
-        // WebRTC signaling: Answer (from receiving peer)
-        socket.on('webrtc_answer', async (data) => {
-            // The server emits the answer to the offerer's user_id room.
-            // The data received here will contain the student's Socket.IO SID as sender_socket_id.
-            // The admin (offerer) needs to identify the student by their SID to apply the answer.
-
-            if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (unlikely if targeting user_id room)
-            console.log(`[WebRTC] Received WebRTC Answer from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
-
-            const senderUserId = data.sender_user_id; // Use userId to look up PC
-            const senderSocketId = data.sender_socket_id;
-            const pc = peerConnections[senderUserId]; // Look up PC by user_id
-
-            if (pc) {
-                try {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                    console.log(`[WebRTC] Set remote description for peer UserID ${senderUserId} (SID: ${senderSocketId}) with answer.`);
-                } catch (error) {
-                    console.error('[WebRTC] Error handling WebRTC answer:', error);
-                    showNotification(`WebRTC error with ${senderUserId}: ${error.message}`, true);
-                }
-            } else {
-                 console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer.`);
-            }
-        });
+      
 
         // WebRTC signaling: ICE Candidate (network information exchange)
         socket.on('webrtc_ice_candidate', async (data) => {
@@ -1262,23 +1236,7 @@ socket.on('whiteboard_clear', (data) => {
             }
         });
 
-        // WebRTC peer disconnected signal from server
-        socket.on('webrtc_peer_disconnected', (data) => {
-            console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
-            const peerUserId = data.peer_user_id;
-            // Close peer connection and remove video element
-            if (peerConnections[peerUserId]) {
-                peerConnections[peerUserId].close();
-                delete peerConnections[peerUserId];
-                // Video element ID uses peerUserId
-                const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-                if (videoWrapper) {
-                    videoWrapper.remove();
-                }
-                showNotification(`User ${peerUserId.substring(0, 4)} disconnected from broadcast.`);
-            }
-        });
-
+        
         // New Socket.IO event: Assessment has started (server-side push)
         socket.on('assessment_started', (data) => {
             console.log('[Assessment] Received assessment_started event:', data);
