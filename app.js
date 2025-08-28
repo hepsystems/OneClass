@@ -542,6 +542,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    
+    // Listener for broadcast type changes (if you use radio buttons)
+    const broadcastTypeRadios = document.querySelectorAll('input[name="broadcastType"]');
+    if (broadcastTypeRadios) {
+        broadcastTypeRadios.forEach(radio => {
+            radio.addEventListener('change', (event) => {
+                currentBroadcastType = event.target.value;
+                console.log(`[Broadcast] Broadcast type changed to: ${currentBroadcastType}`);
+            });
+        });
+        console.log('[Broadcast] Broadcast type listeners attached.');
+    }
+
   // --- Classroom Functions ---
 
 /**
