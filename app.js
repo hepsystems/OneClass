@@ -1178,22 +1178,47 @@ function toggleBroadcastButtons(isBroadcasting) {
     }
 
 
-// (Place this function here, near your startBroadcast function)
+/**
+ * Stops the video/audio broadcast initiated by the admin.
+ * Cleans up local media resources and updates the UI for all participants.
+ */
 function endBroadcast() {
-    console.log('[WebRTC] Ending broadcast.');
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-        if (localVideo) {
-            localVideo.srcObject = null;
-            localVideo.style.display = 'none';
+    console.log('[Broadcast] Admin is ending broadcast.');
+    
+    // 1. Stop the local media stream (camera/mic) and clear the local video element
+    stopLocalStream(); // This function already handles localStream.getTracks().forEach(track => track.stop()); and localVideo.srcObject = null;
+
+    // 2. Update the UI and notify participants that the broadcast has ended
+    // toggleBroadcastButtons(false) handles:
+    // - Hiding the 'Stop Broadcast' button and showing 'Start Broadcast'
+    // - Hiding the local video container
+    // - Emitting 'broadcast_status_update' event to all participants
+    toggleBroadcastButtons(false); 
+    
+    // 3. Clean up all established WebRTC peer connections with students
+    for (const peerUserId in peerConnections) {
+        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+            console.log(`[WebRTC] Closing peer connection with UserId: ${peerUserId} due to broadcast end.`);
+            peerConnections[peerUserId].pc.close();
+            delete peerConnections[peerUserId];
+
+            // Remove the corresponding remote video element from the DOM
+            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
+            if (videoWrapper) {
+                videoWrapper.remove();
+                console.log(`[WebRTC] Removed remote video element for UserId: ${peerUserId}.`);
+            }
         }
     }
-    // Update the UI
-    if (startBroadcastBtn) startBroadcastBtn.disabled = false;
-    if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+    // Clear all remote videos container
+    if (remoteVideoContainer) {
+        remoteVideoContainer.innerHTML = '';
+        console.log('[WebRTC] Cleared all remote video elements from container.');
+    }
+    
     showNotification('Broadcast ended.');
 }
+
  /**
  * Initiates WebRTC offers to all active participants in the current classroom.
  * This function should be called by the admin to start broadcasting their stream.
