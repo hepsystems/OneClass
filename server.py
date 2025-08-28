@@ -1742,44 +1742,44 @@ def handle_webrtc_offer(data):
     Handles a WebRTC offer from one peer to another.
     Stores the signal in the DB (for persistence/offline delivery) and forwards it to the recipient.
     """
-    user_id = session.get('user_id')
+    user_id = session.get('user_id') # This is the user_id of the offerer (e.g., admin)
     username = session.get('username')
-    recipient_id = data.get('recipient_id') # The user_id of the intended recipient.
+    recipient_user_id = data.get('recipient_id') # The user_id of the intended recipient (e.g., student)
     classroom_id = data.get('classroomId')
     offer = data.get('offer') # The SDP offer.
 
     # Validate required data.
-    if not all([user_id, username, recipient_id, classroom_id, offer]):
+    if not all([user_id, username, recipient_user_id, classroom_id, offer]):
         print(f"Socket.IO 'webrtc_offer' failed: Missing required data from user {user_id}.")
         return
 
     # Ensure both sender and recipient are participants of the classroom.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
     if not classroom:
-        print(f"WebRTC offer from {username} ({user_id}) to {recipient_id} in classroom {classroom_id} failed: One or both not participants.")
+        print(f"WebRTC offer from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
         return
 
-    signal_id = str(uuid.uuid4()) # Generate unique ID for the signal.
-    # Store the WebRTC signal in the database for persistence (e.g., if recipient is offline).
+    signal_id = str(uuid.uuid4())
     webrtc_signals_collection.insert_one({
         "id": signal_id,
         "type": "offer",
         "classroomId": classroom_id,
         "fromUserId": user_id,
         "fromUsername": username,
-        "toUserId": recipient_id,
+        "toUserId": recipient_user_id,
         "signalData": offer,
         "timestamp": datetime.utcnow()
     })
 
     # Emit the offer directly to the recipient's personal Socket.IO room (joined on connect).
     emit('webrtc_offer', {
-        'sender_id': request.sid, # Sender's Socket.IO SID.
+        'offerer_socket_id': request.sid,       # The Socket.IO SID of the offerer (for client-side PC lookup)
+        'offerer_user_id': user_id,             # The USER_ID of the offerer (for client to send answer back to)
         'offer': offer,
-        'username': username # Sender's username for display.
-    }, room=recipient_id) # Send to the recipient's user_id room.
+        'username': username
+    }, room=recipient_user_id) # Send to the recipient's user_id room.
     
-    print(f"WebRTC offer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_id} in classroom {classroom_id}.")
+    print(f"WebRTC offer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
 
 @socketio.on('webrtc_answer')
 def handle_webrtc_answer(data):
@@ -1787,21 +1787,21 @@ def handle_webrtc_answer(data):
     Handles a WebRTC answer from one peer to another.
     Stores the signal in the DB and forwards it to the original offerer.
     """
-    user_id = session.get('user_id')
+    user_id = session.get('user_id') # This is the user_id of the answerer (e.g., student)
     username = session.get('username')
-    recipient_id = data.get('recipient_id') # The user_id of the original offerer.
+    recipient_user_id = data.get('recipient_id') # The user_id of the original offerer (e.g., admin)
     classroom_id = data.get('classroomId')
     answer = data.get('answer') # The SDP answer.
 
     # Validate required data.
-    if not all([user_id, username, recipient_id, classroom_id, answer]):
+    if not all([user_id, username, recipient_user_id, classroom_id, answer]):
         print(f"Socket.IO 'webrtc_answer' failed: Missing required data from user {user_id}.")
         return
 
     # Ensure both sender and recipient are participants.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
     if not classroom:
-        print(f"WebRTC answer from {username} ({user_id}) to {recipient_id} in classroom {classroom_id} failed: One or both not participants.")
+        print(f"WebRTC answer from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
         return
 
     signal_id = str(uuid.uuid4())
@@ -1811,19 +1811,20 @@ def handle_webrtc_answer(data):
         "classroomId": classroom_id,
         "fromUserId": user_id,
         "fromUsername": username,
-        "toUserId": recipient_id,
+        "toUserId": recipient_user_id,
         "signalData": answer,
         "timestamp": datetime.utcnow()
     })
 
-    # Emit the answer directly back to the original offerer's personal Socket.IO room.
+    # Emit the answer directly back to the original offerer's personal Socket.IO room (recipient_user_id is the offerer's user_id).
     emit('webrtc_answer', {
-        'sender_id': request.sid, # Sender's Socket.IO SID.
+        'sender_socket_id': request.sid,        # The Socket.IO SID of the answerer (for offerer's PC lookup)
+        'sender_user_id': user_id,              # The USER_ID of the answerer
         'answer': answer,
         'username': username
-    }, room=recipient_id) # Send to the recipient's user_id room.
+    }, room=recipient_user_id) # Send to the recipient's user_id room.
     
-    print(f"WebRTC answer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_id} in classroom {classroom_id}.")
+    print(f"WebRTC answer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
 
 @socketio.on('webrtc_ice_candidate')
 def handle_webrtc_ice_candidate(data):
@@ -1831,21 +1832,21 @@ def handle_webrtc_ice_candidate(data):
     Handles WebRTC ICE candidates.
     Stores the candidate in the DB and forwards it to the other peer.
     """
-    user_id = session.get('user_id')
+    user_id = session.get('user_id') # This is the user_id of the sender
     username = session.get('username')
-    recipient_id = data.get('recipient_id') # The user_id of the other peer.
+    recipient_user_id = data.get('recipient_id') # The user_id of the other peer.
     classroom_id = data.get('classroomId')
     candidate = data.get('candidate') # The ICE candidate data.
 
     # Validate required data.
-    if not all([user_id, username, recipient_id, classroom_id, candidate]):
+    if not all([user_id, username, recipient_user_id, classroom_id, candidate]):
         print(f"Socket.IO 'webrtc_ice_candidate' failed: Missing required data from user {user_id}.")
         return
 
     # Ensure both sender and recipient are participants.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_id]}})
+    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
     if not classroom:
-        print(f"WebRTC ICE candidate from {username} ({user_id}) to {recipient_id} in classroom {classroom_id} failed: One or both not participants.")
+        print(f"WebRTC ICE candidate from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
         return
 
     signal_id = str(uuid.uuid4())
@@ -1855,19 +1856,20 @@ def handle_webrtc_ice_candidate(data):
         "classroomId": classroom_id,
         "fromUserId": user_id,
         "fromUsername": username,
-        "toUserId": recipient_id,
+        "toUserId": recipient_user_id,
         "signalData": candidate,
         "timestamp": datetime.utcnow()
     })
 
     # Emit the ICE candidate directly to the other peer's personal Socket.IO room.
     emit('webrtc_ice_candidate', {
-        'sender_id': request.sid, # Sender's Socket.IO SID.
+        'sender_socket_id': request.sid,        # The Socket.IO SID of the sender
+        'sender_user_id': user_id,              # The USER_ID of the sender
         'candidate': candidate,
         'username': username
-    }, room=recipient_id) # Send to the recipient's user_id room.
+    }, room=recipient_user_id) # Send to the recipient's user_id room.
     
-    print(f"WebRTC ICE candidate from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_id} in classroom {classroom_id}.")
+    print(f"WebRTC ICE candidate from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
 
 @socketio.on('webrtc_peer_disconnected')
 def handle_webrtc_peer_disconnected(data):
@@ -1875,20 +1877,21 @@ def handle_webrtc_peer_disconnected(data):
     Handles a signal that a WebRTC peer has disconnected.
     Broadcasts this information to all other peers in the classroom.
     """
-    peer_id = data.get('peer_id') # The Socket.IO SID of the disconnected peer.
+    # The client now sends 'peer_user_id' instead of 'peer_id' (SID)
+    peer_user_id = data.get('peer_user_id') 
     classroom_id = data.get('classroomId')
     
     # Validate required data.
-    if not all([peer_id, classroom_id]):
-        print(f"Socket.IO 'webrtc_peer_disconnected' failed: Missing peer_id or classroom_id. Data: {data}.")
+    if not all([peer_user_id, classroom_id]):
+        print(f"Socket.IO 'webrtc_peer_disconnected' failed: Missing peer_user_id or classroom_id. Data: {data}.")
         return
 
     # Broadcast to all users in the classroom (excluding the sender, if sender is still connected).
     emit('webrtc_peer_disconnected', {
-        'peer_id': peer_id
+        'peer_user_id': peer_user_id
     }, room=classroom_id, include_self=False)
     
-    print(f"WebRTC peer disconnected signal broadcast for peer SID: {peer_id} in classroom {classroom_id}.")
+    print(f"WebRTC peer disconnected signal broadcast for peer UserID: {peer_user_id} in classroom {classroom_id}.")
 
 @app.route('/api/webrtc-signals', methods=['GET'])
 def get_pending_webrtc_signals():
