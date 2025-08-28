@@ -1871,6 +1871,45 @@ def handle_webrtc_ice_candidate(data):
     
     print(f"WebRTC ICE candidate from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
 
+
+@socketio.on('broadcast_status_update')
+def handle_broadcast_status_update(data):
+    """
+    Handles broadcast status updates from the admin and relays them to all
+    other participants in the classroom.
+    """
+    user_id = session.get('user_id') # The admin's user_id from the session
+    classroom_id = data.get('classroomId')
+    message = data.get('message')
+    is_broadcasting = data.get('isBroadcasting')
+    admin_username = data.get('adminUsername')
+
+    # Basic validation for required data from the client
+    if not all([user_id, classroom_id, message, admin_username, is_broadcasting is not None]):
+        print(f"Socket.IO 'broadcast_status_update' failed: Missing required data from user {user_id}. Data: {data}")
+        return
+
+    # Optional but good practice: Verify the sender is an admin and in the classroom
+    # You would need access to your 'users_collection' and 'classrooms_collection' here.
+    # For now, we'll assume the client-side emitting is done by an authenticated admin.
+    # user = users_collection.find_one({"id": user_id, "role": "admin"})
+    # classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
+    # if not user or not classroom:
+    #     print(f"Broadcast status update from non-admin or non-participant {user_id} in classroom {classroom_id} blocked.")
+    #     return
+
+    # Emit the update to all clients in the specified classroom, excluding the sender (the admin)
+    emit('broadcast_status_update', {
+        'message': message,
+        'isBroadcasting': is_broadcasting,
+        'adminUsername': admin_username,
+        'adminUserId': user_id # Include admin's user ID for client-side cleanup if needed
+    }, room=classroom_id, include_self=False)
+
+    print(f"Broadcast status update from Admin '{admin_username}' ({user_id}) in classroom {classroom_id}: '{message}'.")
+
+
+
 @socketio.on('webrtc_peer_disconnected')
 def handle_webrtc_peer_disconnected(data):
     """
