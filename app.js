@@ -1124,6 +1124,25 @@ function initializeSocketIO() {
         }
     }
 
+
+// (Place this function here, near your startBroadcast function)
+function endBroadcast() {
+    console.log('[WebRTC] Ending broadcast.');
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+        if (localVideo) {
+            localVideo.srcObject = null;
+            localVideo.style.display = 'none';
+        }
+    }
+    // Update the UI
+    if (startBroadcastBtn) startBroadcastBtn.disabled = false;
+    if (endBroadcastBtn) endBroadcastBtn.disabled = true;
+    showNotification('Broadcast ended.');
+}
+ 
+
 /**
  * Creates and configures a new RTCPeerConnection for a given remote peer.
  * Sets up event handlers for tracks, ICE candidates, and connection state changes.
