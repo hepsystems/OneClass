@@ -1459,48 +1459,60 @@ def handle_disconnect():
 @socketio.on('join')
 def handle_join_classroom(data):
     """
-    Handles a user joining a specific classroom's Socket.IO room.
-    Emits 'user_joined' to other participants and sends chat history to the joining user.
+    Handles a client joining a specific classroom.
+    Stores user and classroom ID in the session and notifies other users.
     """
-    user_id = session.get('user_id')
-    username = session.get('username')
-    role = session.get('role') # Get role from session
-    classroom_id = data.get('classroomId')
-    
-    # Validate required data from session and payload.
-    if not all([user_id, username, role, classroom_id]):
-        print(f"Socket.IO 'join' failed: Missing required data for user_id={user_id}, username={username}, role={role}, classroom_id={classroom_id}.")
+    class_id = data.get('classroomId')
+    user_id = data.get('userId')  # Get userId directly from client's emit
+    username = data.get('username')
+    role = data.get('role')
+
+    if not all([class_id, user_id, username, role]):
+        print(f"Socket.IO 'join' failed: Missing required data for SID {request.sid}. Data: {data}")
         return
 
-    # Verify that the user is actually a participant of the classroom in the DB.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": user_id})
-    if classroom:
-        join_room(classroom_id) # Join the Socket.IO room for the classroom.
-        print(f"User '{username}' ({user_id}) joined Socket.IO room for classroom {classroom_id} from SID: {request.sid}.")
-        
-        # Emit 'user_joined' event to all other participants in the classroom (excluding self).
-        emit('user_joined', {
-            'sid': request.sid,
-            'user_id': user_id,
-            'username': username,
-            'role': role
-        }, room=classroom_id, include_self=False)
-        
-        # Send recent chat history to the newly joined user.
-        chat_messages = list(chat_messages_collection.find(
-            {"classroomId": classroom_id},
-            {"_id": 0} # Exclude MongoDB's _id.
-        ).sort("timestamp", 1).limit(100)) # Fetch up to 100 most recent messages.
-        
-        # Format timestamps before sending.
-        for msg in chat_messages:
-            if 'timestamp' in msg and isinstance(msg['timestamp'], datetime):
-                msg['timestamp'] = msg['timestamp'].isoformat()
-        
-        emit('chat_history', chat_messages, room=request.sid) # Emit only to the requesting client.
-        
-    else:
-        print(f"User '{username}' ({user_id}) attempted to join classroom {classroom_id} without access. SID: {request.sid}.")
+    # Store user_id and username in the Socket.IO session for this connection.
+    # This ensures subsequent WebRTC and other events have access to the user's identity.
+    session['user_id'] = user_id
+    session['username'] = username
+    session['role'] = role # Store role too, useful for server-side logic
+
+    # Join the specific classroom room
+    join_room(class_id)
+    # Also join a personal room based on user_id, for direct messaging/signaling
+    join_room(user_id)
+
+    # Update participant's sid in the database (or add if new)
+    # This is crucial for matching userId to SID for direct emits
+    users_collection.update_one(
+        {"id": user_id},
+        {"$set": {"last_sid": request.sid}}, # Store current SID
+        upsert=True # Create user if not exists (though typically user exists from auth)
+    )
+
+    # If the user is not already in the classroom's participant list, add them.
+    # Note: Assumes `classrooms_collection` and `users_collection` are globally accessible PyMongo collections.
+    classroom = classrooms_collection.find_one({"id": class_id})
+    if classroom and user_id not in classroom.get("participants", []):
+        classrooms_collection.update_one(
+            {"id": class_id},
+            {"$addToSet": {"participants": user_id}} # Add only if not already present
+        )
+        print(f"User {username} ({user_id}) added to participants list for classroom {class_id}.")
+    elif not classroom:
+        print(f"Classroom {class_id} not found when user {username} ({user_id}) attempted to join.")
+        # Consider emitting an error back to the client here
+        return
+    
+    # Notify other users in the classroom (but not the joining user themselves)
+    emit('user_joined', {
+        'userId': user_id,
+        'username': username,
+        'role': role,
+        'sid': request.sid # Include SID for extra client-side context if needed
+    }, room=class_id, include_self=False)
+
+    print(f"User '{username}' ({user_id}) (SID: {request.sid}) joined classroom '{class_id}'. Role: {role}.")
 
 @socketio.on('leave')
 def handle_leave_classroom(data):
