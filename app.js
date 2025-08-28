@@ -1073,6 +1073,11 @@ function initializeSocketIO() {
  * Toggles the visibility of the start/stop broadcast buttons.
  * @param {boolean} isBroadcasting - True if broadcast is active, false otherwise.
  */
+/**
+ * Toggles the visibility of the start/stop broadcast buttons.
+ * Also sends a notification to participants about the broadcast status change.
+ * @param {boolean} isBroadcasting - True if broadcast is active, false otherwise.
+ */
 function toggleBroadcastButtons(isBroadcasting) {
     const startBroadcastBtn = document.getElementById('start-broadcast-btn');
     const stopBroadcastBtn = document.getElementById('stop-broadcast-btn');
@@ -1093,7 +1098,25 @@ function toggleBroadcastButtons(isBroadcasting) {
         localVideo.style.display = isBroadcasting ? 'block' : 'none';
     }
     console.log(`[UI] Broadcast buttons toggled. Broadcasting: ${isBroadcasting}`);
+
+    // --- Send notification to participants ---
+    if (socket && currentClassroom && currentClassroom.id && currentUser) {
+        const message = isBroadcasting
+            ? `Admin ${currentUser.username} has started a video broadcast.`
+            : `Admin ${currentUser.username} has ended the video broadcast.`;
+        
+        socket.emit('broadcast_status_update', {
+            classroomId: currentClassroom.id,
+            message: message,
+            isBroadcasting: isBroadcasting,
+            adminUsername: currentUser.username
+        });
+        console.log(`[Socket.IO] Emitted 'broadcast_status_update': ${message}`);
+    } else {
+        console.warn('[Socket.IO] Could not emit broadcast_status_update: Socket, currentClassroom, or currentUser not available.');
+    }
 }
+
 
 
 
