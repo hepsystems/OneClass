@@ -1073,7 +1073,7 @@ function initializeSocketIO() {
      * broadcasting it to all active participants in the current classroom.
      * This function is typically called by an admin.
      */
-    async function startBroadcastButton() {
+    async function startBroadcast() {
         console.log('[Broadcast] Attempting to start broadcast...');
         if (!currentUser || currentUser.role !== 'admin') {
             showNotification("Only administrators can start a broadcast.", true);
