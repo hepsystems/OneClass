@@ -1068,6 +1068,36 @@ function initializeSocketIO() {
     });
 }
 
+
+    /**
+ * Toggles the visibility of the start/stop broadcast buttons.
+ * @param {boolean} isBroadcasting - True if broadcast is active, false otherwise.
+ */
+function toggleBroadcastButtons(isBroadcasting) {
+    const startBroadcastBtn = document.getElementById('start-broadcast-btn');
+    const stopBroadcastBtn = document.getElementById('stop-broadcast-btn');
+    const localVideoContainer = document.getElementById('local-video-container'); // Assuming you have this
+    const localVideo = document.getElementById('local-video'); // And this
+
+    if (startBroadcastBtn) {
+        startBroadcastBtn.style.display = isBroadcasting ? 'none' : 'block';
+    }
+    if (stopBroadcastBtn) {
+        stopBroadcastBtn.style.display = isBroadcasting ? 'block' : 'none';
+    }
+    // Optionally, show/hide the local video container when broadcasting
+    if (localVideoContainer) {
+        localVideoContainer.style.display = isBroadcasting ? 'block' : 'none';
+    }
+    if (localVideo) {
+        localVideo.style.display = isBroadcasting ? 'block' : 'none';
+    }
+    console.log(`[UI] Broadcast buttons toggled. Broadcasting: ${isBroadcasting}`);
+}
+
+
+
+    
      /**
      * Handles the start broadcast action, initiating local media stream and
      * broadcasting it to all active participants in the current classroom.
