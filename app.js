@@ -422,6 +422,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+
+    /**
+ * Processes a single WebRTC signal fetched from the server's polling endpoint.
+ * This effectively re-dispatches the signal to the correct Socket.IO handler.
+ * @param {object} signal - The WebRTC signal object.
+ */
+async function handleWebRTCSignal(signal) {
+    if (!signal || !signal.type || !signal.signalData || !signal.fromUserId) {
+        console.error('[WebRTC] Received malformed signal from server:', signal);
+        return;
+    }
+
+    console.log(`[WebRTC] Processing pending signal of type '${signal.type}' from UserId: ${signal.fromUserId}`);
+
+    // Re-dispatch the signal to the appropriate Socket.IO handler
+    // This effectively mimics receiving the signal over WebSocket directly.
+    switch (signal.type) {
+        case 'offer':
+            // The 'webrtc_offer' handler expects specific keys. Reconstruct them.
+            socket.emit('webrtc_offer', {
+                classroomId: signal.classroomId,
+                recipient_id: currentUser.id, // This client is the recipient
+                offerer_socket_id: signal.fromSocketId || 'N/A', // May not be present if polled
+                offerer_user_id: signal.fromUserId,
+                offer: signal.signalData,
+                username: signal.fromUsername
+            });
+            break;
+        case 'answer':
+            // The 'webrtc_answer' handler expects specific keys. Reconstruct them.
+            socket.emit('webrtc_answer', {
+                classroomId: signal.classroomId,
+                recipient_id: signal.toUserId, // This client is the offerer for this answer
+                sender_socket_id: signal.fromSocketId || 'N/A', // May not be present if polled
+                sender_user_id: signal.fromUserId,
+                answer: signal.signalData,
+                username: signal.fromUsername
+            });
+            break;
+        case 'ice_candidate':
+            // The 'webrtc_ice_candidate' handler expects specific keys. Reconstruct them.
+            socket.emit('webrtc_ice_candidate', {
+                classroomId: signal.classroomId,
+                recipient_id: currentUser.id, // This client is the recipient
+                sender_socket_id: signal.fromSocketId || 'N/A', // May not be present if polled
+                sender_user_id: signal.fromUserId,
+                candidate: signal.signalData,
+                username: signal.fromUsername
+            });
+            break;
+        default:
+            console.warn(`[WebRTC] Unrecognized signal type in handleWebRTCSignal: ${signal.type}`);
+    }
+}
+
+
     // --- Dashboard Functions ---
 
     /**
