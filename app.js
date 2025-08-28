@@ -1194,7 +1194,55 @@ function endBroadcast() {
     if (endBroadcastBtn) endBroadcastBtn.disabled = true;
     showNotification('Broadcast ended.');
 }
- 
+ /**
+ * Initiates WebRTC offers to all active participants in the current classroom.
+ * This function should be called by the admin to start broadcasting their stream.
+ */
+async function broadcastToAllPeers() {
+    try {
+        // Fetch the list of all active participants from the server
+        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`); // Returns user_ids
+        if (!response.ok) {
+            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
+        }
+        const participants = await response.json();
+        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
+
+        // For each participant (who is not the current user), create a peer connection and send an offer
+        for (const participant of participants) {
+            if (participant.id !== currentUser.id) { // Ensure not to connect to self
+                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
+                // Call createPeerConnection with the participant's USER_ID as the primary identifier
+                // We don't have their SID yet when initiating, so pass null. It will be updated later.
+                await createPeerConnection(participant.id, true, participant.username, null); // peerId is now participant.id
+            }
+        }
+        console.log('[Broadcast] All initial offers sent to participants.');
+    } catch (error) {
+        console.error('[WebRTC] Error broadcasting to all peers:', error);
+        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
+    }
+}
+
+  /**
+ * Stops the local media stream (camera/microphone) and cleans up the local video element.
+ * It's essential to stop tracks to release camera/mic resources.
+ */
+function stopLocalStream() {
+    if (localStream) {
+        console.log('[Broadcast] Stopping local media stream...');
+        localStream.getTracks().forEach(track => {
+            track.stop(); // Stop each track in the stream
+            console.log(`[Broadcast] Stopped local media track: ${track.kind}`);
+        });
+        localStream = null; // Clear the stream reference
+    }
+    if (localVideo) {
+        localVideo.srcObject = null; // Disconnect the stream from the video element
+        console.log('[Broadcast] Local video element cleared.');
+    }
+}
+  
 
 /**
  * Creates and configures a new RTCPeerConnection for a given remote peer.
