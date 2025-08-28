@@ -1249,6 +1249,74 @@ function endBroadcast() {
     showNotification('Broadcast ended.');
 }
 
+/**
+ * Handles the start broadcast action, initiating local media stream and
+ * broadcasting it to all active participants in the current classroom.
+ * This function is typically called by an admin.
+ */
+async function startBroadcastButton() {
+    console.log('[Broadcast] Attempting to start broadcast...');
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification("Only administrators can start a broadcast.", true);
+        console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
+        return;
+    }
+
+    if (!currentClassroom || !currentClassroom.id) {
+        showNotification("Please join a classroom before starting a broadcast.", true);
+        console.warn('[Broadcast] No classroom joined for broadcast.');
+        return;
+    }
+
+    // Read the selected broadcast type from the UI
+    const selectedBroadcastTypeElement = document.querySelector('input[name="broadcastType"]:checked');
+    if (selectedBroadcastTypeElement) {
+        currentBroadcastType = selectedBroadcastTypeElement.value;
+    } else {
+        console.warn('[Broadcast] No broadcast type selected, defaulting to video_audio.');
+        currentBroadcastType = 'video_audio';
+    }
+
+    if (localStream && localStream.active) { // Check if a stream is already active
+        console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
+        stopLocalStream(); // Stop existing stream to prevent duplicates
+        toggleBroadcastButtons(false); // Reset buttons
+    }
+
+    try {
+        const mediaConstraints = { audio: true, video: (currentBroadcastType === 'video_audio') };
+        localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        console.log(`[Broadcast] Requested media with constraints: ${JSON.stringify(mediaConstraints)}`);
+
+        if (localVideo) {
+            localVideo.srcObject = localStream; // Attach local stream to the local video element
+            localVideo.muted = true; // Mute local video to prevent echo/feedback
+            console.log('[Broadcast] Local stream attached to localVideo element.');
+            
+            // Show local video only if it's a video broadcast
+            localVideo.style.display = (currentBroadcastType === 'video_audio') ? 'block' : 'none';
+        } else {
+            console.error('[Broadcast] localVideo element not found.');
+            showNotification("Local video display element missing.", true);
+            stopLocalStream();
+            return;
+        }
+
+        showNotification("Broadcast started successfully!");
+        toggleBroadcastButtons(true); // Update UI to show 'Stop Broadcast' button
+
+        await broadcastToAllPeers();
+        console.log('[Broadcast] Offers sent to all participants.');
+
+    } catch (error) {
+        console.error('[Broadcast] Error starting broadcast:', error);
+        showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
+        toggleBroadcastButtons(false); // Ensure buttons are reset if error
+        stopLocalStream();
+    }
+}
+
+    
  /**
  * Initiates WebRTC offers to all active participants in the current classroom.
  * This function should be called by the admin to start broadcasting their stream.
