@@ -146,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
     };
 
+
     // Video Zoom State Management
     // Map: videoElement.id -> { currentScale: 1, isZoomed: false, offsetX: 0, offsetY: 0 }
     const videoZoomStates = new Map();
