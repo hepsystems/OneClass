@@ -1211,47 +1211,7 @@ socket.on('whiteboard_clear', (data) => {
         });
 
         
-        // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
-        socket.on('webrtc_offer', async (data) => {
-            // No longer check sender_id === socket.id directly here
-            // because data.offerer_socket_id is the SID, not the local socket.id.
-            // The server prevents self-emission by only sending to recipient_user_id.
-
-            console.log(`[WebRTC] Received WebRTC Offer from: ${data.username} (UserID: ${data.offerer_user_id}, SID: ${data.offerer_socket_id}) to ${currentUser.id}`);
-
-            const offererUserId = data.offerer_user_id;       // The user_id of the offerer (admin)
-            const offererSocketId = data.offerer_socket_id;   // The Socket.IO SID of the offerer (admin)
-            const peerUsername = data.username || `Peer ${offererUserId.substring(0, 4)}`;
-
-            // Create a new peer connection if one doesn't exist for this offerer's USER_ID
-            if (!peerConnections[offererUserId]) { // Key by user_id
-                createPeerConnection(offererUserId, false, peerUsername, offererSocketId); // Pass SID for internal use
-            }
-
-            try {
-                const pc = peerConnections[offererUserId]; // Look up PC by user_id
-                if (!pc) {
-                    console.error(`[WebRTC] PeerConnection not found for offerer UserId ${offererUserId} after offer.`);
-                    showNotification(`WebRTC error: Peer connection missing for ${peerUsername}.`, true);
-                    return;
-                }
-
-                await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-
-                // Send the answer back to the offering peer, using their USER_ID as the recipient_id
-                socket.emit('webrtc_answer', {
-                    classroomId: currentClassroom.id,
-                    recipient_id: offererUserId, // *** CRUCIAL CHANGE: Use the offerer's USER_ID ***
-                    answer: pc.localDescription
-                });
-                console.log(`[WebRTC] Sent WebRTC Answer to user: ${offererUserId} (via SID: ${offererSocketId}) from ${currentUser.id}`);
-            } catch (error) {
-                console.error('[WebRTC] Error handling WebRTC offer:', error);
-                showNotification(`WebRTC error with ${peerUsername}: ${error.message}`, true);
-            }
-        });
+    
 
         // WebRTC signaling: Answer (from receiving peer)
         socket.on('webrtc_answer', async (data) => {
