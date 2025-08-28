@@ -649,8 +649,7 @@ function enterClassroom(id, name) {
             assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
         }
     }
-
-    /**
+/**
  * Initializes the Socket.IO connection and sets up all event listeners for real-time communication.
  * This function ensures that previous connections are properly closed before a new one is established.
  */
@@ -1068,6 +1067,7 @@ function initializeSocketIO() {
         }
     });
 }
+
  
  // A new helper function to broadcast the offer to all peers
 async function broadcastToAllPeers() {
