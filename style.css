@@ -636,8 +636,8 @@ h4 {
 }
 
 .user-status-dot {
-    width: 12px;
-    height: 12px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background-color: var(--success-color);
     box-shadow: 0 0 8px var(--success-color);
@@ -655,7 +655,7 @@ h4 {
     position: relative;
     overflow: hidden;
     flex-grow: 1;
-    height: 100%; /* Ensure it takes full vertical space */
+    height: 125%; /* Ensure it takes full vertical space */
 }
 
 #whiteboard-canvas-wrapper {
@@ -664,12 +664,12 @@ h4 {
     justify-content: center;
     align-items: center;
     width: 100%;
-    height: 100%;
+    height: 125%;
 }
 
 #whiteboard-canvas {
-    width: 100%;
-    height: 100%;
+    width: 125%;
+    height: 125%;
     display: block;
     background-color: white;
 }
@@ -681,7 +681,7 @@ h4 {
     gap: 0;                          /* No random gaps */
     padding: var(--spacing-md);
     background-color: #f0f4f7;
-    border-top: 2px solid #e0e6ed;
+    border-top: 10px solid #e0e6ed;
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
     width: 100%;                     /* Full width under whiteboard */
     box-sizing: border-box;
@@ -691,7 +691,7 @@ h4 {
     @extend .btn-base;
     flex: 1;                         /* Equal width for all buttons */
     max-width: 120px;                /* Optional: Prevent them from being too huge */
-    height: 70px;                    /* Large button height */
+    height: 120px;                    /* Large button height */
     font-size: 2em;                  /* Big icons/text */
     margin: 0;                       /* Remove extra spacing */
 }
