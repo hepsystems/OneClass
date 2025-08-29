@@ -1301,7 +1301,49 @@ function endBroadcast() {
     showNotification('Broadcast ended.');
 }
 
+// A queue to store ICE candidates before the remote description is set.
+const iceCandidateQueue = [];
 
+// Your handleWebRTCSignal function or equivalent
+async function handleWebRTCSignal(signal) {
+    const peerUserId = signal.fromUserId;
+    const peerConnection = peerConnections[peerUserId].pc;
+
+    if (signal.type === 'offer') {
+        // ... (existing offer handling)
+    } else if (signal.type === 'answer') {
+        // Step 1: Set the remote description (the answer)
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+        console.log(`[WebRTC] Set remote description (answer) for peer UserId ${peerUserId}`);
+
+        // Step 2: Process any queued ICE candidates
+        while (iceCandidateQueue.length > 0) {
+            const candidate = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
+            }
+        }
+
+    } else if (signal.type === 'candidate') {
+        // Check if the remote description has been set
+        if (peerConnection.remoteDescription) {
+            // Add the candidate directly if the remote description is ready
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(signal.payload));
+                console.log(`[WebRTC] Added ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding ICE candidate:`, error);
+            }
+        } else {
+            // Queue the candidate if the remote description is not yet ready
+            iceCandidateQueue.push(signal.payload);
+            console.log(`[WebRTC] Queued ICE candidate for peer UserId: ${peerUserId}`);
+        }
+    }
+}
 
    /**
  * Periodically polls the server for any pending WebRTC signals.
