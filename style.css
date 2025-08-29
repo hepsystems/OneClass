@@ -675,7 +675,7 @@ h4 {
 }
 
 #whiteboard-controls {
-    display: grid;
+    display: inline;
     justify-content: space-evenly;   /* Spread all buttons evenly */
     align-items: center;
     gap: 0;                          /* No random gaps */
@@ -689,7 +689,7 @@ h4 {
 
 .whiteboard-tool {
     @extend .btn-base;
-    flex: 1;                         /* Equal width for all buttons */
+    inline: 1;                         /* Equal width for all buttons */
     max-width: 120px;                /* Optional: Prevent them from being too huge */
     height: 120px;                    /* Large button height */
     font-size: 2em;                  /* Big icons/text */
