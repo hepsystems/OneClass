@@ -676,25 +676,24 @@ h4 {
 
 #whiteboard-controls {
     display: flex;
-    justify-content: space-between; /* This is the key change */
+    justify-content: space-evenly;   /* Spread all buttons evenly */
     align-items: center;
-    gap: var(--spacing-md);
+    gap: 0;                          /* No random gaps */
     padding: var(--spacing-md);
     background-color: #f0f4f7;
     border-top: 2px solid #e0e6ed;
-    flex-wrap: wrap;
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
+    width: 100%;                     /* Full width under whiteboard */
+    box-sizing: border-box;
 }
 
 .whiteboard-tool {
     @extend .btn-base;
-    width: 70px; /* Larger fixed width */
-    height: 70px; /* Larger fixed height */
-    padding: 0;
-    font-size: 2.5em; /* Larger icon size */
-    background-color: #e9ecef;
-    color: #495057;
-    border-radius: var(--border-radius-lg);
+    flex: 1;                         /* Equal width for all buttons */
+    max-width: 120px;                /* Optional: Prevent them from being too huge */
+    height: 70px;                    /* Large button height */
+    font-size: 2em;                  /* Big icons/text */
+    margin: 0;                       /* Remove extra spacing */
 }
 
 .whiteboard-tool:hover {
