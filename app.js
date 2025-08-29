@@ -1168,42 +1168,35 @@ function initializeSocketIO() {
     });
 }
 
-    /**
- * Toggles the visibility of the start/stop broadcast buttons.
- * @param {boolean} isBroadcasting - True if broadcast is active, false otherwise.
+ /**
+ * Toggles the visibility of broadcast buttons and notifies participants.
+ * @param {boolean} isBroadcasting - True if broadcast is active.
+ * @param {string} [broadcastType] - Optional: 'video_audio' or 'audio_only'.
  */
-/**
- * Toggles the visibility of the start/stop broadcast buttons.
- * Also sends a notification to participants about the broadcast status change.
- * @param {boolean} isBroadcasting - True if broadcast is active, false otherwise.
- */
-function toggleBroadcastButtons(isBroadcasting) {
+function toggleBroadcastButtons(isBroadcasting, broadcastType) {
     const startBroadcastBtn = document.getElementById('start-broadcast-btn');
     const stopBroadcastBtn = document.getElementById('stop-broadcast-btn');
-    const localVideoContainer = document.getElementById('local-video-container'); // Assuming you have this
-    const localVideo = document.getElementById('local-video'); // And this
+    const localVideoContainer = document.getElementById('local-video-container');
+    const localVideo = document.getElementById('local-video');
 
-    if (startBroadcastBtn) {
-        startBroadcastBtn.style.display = isBroadcasting ? 'none' : 'block';
-    }
-    if (stopBroadcastBtn) {
-        stopBroadcastBtn.style.display = isBroadcasting ? 'block' : 'none';
-    }
-    // Optionally, show/hide the local video container when broadcasting
-    if (localVideoContainer) {
-        localVideoContainer.style.display = isBroadcasting ? 'block' : 'none';
-    }
-    if (localVideo) {
-        localVideo.style.display = isBroadcasting ? 'block' : 'none';
-    }
-    console.log(`[UI] Broadcast buttons toggled. Broadcasting: ${isBroadcasting}`);
+    if (startBroadcastBtn) { startBroadcastBtn.style.display = isBroadcasting ? 'none' : 'block'; }
+    if (stopBroadcastBtn) { stopBroadcastBtn.style.display = isBroadcasting ? 'block' : 'none'; }
+    if (localVideoContainer) { localVideoContainer.style.display = isBroadcasting ? 'block' : 'none'; }
+    if (localVideo) { localVideo.style.display = isBroadcasting ? 'block' : 'none'; }
 
-    // --- Send notification to participants ---
+    // --- Send notification to participants with a dynamic message ---
     if (socket && currentClassroom && currentClassroom.id && currentUser) {
+        let broadcastTypeName = 'broadcast';
+        if (broadcastType === 'video_audio') {
+            broadcastTypeName = 'video broadcast';
+        } else if (broadcastType === 'audio_only') {
+            broadcastTypeName = 'audio broadcast';
+        }
+
         const message = isBroadcasting
-            ? `Admin ${currentUser.username} has started a video broadcast.`
-            : `Admin ${currentUser.username} has ended the video broadcast.`;
-        
+            ? `Admin ${currentUser.username} has started an ${broadcastTypeName}.`
+            : `Admin ${currentUser.username} has ended the ${broadcastTypeName}.`;
+            
         socket.emit('broadcast_status_update', {
             classroomId: currentClassroom.id,
             message: message,
