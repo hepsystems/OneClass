@@ -675,26 +675,30 @@ h4 {
 }
 
 #whiteboard-controls {
-    display: inline;
-    justify-content: space-evenly;   /* Spread all buttons evenly */
+    display: flex;
+    justify-content: space-evenly;
     align-items: center;
-    gap: 0;                          /* No random gaps */
+    gap: var(--spacing-md);
     padding: var(--spacing-md);
     background-color: #f0f4f7;
     border-top: 10px solid #e0e6ed;
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-    width: 100%;                     /* Full width under whiteboard */
+    width: 100%;
     box-sizing: border-box;
+    flex-wrap: wrap; /* Allows buttons to wrap on smaller screens */
 }
 
 .whiteboard-tool {
-    @extend .btn-base;
-    inline: 1;                         /* Equal width for all buttons */
-    max-width: 120px;                /* Optional: Prevent them from being too huge */
-    height: 120px;                    /* Large button height */
-    font-size: 2em;                  /* Big icons/text */
-    margin: 0;                       /* Remove extra spacing */
+    flex: 0 0 auto; /* Do not grow, do not shrink, base on content */
+    width: 80px; /* Smaller button size for better fit */
+    height: 80px; /* Consistent height */
+    font-size: 1.5em; /* Smaller icon size */
+    margin: 0;
+    display: flex; /* Ensures content is centered */
+    align-items: center;
+    justify-content: center;
 }
+
 
 .whiteboard-tool:hover {
     background-color: #dcdfe6;
