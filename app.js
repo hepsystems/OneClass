@@ -1251,7 +1251,6 @@ async function startBroadcast(broadcastType) {
         if (localVideo) {
             localVideo.srcObject = localStream;
             localVideo.muted = true;
-            // Only show the video element if it's a video broadcast
             localVideo.style.display = constraints.video ? 'block' : 'none';
         }
 
@@ -1266,7 +1265,7 @@ async function startBroadcast(broadcastType) {
         toggleBroadcastButtons(false);
         stopLocalStream();
     }
-} 
+}
 /**
  * Stops the video/audio broadcast initiated by the admin.
  * Cleans up local media resources and updates the UI for all participants.
@@ -4122,21 +4121,24 @@ async function pollForWebRTCSignals() {
     }
 
     // --- Broadcast Controls Listeners ---
-    if (startBroadcastBtn) startBroadcastBtn.addEventListener('click', startBroadcast);
-    if (endBroadcastBtn) endBroadcastBtn.addEventListener('click', endBroadcast);
-    broadcastTypeRadios.forEach(radio => {
-        if (radio) {
-            radio.addEventListener('change', () => {
-                console.log('[Broadcast] Broadcast type changed:', radio.value);
-                // If broadcast is currently active and the type changes, restart it
-                if (localStream && localStream.active && currentUser && currentUser.role === 'admin') {
-                    showNotification("Broadcast type changed. Restarting broadcast...");
-                    endBroadcast(); // Stop current broadcast
-                    setTimeout(() => startBroadcast(), 500); // Start new broadcast after a short delay
-                }
-            });
+    if (startBroadcastBtn) {
+    startBroadcastBtn.addEventListener('click', () => {
+        // Find the selected broadcast type
+        const selectedBroadcastTypeElement = document.querySelector('input[name="broadcastType"]:checked');
+        let broadcastType = 'video_audio'; // Default to video_audio
+
+        if (selectedBroadcastTypeElement) {
+            broadcastType = selectedBroadcastTypeElement.value;
         }
+
+        // Call the main broadcast function with the determined type
+        startBroadcast(broadcastType);
     });
+}
+
+if (endBroadcastBtn) {
+    endBroadcastBtn.addEventListener('click', endBroadcast);
+}
 
     // --- Library Search Input Listener ---
     if (librarySearchInput) {
