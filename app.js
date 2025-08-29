@@ -1307,14 +1307,12 @@ function endBroadcast() {
     
     showNotification('Broadcast ended.');
 }
-
 /**
- * Handles the start broadcast action, initiating local media stream and
- * broadcasting it to all active participants in the current classroom.
- * This function is typically called by an admin.
+ * Handles the start broadcast action, initiating local media stream based on broadcast type.
+ * @param {string} broadcastType - 'video_audio' or 'audio_only'.
  */
-async function startBroadcastButton() {
-    console.log('[Broadcast] Attempting to start broadcast...');
+async function startBroadcast(broadcastType) {
+    console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
     if (!currentUser || currentUser.role !== 'admin') {
         showNotification("Only administrators can start a broadcast.", true);
         console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
@@ -1327,54 +1325,40 @@ async function startBroadcastButton() {
         return;
     }
 
-    // Read the selected broadcast type from the UI
-    const selectedBroadcastTypeElement = document.querySelector('input[name="broadcastType"]:checked');
-    if (selectedBroadcastTypeElement) {
-        currentBroadcastType = selectedBroadcastTypeElement.value;
-    } else {
-        console.warn('[Broadcast] No broadcast type selected, defaulting to video_audio.');
-        currentBroadcastType = 'video_audio';
-    }
-
-    if (localStream && localStream.active) { // Check if a stream is already active
+    if (localStream && localStream.active) {
         console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
-        stopLocalStream(); // Stop existing stream to prevent duplicates
-        toggleBroadcastButtons(false); // Reset buttons
+        stopLocalStream();
+        toggleBroadcastButtons(false);
     }
 
     try {
-        const mediaConstraints = { audio: true, video: (currentBroadcastType === 'video_audio') };
-        localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-        console.log(`[Broadcast] Requested media with constraints: ${JSON.stringify(mediaConstraints)}`);
-
+        // Dynamically set media constraints based on the provided broadcastType
+        const constraints = {
+            audio: true,
+            video: (broadcastType === 'video_audio')
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log(`[Broadcast] Obtained local stream with video: ${constraints.video}, audio: true`);
+        
         if (localVideo) {
-            localVideo.srcObject = localStream; // Attach local stream to the local video element
-            localVideo.muted = true; // Mute local video to prevent echo/feedback
-            console.log('[Broadcast] Local stream attached to localVideo element.');
-            
-            // Show local video only if it's a video broadcast
-            localVideo.style.display = (currentBroadcastType === 'video_audio') ? 'block' : 'none';
-        } else {
-            console.error('[Broadcast] localVideo element not found.');
-            showNotification("Local video display element missing.", true);
-            stopLocalStream();
-            return;
+            localVideo.srcObject = localStream;
+            localVideo.muted = true;
+            // Only show the video element if it's a video broadcast
+            localVideo.style.display = constraints.video ? 'block' : 'none';
         }
 
         showNotification("Broadcast started successfully!");
-        toggleBroadcastButtons(true); // Update UI to show 'Stop Broadcast' button
-
+        toggleBroadcastButtons(true);
         await broadcastToAllPeers();
-        console.log('[Broadcast] Offers sent to all participants.');
-
+        
     } catch (error) {
         console.error('[Broadcast] Error starting broadcast:', error);
         showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
-        toggleBroadcastButtons(false); // Ensure buttons are reset if error
+        toggleBroadcastButtons(false);
         stopLocalStream();
     }
 }
-
     
  /**
  * Initiates WebRTC offers to all active participants in the current classroom.
