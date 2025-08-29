@@ -1220,9 +1220,9 @@ function toggleBroadcastButtons(isBroadcasting) {
 
 
     
-    /**
+/**
  * Handles the start broadcast action, initiating local media stream based on broadcast type.
- * @param {string} broadcastType - 'video_audio' or 'audio_only'.
+ * @param {string} broadcastType - 'video_audio' for video and audio, or 'audio_only'.
  */
 async function startBroadcast(broadcastType) {
     console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
@@ -1238,6 +1238,7 @@ async function startBroadcast(broadcastType) {
         return;
     }
 
+    // Stop existing stream to prevent duplicates
     if (localStream && localStream.active) {
         console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
         stopLocalStream();
@@ -1262,7 +1263,8 @@ async function startBroadcast(broadcastType) {
         }
 
         showNotification("Broadcast started successfully!");
-        toggleBroadcastButtons(true);
+        // Pass the broadcastType to the function that updates the UI
+        toggleBroadcastButtons(true, broadcastType);
         await broadcastToAllPeers();
         
     } catch (error) {
@@ -1272,7 +1274,6 @@ async function startBroadcast(broadcastType) {
         stopLocalStream();
     }
 } 
-
 /**
  * Stops the video/audio broadcast initiated by the admin.
  * Cleans up local media resources and updates the UI for all participants.
@@ -1307,88 +1308,7 @@ function endBroadcast() {
     
     showNotification('Broadcast ended.');
 }
-/**
- * Handles the start broadcast action, initiating local media stream based on broadcast type.
- * @param {string} broadcastType - 'video_audio' or 'audio_only'.
- */
-async function startBroadcast(broadcastType) {
-    console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
-    if (!currentUser || currentUser.role !== 'admin') {
-        showNotification("Only administrators can start a broadcast.", true);
-        console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
-        return;
-    }
 
-    if (!currentClassroom || !currentClassroom.id) {
-        showNotification("Please join a classroom before starting a broadcast.", true);
-        console.warn('[Broadcast] No classroom joined for broadcast.');
-        return;
-    }
-
-    if (localStream && localStream.active) {
-        console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
-        stopLocalStream();
-        toggleBroadcastButtons(false);
-    }
-
-    try {
-        // Dynamically set media constraints based on the provided broadcastType
-        const constraints = {
-            audio: true,
-            video: (broadcastType === 'video_audio')
-        };
-        
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log(`[Broadcast] Obtained local stream with video: ${constraints.video}, audio: true`);
-        
-        if (localVideo) {
-            localVideo.srcObject = localStream;
-            localVideo.muted = true;
-            // Only show the video element if it's a video broadcast
-            localVideo.style.display = constraints.video ? 'block' : 'none';
-        }
-
-        showNotification("Broadcast started successfully!");
-        toggleBroadcastButtons(true);
-        await broadcastToAllPeers();
-        
-    } catch (error) {
-        console.error('[Broadcast] Error starting broadcast:', error);
-        showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
-        toggleBroadcastButtons(false);
-        stopLocalStream();
-    }
-}
-    
- /**
- * Initiates WebRTC offers to all active participants in the current classroom.
- * This function should be called by the admin to start broadcasting their stream.
- */
-async function broadcastToAllPeers() {
-    try {
-        // Fetch the list of all active participants from the server
-        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`); // Returns user_ids
-        if (!response.ok) {
-            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
-        }
-        const participants = await response.json();
-        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
-
-        // For each participant (who is not the current user), create a peer connection and send an offer
-        for (const participant of participants) {
-            if (participant.id !== currentUser.id) { // Ensure not to connect to self
-                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
-                // Call createPeerConnection with the participant's USER_ID as the primary identifier
-                // We don't have their SID yet when initiating, so pass null. It will be updated later.
-                await createPeerConnection(participant.id, true, participant.username, null); // peerId is now participant.id
-            }
-        }
-        console.log('[Broadcast] All initial offers sent to participants.');
-    } catch (error) {
-        console.error('[WebRTC] Error broadcasting to all peers:', error);
-        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
-    }
-}
 
 
    /**
