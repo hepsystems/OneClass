@@ -1220,62 +1220,58 @@ function toggleBroadcastButtons(isBroadcasting) {
 
 
     
-     /**
-     * Handles the start broadcast action, initiating local media stream and
-     * broadcasting it to all active participants in the current classroom.
-     * This function is typically called by an admin.
-     */
-    async function startBroadcast() {
-        console.log('[Broadcast] Attempting to start broadcast...');
-        if (!currentUser || currentUser.role !== 'admin') {
-            showNotification("Only administrators can start a broadcast.", true);
-            console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
-            return;
-        }
-
-        if (!currentClassroom || !currentClassroom.id) {
-            showNotification("Please join a classroom before starting a broadcast.", true);
-            console.warn('[Broadcast] No classroom joined for broadcast.');
-            return;
-        }
-
-        if (localStream) {
-            console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
-            stopLocalStream(); // Stop existing stream to prevent duplicates
-        }
-
-        try {
-            // Request access to user's media devices (audio and video)
-            // Use an object to specify constraints for audio and video
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            if (localVideo) {
-                localVideo.srcObject = localStream; // Attach local stream to the local video element
-                localVideo.muted = true; // Mute local video to prevent echo/feedback
-                console.log('[Broadcast] Local stream attached to localVideo element.');
-            } else {
-                console.error('[Broadcast] localVideo element not found.');
-                showNotification("Local video display element missing.", true);
-                stopLocalStream();
-                return;
-            }
-
-            showNotification("Broadcast started successfully!");
-            toggleBroadcastButtons(true); // Update UI to show 'Stop Broadcast' button
-
-            // Once local stream is active, broadcast to all existing peers
-            // This function (broadcastToAllPeers) will handle creating peer connections
-            // and sending offers to all other participants.
-            await broadcastToAllPeers();
-            console.log('[Broadcast] Offers sent to all participants.');
-
-        } catch (error) {
-            console.error('[Broadcast] Error starting broadcast:', error);
-            showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
-            toggleBroadcastButtons(false); // Ensure buttons are reset if error
-            stopLocalStream();
-        }
+    /**
+ * Handles the start broadcast action, initiating local media stream based on broadcast type.
+ * @param {string} broadcastType - 'video_audio' or 'audio_only'.
+ */
+async function startBroadcast(broadcastType) {
+    console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification("Only administrators can start a broadcast.", true);
+        console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
+        return;
     }
 
+    if (!currentClassroom || !currentClassroom.id) {
+        showNotification("Please join a classroom before starting a broadcast.", true);
+        console.warn('[Broadcast] No classroom joined for broadcast.');
+        return;
+    }
+
+    if (localStream && localStream.active) {
+        console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
+        stopLocalStream();
+        toggleBroadcastButtons(false);
+    }
+
+    try {
+        // Dynamically set media constraints based on the provided broadcastType
+        const constraints = {
+            audio: true,
+            video: (broadcastType === 'video_audio')
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log(`[Broadcast] Obtained local stream with video: ${constraints.video}, audio: true`);
+        
+        if (localVideo) {
+            localVideo.srcObject = localStream;
+            localVideo.muted = true;
+            // Only show the video element if it's a video broadcast
+            localVideo.style.display = constraints.video ? 'block' : 'none';
+        }
+
+        showNotification("Broadcast started successfully!");
+        toggleBroadcastButtons(true);
+        await broadcastToAllPeers();
+        
+    } catch (error) {
+        console.error('[Broadcast] Error starting broadcast:', error);
+        showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
+        toggleBroadcastButtons(false);
+        stopLocalStream();
+    }
+} 
 
 /**
  * Stops the video/audio broadcast initiated by the admin.
@@ -1285,13 +1281,9 @@ function endBroadcast() {
     console.log('[Broadcast] Admin is ending broadcast.');
     
     // 1. Stop the local media stream (camera/mic) and clear the local video element
-    stopLocalStream(); // This function already handles localStream.getTracks().forEach(track => track.stop()); and localVideo.srcObject = null;
+    stopLocalStream();
 
     // 2. Update the UI and notify participants that the broadcast has ended
-    // toggleBroadcastButtons(false) handles:
-    // - Hiding the 'Stop Broadcast' button and showing 'Start Broadcast'
-    // - Hiding the local video container
-    // - Emitting 'broadcast_status_update' event to all participants
     toggleBroadcastButtons(false); 
     
     // 3. Clean up all established WebRTC peer connections with students
@@ -1300,8 +1292,6 @@ function endBroadcast() {
             console.log(`[WebRTC] Closing peer connection with UserId: ${peerUserId} due to broadcast end.`);
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
-
-            // Remove the corresponding remote video element from the DOM
             const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
             if (videoWrapper) {
                 videoWrapper.remove();
@@ -1309,7 +1299,7 @@ function endBroadcast() {
             }
         }
     }
-    // Clear all remote videos container
+    
     if (remoteVideoContainer) {
         remoteVideoContainer.innerHTML = '';
         console.log('[WebRTC] Cleared all remote video elements from container.');
