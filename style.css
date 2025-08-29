@@ -13,31 +13,31 @@
     --secondary-dark-color: #5a6268;
     --body-bg: #f0f2f5;
     --app-bg: #ffffff;
-    --text-color: #333;
-    --light-text-color: #555;
-    --border-color: #e0e6ed;
-    --light-border-color: #eee;
-    --subtle-shadow: rgba(0, 0, 0, 0.05);
-    --medium-shadow: rgba(0, 0, 0, 0.08);
-    --strong-shadow: rgba(0, 0, 0, 0.2);
+    --text-color: #222;
+    --light-text-color: #444;
+    --border-color: #d0d6e0;
+    --light-border-color: #e0e6ed;
+    --subtle-shadow: rgba(0, 0, 0, 0.08);
+    --medium-shadow: rgba(0, 0, 0, 0.12);
+    --strong-shadow: rgba(0, 0, 0, 0.25);
     --sidebar-bg: #2c3e50;
     --sidebar-text: #ecf0f1;
     --sidebar-hover-bg: #34495e;
 
-    /* Spacing */
-    --spacing-xs: 5px;
-    --spacing-sm: 10px;
-    --spacing-md: 15px;
-    --spacing-lg: 20px;
-    --spacing-xl: 25px;
-    --spacing-xxl: 30px;
+    /* Spacing - Increased */
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 18px;
+    --spacing-lg: 24px;
+    --spacing-xl: 30px;
+    --spacing-xxl: 40px;
 
-    /* Border Radii */
-    --border-radius-sm: 5px;
-    --border-radius-md: 6px;
-    --border-radius-lg: 8px;
-    --border-radius-xl: 12px;
-    --border-radius-pill: 50px; /* New: for pill-shaped buttons */
+    /* Border Radii - Slightly larger */
+    --border-radius-sm: 6px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 10px;
+    --border-radius-xl: 16px;
+    --border-radius-pill: 50px;
 
     /* Transitions */
     --transition-fast: 0.2s ease;
@@ -47,8 +47,8 @@
     /* New Button/Input Enhancements */
     --button-gradient-start-light: rgba(255, 255, 255, 0.1);
     --button-gradient-end-light: rgba(255, 255, 255, 0);
-    --button-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.15); /* For active states */
-    --input-focus-shadow-strong: 0 0 0 4px rgba(0, 123, 255, 0.25); /* Stronger focus ring */
+    --button-shadow-inset: inset 0 3px 6px rgba(0, 0, 0, 0.2); /* For active states */
+    --input-focus-shadow-strong: 0 0 0 5px rgba(0, 123, 255, 0.3); /* Stronger focus ring */
 }
 
 body {
@@ -62,21 +62,22 @@ body {
     min-height: 100vh;
     box-sizing: border-box;
     color: var(--text-color);
+    font-size: 1.1em; /* Overall font size increase */
 }
 
 #app {
     background-color: var(--app-bg);
     padding: var(--spacing-xxl);
     border-radius: var(--border-radius-xl);
-    box-shadow: 0 6px 20px var(--medium-shadow);
+    box-shadow: 0 8px 25px var(--medium-shadow);
     width: 95%;
-    max-width: 1400px;
+    max-width: 1500px;
     margin-top: var(--spacing-xxl);
     margin-bottom: var(--spacing-xxl);
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 60px);
+    min-height: calc(100vh - 80px);
     overflow: hidden;
 }
 
@@ -87,22 +88,27 @@ section {
     margin-bottom: var(--spacing-xl);
     flex-grow: 1;
     display: none;
-    box-shadow: 0 2px 8px var(--subtle-shadow);
+    box-shadow: 0 3px 10px var(--subtle-shadow);
 }
 
 /* Headings */
 h2, h3, h4 {
     color: var(--text-color);
-    font-weight: 600;
-    margin-bottom: var(--spacing-lg); /* Default margin for headings */
+    font-weight: 700;
+    margin-bottom: var(--spacing-lg);
 }
 h2 {
-    border-bottom: 2px solid var(--body-bg);
+    font-size: 2.2em; /* Increased size */
+    border-bottom: 3px solid var(--body-bg);
     padding-bottom: var(--spacing-sm);
 }
 h3 {
-    border-bottom: 1px dashed var(--border-color);
+    font-size: 1.8em; /* Increased size */
+    border-bottom: 2px dashed var(--border-color);
     padding-bottom: var(--spacing-sm);
+}
+h4 {
+    font-size: 1.4em; /* Increased size */
 }
 
 /* Visibility Classes */
@@ -116,23 +122,23 @@ h3 {
 
 /* Role-specific highlights */
 .admin-feature-highlight {
-    border: 1px solid var(--primary-color);
+    border: 2px solid var(--primary-color);
     background-color: #e6f7ff;
     padding: var(--spacing-md);
     border-radius: var(--border-radius-lg);
     margin-bottom: var(--spacing-md);
     color: var(--primary-dark-color);
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .user-view-subtle {
-    border: 1px solid var(--success-color);
+    border: 2px solid var(--success-color);
     background-color: #e6ffe6;
     padding: var(--spacing-md);
     border-radius: var(--border-radius-lg);
     margin-bottom: var(--spacing-md);
     color: #1e7e34;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 /* Base Button Styles - ENHANCED */
@@ -140,26 +146,28 @@ h3 {
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
-    font-weight: 500;
+    font-weight: 600;
+    padding: var(--spacing-sm) var(--spacing-lg); /* Increased padding */
+    font-size: 1.1em; /* Increased font size */
     transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
-    box-shadow: 0 2px 4px var(--subtle-shadow); /* Subtle default shadow */
+    box-shadow: 0 3px 6px var(--subtle-shadow); /* More pronounced default shadow */
     position: relative;
-    overflow: hidden; /* For pseudo-elements */
-    display: inline-flex; /* Allow consistent spacing with icons */
+    overflow: hidden;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-xs);
-    white-space: nowrap; /* Prevent text wrapping */
+    white-space: nowrap;
 }
 
 .btn-base:hover {
-    transform: translateY(-3px); /* Slightly more pronounced lift */
-    box-shadow: 0 4px 12px var(--medium-shadow); /* More pronounced shadow */
+    transform: translateY(-4px); /* Slightly more pronounced lift */
+    box-shadow: 0 6px 15px var(--medium-shadow); /* More pronounced shadow */
 }
 
 .btn-base:active {
-    transform: translateY(0); /* "Press down" effect */
-    box-shadow: var(--button-shadow-inset); /* Inset shadow for active */
+    transform: translateY(0);
+    box-shadow: var(--button-shadow-inset);
 }
 
 /* Button variants - now use linear-gradient for depth */
@@ -216,30 +224,30 @@ h3 {
 
 /* Base Input Styles - ENHANCED */
 .input-base {
-    padding: 12px 15px;
-    border: 1px solid #dcdfe6;
+    padding: 14px 18px; /* Increased padding */
+    border: 2px solid #dcdfe6; /* Thicker border */
     border-radius: var(--border-radius-md);
-    font-size: 16px;
+    font-size: 1em; /* Increased font size */
     transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
-    box-shadow: var(--subtle-shadow); /* Add a subtle shadow to inputs */
+    box-shadow: var(--subtle-shadow);
 }
 
 .input-base:focus {
     border-color: var(--primary-color);
-    box-shadow: var(--input-focus-shadow-strong); /* Stronger focus ring */
+    box-shadow: var(--input-focus-shadow-strong);
     outline: none;
 }
 
 /* Auth Section */
 #auth-section, #settings-section {
-    max-width: 550px;
-    margin: 40px auto;
+    max-width: 600px;
+    margin: 50px auto;
     text-align: center;
     background-color: var(--app-bg);
-    box-shadow: 0 4px 15px var(--medium-shadow);
-    border: none; /* Override default section border */
-    padding: var(--spacing-xxl); /* Add padding here for consistency */
-    border-radius: var(--border-radius-lg); /* Ensure rounded corners */
+    box-shadow: 0 5px 20px var(--medium-shadow);
+    border: none;
+    padding: var(--spacing-xxl);
+    border-radius: var(--border-radius-lg);
 }
 
 #auth-section h2, #auth-section h3 {
@@ -257,15 +265,15 @@ h3 {
 #auth-section input[type="password"],
 #auth-section input[type="text"],
 #auth-section select {
-    width: calc(100% - 30px); /* Adjust for padding */
+    width: calc(100% - 36px); /* Adjust for new padding */
 }
 
 #auth-section button {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark-color));
     color: white;
-    padding: 12px 20px;
-    font-size: 18px;
-    font-weight: 600;
+    padding: 14px 22px;
+    font-size: 1.2em; /* Increased size */
+    font-weight: 700;
 }
 #auth-section button:hover {
     background: linear-gradient(135deg, var(--primary-dark-color), #004a99);
@@ -275,12 +283,13 @@ h3 {
 #auth-section p {
     margin-top: var(--spacing-lg);
     color: var(--light-text-color);
+    font-size: 1.1em;
 }
 
 #auth-section a {
     color: var(--primary-color);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 600;
 }
 
 #auth-section a:hover {
@@ -295,6 +304,7 @@ h3 {
     border: 1px solid #f5c6cb;
     padding: var(--spacing-sm);
     border-radius: var(--border-radius-sm);
+    font-size: 1.1em;
 }
 
 /* Dashboard Section */
@@ -309,41 +319,41 @@ h3 {
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-xxl);
     padding-bottom: var(--spacing-md);
-    border-bottom: 1px solid var(--light-border-color);
+    border-bottom: 2px solid var(--light-border-color);
 }
 
 .main-nav button {
-    border-radius: var(--border-radius-pill); /* Pill shape */
+    border-radius: var(--border-radius-pill);
     background-color: #e9ecef;
     color: var(--light-text-color);
     padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Lighter shadow for these */
+    font-size: 1.1em; /* Increased size */
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
 .main-nav button:hover:not(.active-nav) {
     background-color: #dcdfe6;
     color: var(--text-color);
-    transform: translateY(-2px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.15);
 }
 
 .main-nav button.active-nav {
-    background: linear-gradient(45deg, var(--primary-color), var(--primary-dark-color)); /* Gradient for active */
+    background: linear-gradient(45deg, var(--primary-color), var(--primary-dark-color));
     color: white;
-    box-shadow: 0 3px 10px rgba(0, 123, 255, 0.3); /* More pronounced shadow for active */
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
     cursor: default;
-    transform: none; /* No transform for active state */
+    transform: none;
 }
 
 #dashboard-section p {
-    font-size: 1.1em;
+    font-size: 1.2em;
     margin-bottom: var(--spacing-md);
     color: var(--light-text-color);
 }
 
 #current-username-display, #classroom-id-display {
-    font-weight: 600;
+    font-weight: 700;
     color: var(--primary-color);
 }
 
@@ -362,13 +372,13 @@ h3 {
 }
 
 #new-classroom-name {
-    width: calc(100% - 30px);
+    width: calc(100% - 36px);
     margin-bottom: var(--spacing-md);
 }
 
 #create-classroom-btn {
     padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 16px;
+    font-size: 1.1em;
 }
 
 
@@ -376,6 +386,7 @@ h3 {
     margin-top: var(--spacing-md);
     font-weight: bold;
     color: var(--success-color);
+    font-size: 1.1em;
 }
 
 #classroom-list {
@@ -393,18 +404,18 @@ h3 {
     justify-content: space-between;
     align-items: center;
     border: 1px solid #eef1f4;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 #classroom-list li:hover {
-    transform: translateY(-3px); /* Match btn-base hover */
-    box-shadow: 0 4px 12px var(--medium-shadow); /* Match btn-base hover */
+    transform: translateY(-4px);
+    box-shadow: 0 6px 15px var(--medium-shadow);
 }
 
 #classroom-list button {
     padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 15px;
+    font-size: 1em;
 }
 
 /* Classroom Section */
@@ -422,9 +433,9 @@ h3 {
     align-items: center;
     padding: var(--spacing-md) var(--spacing-xl);
     background-color: #f8f9fa;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 2px solid #e9ecef;
     gap: var(--spacing-lg);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.05);
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
@@ -435,7 +446,7 @@ h3 {
 
 .classroom-header p {
     margin: 0;
-    font-size: 0.95em;
+    font-size: 1em;
     color: #666;
 }
 
@@ -448,10 +459,10 @@ h3 {
 .hamburger-menu {
     background: none;
     border: none;
-    font-size: 28px;
+    font-size: 32px; /* Increased size */
     cursor: pointer;
     color: var(--light-text-color);
-    padding: var(--spacing-xs);
+    padding: var(--spacing-sm);
     transition: color var(--transition-normal);
 }
 
@@ -461,7 +472,7 @@ h3 {
 
 .sidebar {
     height: 65vh;
-    width: 200px;
+    width: 250px; /* Increased width */
     position: fixed;
     top: 60px;
     left: 0;
@@ -471,7 +482,7 @@ h3 {
     transition: transform var(--transition-slow);
     padding-top: var(--spacing-lg);
     color: var(--sidebar-text);
-    box-shadow: 4px 0 15px rgba(0,0,0,0.3);
+    box-shadow: 6px 0 20px rgba(0,0,0,0.4);
     display: flex;
     flex-direction: column;
     transform: translateX(-100%);
@@ -483,11 +494,11 @@ h3 {
 }
 
 .sidebar button {
-    padding: 18px 25px;
-    font-size: 17px;
+    padding: 20px 30px; /* Increased padding */
+    font-size: 1.2em; /* Increased size */
     color: var(--sidebar-text);
     display: block;
-    background: none; /* Override base background for transparent effect */
+    background: none;
     width: 100%;
     text-align: left;
     border: none;
@@ -497,19 +508,19 @@ h3 {
 
 .sidebar button:hover {
     background-color: var(--sidebar-hover-bg);
-    padding-left: 30px;
+    padding-left: 35px; /* Increased effect */
 }
 
 .sidebar button.active-sidebar-btn {
     background-color: var(--sidebar-hover-bg);
-    border-left: 5px solid var(--primary-color);
+    border-left: 6px solid var(--primary-color); /* Thicker border */
     color: white;
-    padding-left: 20px;
+    padding-left: 25px; /* Adjust padding */
 }
 
 .sidebar-close-btn {
     align-self: flex-end;
-    font-size: 22px;
+    font-size: 28px; /* Increased size */
     padding: var(--spacing-sm);
     color: var(--sidebar-text);
     background: none;
@@ -525,7 +536,7 @@ h3 {
 
 .sidebar-heading {
     text-align: center;
-    font-size: 24px;
+    font-size: 1.6em; /* Increased size */
     color: white;
     margin: 0 0 var(--spacing-lg) 0;
 }
@@ -557,32 +568,32 @@ h3 {
 }
 
 .chat-message-item {
-    padding: 10px 15px;
+    padding: 12px 18px; /* Increased padding */
     border-radius: var(--border-radius-lg);
     max-width: 80%;
     word-wrap: break-word;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 .my-message {
     background-color: var(--primary-color);
     color: white;
     align-self: flex-end;
-    border-bottom-right-radius: 4px;
+    border-bottom-right-radius: 6px;
 }
 
 .other-message {
     background-color: #e9ecef;
     color: var(--text-color);
     align-self: flex-start;
-    border-bottom-left-radius: 4px;
+    border-bottom-left-radius: 6px;
 }
 
 .chat-input-area {
     display: flex;
     gap: var(--spacing-md);
     padding-top: var(--spacing-md);
-    border-top: 1px solid var(--light-border-color);
+    border-top: 2px solid var(--light-border-color);
     margin-top: var(--spacing-md);
 }
 
@@ -616,7 +627,7 @@ h3 {
 
 #online-users-list li {
     padding: var(--spacing-sm) var(--spacing-md);
-    border-bottom: 1px dashed var(--light-border-color);
+    border-bottom: 2px dashed var(--light-border-color);
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
@@ -626,11 +637,11 @@ h3 {
 }
 
 .user-status-dot {
-    width: 10px;
-    height: 10px;
+    width: 12px; /* Increased size */
+    height: 12px; /* Increased size */
     border-radius: 50%;
     background-color: var(--success-color);
-    box-shadow: 0 0 5px var(--success-color);
+    box-shadow: 0 0 8px var(--success-color);
 }
 
 /* Whiteboard Section */
@@ -638,7 +649,7 @@ h3 {
     flex: 3;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md); /* Increased gap */
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     background-color: #fefefe;
@@ -648,64 +659,68 @@ h3 {
 
 #whiteboard-controls {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center; /* Center horizontally */
     align-items: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
+    gap: var(--spacing-md); /* Increased gap */
+    padding: var(--spacing-md);
     background-color: #f0f4f7;
-    border-bottom: 1px solid #e0e6ed;
+    border-bottom: 2px solid #e0e6ed;
     border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
-    flex-wrap: wrap; /* Allow controls to wrap on smaller screens */
+    flex-wrap: wrap;
 }
 
 .whiteboard-tool {
     @extend .btn-base;
     background-color: #dee2e6;
     color: #495057;
-    padding: var(--spacing-sm) var(--spacing-md);
-    box-shadow: none; /* No shadow on tools for flat look */
+    padding: var(--spacing-sm) var(--spacing-md); /* Same padding as normal buttons for consistency */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Beautified shadow */
+    border-radius: var(--border-radius-lg);
+}
+
+.whiteboard-tool:hover {
+    background-color: #ced4da;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 .whiteboard-tool.active-tool {
-    background-color: var(--primary-color);
+    background: linear-gradient(45deg, var(--primary-color), var(--primary-dark-color));
     color: white;
     box-shadow: var(--button-shadow-inset);
     transform: translateY(0);
 }
 
+/* New, larger color picker style */
 #whiteboard-color-picker {
-    width: 40px;
-    height: 40px;
+    width: 50px; /* Increased size */
+    height: 50px; /* Increased size */
     padding: 0;
-    border: 1px solid #ccc;
+    border: 2px solid #ccc;
     border-radius: var(--border-radius-md);
     cursor: pointer;
+    box-shadow: var(--subtle-shadow);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-#whiteboard-canvas {
-    background-color: #ffffff;
-    cursor: crosshair;
-    flex-grow: 1;
-    touch-action: none; /* Disable default touch actions */
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
+#whiteboard-color-picker:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
 /* Video Conferencing */
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: var(--spacing-md);
-    margin-top: var(--spacing-lg);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Increased min size */
+    gap: var(--spacing-lg); /* Increased gap */
+    margin-top: var(--spacing-xl);
 }
 
 .video-container {
     position: relative;
     border-radius: var(--border-radius-lg);
     overflow: hidden;
-    box-shadow: 0 4px 10px var(--subtle-shadow);
+    box-shadow: 0 5px 12px var(--subtle-shadow);
     background-color: #000;
 }
 
@@ -719,11 +734,11 @@ h3 {
     position: absolute;
     bottom: var(--spacing-sm);
     left: var(--spacing-sm);
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.6);
     color: white;
-    padding: 5px 10px;
+    padding: 6px 12px;
     border-radius: var(--border-radius-sm);
-    font-size: 0.8em;
+    font-size: 0.9em;
 }
 
 .video-controls {
@@ -738,10 +753,10 @@ h3 {
     @extend .btn-base;
     background-color: rgba(0, 0, 0, 0.5);
     color: white;
-    padding: var(--spacing-xs);
+    padding: var(--spacing-sm);
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
+    width: 36px; /* Increased size */
+    height: 36px; /* Increased size */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -754,7 +769,7 @@ h3 {
 
 /* Assessment Section */
 #assessment-container, #assessment-creation-container, #take-assessment-container, #view-submissions-container {
-    padding: var(--spacing-lg);
+    padding: var(--spacing-xl);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     background-color: #fbfdff;
@@ -777,13 +792,13 @@ h3 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
 }
 
 #assessment-list button {
     @extend .btn-primary;
     padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 14px;
+    font-size: 1em;
 }
 
 /* Assessment Creation Form */
@@ -797,11 +812,11 @@ h3 {
 #assessment-creation-form textarea,
 #assessment-creation-form select {
     @extend .input-base;
-    width: calc(100% - 20px);
+    width: calc(100% - 36px);
 }
 
 .question-block {
-    border: 1px solid #ccc;
+    border: 2px solid #ccc;
     padding: var(--spacing-md);
     border-radius: var(--border-radius-md);
     background-color: #f8f9fa;
@@ -821,7 +836,7 @@ h3 {
     border: none;
     color: var(--danger-color);
     cursor: pointer;
-    font-size: 1.2em;
+    font-size: 1.4em;
 }
 .remove-question-btn:hover {
     color: var(--danger-dark-color);
@@ -841,6 +856,7 @@ h3 {
 }
 .mcq-options input[type="radio"] {
     cursor: pointer;
+    transform: scale(1.2); /* Increased size */
 }
 .mcq-options input[type="text"] {
     @extend .input-base;
@@ -849,7 +865,7 @@ h3 {
 
 #add-question-btn {
     @extend .btn-info;
-    padding: var(--spacing-sm);
+    padding: var(--spacing-md);
     width: fit-content;
 }
 
@@ -866,7 +882,7 @@ h3 {
 }
 .submission-item {
     padding: var(--spacing-md);
-    border: 1px solid #ddd;
+    border: 2px solid #ddd;
     border-radius: var(--border-radius-md);
     background-color: #fefefe;
 }
@@ -895,7 +911,7 @@ h3 {
 }
 #file-list li {
     padding: var(--spacing-sm) 0;
-    border-bottom: 1px dashed var(--light-border-color);
+    border-bottom: 2px dashed var(--light-border-color);
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
@@ -903,12 +919,12 @@ h3 {
 
 .file-icon {
     color: var(--primary-color);
-    font-size: 1.2em;
+    font-size: 1.4em;
 }
 .download-file-btn {
     @extend .btn-info;
     padding: var(--spacing-xs) var(--spacing-md);
-    font-size: 13px;
+    font-size: 1em;
     margin-left: auto;
 }
 
@@ -921,7 +937,7 @@ h3 {
     top: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: rgba(0, 0, 0, 0.6);
     justify-content: center;
     align-items: center;
 }
@@ -932,22 +948,22 @@ h3 {
     background-color: var(--app-bg);
     padding: var(--spacing-xl);
     border-radius: var(--border-radius-xl);
-    max-width: 500px;
+    max-width: 550px;
     text-align: center;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
 }
 .modal-close {
     position: absolute;
     top: var(--spacing-md);
     right: var(--spacing-md);
-    font-size: 24px;
+    font-size: 28px;
     cursor: pointer;
     color: var(--secondary-color);
 }
 
 .modal-message {
-    font-size: 1.2em;
+    font-size: 1.3em;
     margin-bottom: var(--spacing-lg);
 }
 
@@ -1008,24 +1024,24 @@ h3 {
     }
 
     .chat-container, .online-users-container, .video-grid {
-        padding: var(--spacing-sm); /* Reduce padding on smaller screens */
+        padding: var(--spacing-sm);
     }
 
     .chat-message-item {
-        max-width: 95%; /* Adjust max-width for smaller screens */
-        padding: 8px 12px; /* Adjust padding */
-        font-size: 0.9em; /* Adjust font size */
+        max-width: 95%;
+        padding: 10px 15px; /* Adjust padding */
+        font-size: 1em; /* Adjust font size */
     }
 
     .chat-input-area {
         flex-direction: column;
-        gap: var(--spacing-sm); /* Reduce gap */
+        gap: var(--spacing-sm);
     }
 
     #send-chat-button {
         width: 100%;
-        padding: var(--spacing-sm); /* Adjust padding */
-        font-size: 15px; /* Adjust font size */
+        padding: var(--spacing-sm);
+        font-size: 1em;
     }
 
     #library-section div[data-admin-only] {
