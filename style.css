@@ -674,6 +674,36 @@ h4 {
     background-color: white;
 }
 
+
+
+#whiteboard-tools-container {
+    display: flex; /* Ensure the container is a flexbox */
+    gap: var(--spacing-md);
+    flex-wrap: wrap; /* Allows the groups to wrap */
+}
+
+.tool-group {
+    display: flex;
+    flex-grow: 1; /* Makes each group grow to fill space */
+    border: 1px solid var(--light-border-color); /* Added for visual separation */
+    border-radius: var(--border-radius-md);
+    overflow: hidden; /* Ensures buttons don't overflow the border */
+}
+
+.tool-button {
+    flex: 1; /* This is the key change. Makes each button grow */
+    border-radius: 0; /* Remove border-radius from individual buttons for a continuous look */
+    /* Remove the fixed width and height from the .whiteboard-tool class */
+    /* width: 80px; */
+    /* height: 80px; */
+}
+
+.whiteboard-tool:hover {
+    background-color: #dcdfe6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
 #whiteboard-controls {
     display: flex;
     justify-content: space-evenly;
@@ -700,13 +730,6 @@ h4 {
     align-items: center;
     justify-content: center;
 }
-
-.whiteboard-tool:hover {
-    background-color: #dcdfe6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-}
-
 .whiteboard-tool.active-tool {
     background: linear-gradient(45deg, var(--primary-color), var(--primary-dark-color));
     color: white;
