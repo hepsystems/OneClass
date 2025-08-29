@@ -1394,188 +1394,78 @@ function stopLocalStream() {
   
 
 /**
- * Creates and configures a new RTCPeerConnection for a given remote peer.
- * Sets up event handlers for tracks, ICE candidates, and connection state changes.
- * Initiates the WebRTC offer/answer process.
- * Incorporates ICE candidate queuing to handle race conditions.
- * @param {string} peerUserId - The USER ID of the remote peer. This is the primary identifier for the PC.
- * @param {boolean} isCaller - True if this peer is initiating the connection (sending an offer).
- * @param {string} peerUsername - The username of the remote peer, used for UI display.
- * @param {string|null} [peerSocketId=null] - The Socket.IO SID of the remote peer, if known (used for DOM IDs and logging).
+ * Sets up a new RTCPeerConnection for a participant to receive a broadcast.
+ * This function should be called for each incoming broadcast offer.
  */
-async function createPeerConnection(peerUserId, isCaller, peerUsername, peerSocketId = null) {
-    if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) { // Key by user_id
-        console.warn(`[WebRTC] Peer connection to UserId ${peerUserId} already exists and is valid. Reusing.`);
-        if (peerSocketId && peerConnections[peerUserId].socketId !== peerSocketId) {
-            console.log(`[WebRTC] Updating SocketId for existing PC for UserId ${peerUserId} from ${peerConnections[peerUserId].socketId} to ${peerSocketId}`);
-            peerConnections[peerUserId].socketId = peerSocketId;
-        }
-        return; 
-    } else if (peerConnections[peerUserId] && !peerConnections[peerUserId].pc) {
-        console.warn(`[WebRTC] Existing entry for UserId ${peerUserId} found but PC object is missing. Deleting and re-creating.`);
-        delete peerConnections[peerUserId];
-        const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-        if (videoWrapper) {
-            videoWrapper.remove();
-            console.log(`[WebRTC] Removed stale video element for UserId: ${peerUserId}.`);
-        }
-    }
+function createPeerConnection(peerUserId, isCaller, peerUsername, socketId) {
+    const pc = new RTCPeerConnection(iceServers);
 
-    let pc;
-    try {
-        pc = new RTCPeerConnection(iceServers);
-        peerConnections[peerUserId] = { 
-            pc: pc,
-            socketId: peerSocketId,
-            username: peerUsername
-        }; 
-        console.log(`[WebRTC] Created RTCPeerConnection object for peer UserId: ${peerUserId}. Socket ID: ${peerSocketId}. Is caller: ${isCaller}`);
-    } catch (e) {
-        console.error(`[WebRTC] Failed to create RTCPeerConnection for UserId ${peerUserId}:`, e);
-        showNotification(`WebRTC error: Failed to initialize peer connection for ${peerUsername}: ${e.message}`, true);
-        if (peerConnections[peerUserId]) {
-            delete peerConnections[peerUserId];
+    // This listener is crucial for handling incoming media streams
+    pc.ontrack = (event) => {
+        console.log('[WebRTC] Remote track received:', event.track.kind);
+        const remoteVideoElement = document.getElementById(`video-${peerUserId}`);
+
+        if (!remoteVideoElement) {
+            console.warn(`[WebRTC] Remote video element not found for user ${peerUserId}. Creating a new one.`);
+            createRemoteVideoElement(peerUserId, peerUsername);
         }
+
+        const videoElement = document.getElementById(`video-${peerUserId}`);
+        if (event.track.kind === 'video') {
+            videoElement.srcObject = event.streams[0];
+            videoElement.style.display = 'block'; // Ensure the element is visible
+            console.log(`[WebRTC] Remote video stream attached for peer UserId: ${peerUserId}.`);
+        } else if (event.track.kind === 'audio') {
+            console.log(`[WebRTC] Remote audio track received for peer UserId: ${peerUserId}.`);
+        }
+    };
+
+    // Other event listeners (onicecandidate, etc.) would go here.
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}.`);
+            socket.emit('webrtc_signal', {
+                type: 'candidate',
+                payload: event.candidate,
+                toUserId: peerUserId
+            });
+        }
+    };
+
+    // Store the connection in the global object
+    peerConnections[peerUserId] = { pc, username: peerUsername, socketId };
+    
+    return pc;
+}
+
+/**
+ * Dynamically creates a video element for a remote peer and adds it to the DOM.
+ */
+function createRemoteVideoElement(peerUserId, peerUsername) {
+    const remoteVideosContainer = document.getElementById('remote-videos-container');
+    if (!remoteVideosContainer) {
+        console.error('Remote videos container not found.');
         return;
     }
 
-    if (isCaller && localStream) {
-        console.log(`[WebRTC] Adding local tracks to PC for UserId ${peerUserId} (isCaller: true).`);
-        localStream.getTracks().forEach(track => {
-            try {
-                pc.addTrack(track, localStream);
-                console.log(`[WebRTC] Added local track (${track.kind}) to peer UserId ${peerUserId}`);
-            } catch (e) {
-                console.error(`[WebRTC] Error adding local track ${track.kind} to peer UserId ${peerUserId}:`, e);
-            }
-        });
-    } else if (!isCaller) {
-        console.log(`[WebRTC] This peer (${currentUser.id}) is a receiver. Not adding local tracks to UserId ${peerUserId}.`);
-    }
-    
-    pc.ontrack = (event) => {
-        console.log(`[WebRTC] Remote track (${event.track.kind}) received from UserId: ${peerUserId}. Stream ID: ${event.streams[0]?.id}. Track enabled: ${event.track.enabled}`);
-        
-        if (!remoteVideoContainer) {
-            console.error('[WebRTC] CRITICAL ERROR: remoteVideoContainer element not found when ontrack fired!');
-            showNotification('WebRTC display error: Remote video container is missing!', true);
-            return;
-        }
+    const wrapper = document.createElement('div');
+    wrapper.id = `video-wrapper-${peerUserId}`;
+    wrapper.classList.add('video-wrapper');
+    wrapper.style.display = 'block';
 
-        let videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-        let remoteVideo = document.getElementById(`remote-video-${peerUserId}`);
+    const videoElement = document.createElement('video');
+    videoElement.id = `video-${peerUserId}`;
+    videoElement.autoplay = true;
+    videoElement.playsInline = true;
 
-        if (!videoWrapper) {
-            console.log(`[WebRTC] Creating new video elements for UserId: ${peerUserId} in ontrack.`);
-            videoWrapper = document.createElement('div');
-            videoWrapper.className = 'remote-video-wrapper';
-            videoWrapper.id = `video-wrapper-${peerUserId}`;
+    const usernameLabel = document.createElement('p');
+    usernameLabel.textContent = peerUsername || `User ${peerUserId}`;
 
-            remoteVideo = document.createElement('video');
-            remoteVideo.id = `remote-video-${peerUserId}`;
-            remoteVideo.autoplay = true;
-            remoteVideo.playsInline = true;
-            remoteVideo.controls = false;
+    wrapper.appendChild(videoElement);
+    wrapper.appendChild(usernameLabel);
+    remoteVideosContainer.appendChild(wrapper);
 
-            const usernameDisplay = document.createElement('p');
-            usernameDisplay.className = 'remote-username';
-            usernameDisplay.textContent = peerUsername;
-
-            const videoOverlay = document.createElement('div');
-            videoOverlay.className = 'video-overlay';
-            videoOverlay.textContent = 'Click to zoom';
-
-            videoWrapper.appendChild(remoteVideo);
-            videoWrapper.appendChild(usernameDisplay);
-            videoWrapper.appendChild(videoOverlay);
-            remoteVideoContainer.appendChild(videoWrapper);
-            console.log(`[WebRTC] Appended video wrapper for UserId: ${peerUserId} to remoteVideoContainer.`);
-
-            initializeZoomableVideo(remoteVideo, videoWrapper);
-        } else {
-            console.log(`[WebRTC] Video elements already exist for UserId: ${peerUserId} in ontrack. Reusing.`);
-        }
-
-        if (remoteVideo && event.streams && event.streams[0]) {
-            remoteVideo.srcObject = event.streams[0];
-            console.log(`[WebRTC] Attached remote stream to video element for UserId: ${peerUserId}. Stream ID: ${event.streams[0].id}`);
-            remoteVideo.onloadedmetadata = () => {
-                remoteVideo.play().catch(e => {
-                    console.error(`[WebRTC] Auto-play for UserId ${peerUserId} failed:`, e);
-                    showNotification(`Auto-play blocked for ${peerUsername}. Please click video to play.`, false, 5000);
-                });
-            };
-        } else if (remoteVideo) {
-            const newStream = new MediaStream();
-            newStream.addTrack(event.track);
-            remoteVideo.srcObject = newStream;
-            console.log(`[WebRTC] Attached remote track to new MediaStream for UserId: ${peerUserId}. Track kind: ${event.track.kind}`);
-            remoteVideo.onloadedmetadata = () => {
-                remoteVideo.play().catch(e => {
-                    console.error(`[WebRTC] Auto-play for UserId ${peerUserId} (fallback) failed:`, e);
-                    showNotification(`Auto-play blocked for ${peerUsername}. Please click video to play.`, false, 5000);
-                });
-            };
-        } else {
-            console.error(`[WebRTC] Failed to attach stream: remoteVideo element not found for UserId: ${peerUserId} in ontrack.`);
-        }
-    };
-
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}. Candidate: ${event.candidate.candidate}`);
-            socket.emit('webrtc_ice_candidate', {
-                classroomId: currentClassroom.id,
-                recipient_id: peerUserId,
-                candidate: event.candidate,
-                username: currentUser.username
-            });
-        }
-    };
-
-    pc.onconnectionstatechange = () => {
-        console.log(`[WebRTC] Connection state with UserId ${peerUserId}: ${pc.connectionState}`);
-        if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
-            console.log(`[WebRTC] Peer UserId ${peerUserId} connection ${pc.connectionState}. Cleaning up.`);
-            if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
-                peerConnections[peerUserId].pc.close();
-                delete peerConnections[peerUserId];
-                console.log(`[WebRTC] Closed PC and removed entry for UserId: ${peerUserId} due to connection state '${pc.connectionState}'.`);
-            } else {
-                console.warn(`[WebRTC] PC entry not found for UserId: ${peerUserId} during connection state cleanup (state: ${pc.connectionState}).`);
-            }
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-            if (videoWrapper) {
-                videoWrapper.remove();
-                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId} due to connection state '${pc.connectionState}'.`);
-            } else {
-                console.warn(`[WebRTC] Video element not found for UserId: ${peerUserId} during connection state cleanup (state: ${pc.connectionState}).`);
-            }
-            showNotification(`WebRTC connection with ${peerUsername} ${pc.connectionState}.`, true);
-        } else if (pc.connectionState === 'connected') {
-            console.log(`[WebRTC] Successfully CONNECTED to peer UserId: ${peerUserId}.`);
-            showNotification(`Connected to ${peerUsername}'s broadcast.`);
-        }
-    };
-
-    if (isCaller) {
-        try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            console.log(`[WebRTC] Sending WebRTC Offer from ${currentUser.id} to UserId: ${peerUserId}`);
-            socket.emit('webrtc_offer', {
-                classroomId: currentClassroom.id,
-                recipient_id: peerUserId,
-                offerer_socket_id: socket.id,
-                offerer_user_id: currentUser.id,
-                offer: pc.localDescription,
-                username: currentUser.username
-            });
-        } catch (error) {
-            console.error('[WebRTC] Error creating WebRTC offer:', error);
-            showNotification(`Failed to create broadcast offer: ${error.message}`, true);
-        }
-    }
+    console.log(`[UI] Created remote video element for peer: ${peerUsername}`);
 }
 /**
  * Initiates WebRTC offers to all active participants in the current classroom.
