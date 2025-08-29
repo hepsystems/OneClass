@@ -527,7 +527,6 @@ h4 {
     border: none;
     cursor: pointer;
     margin-right: var(--spacing-sm);
-    transition: color var(--transition-fast);
 }
 
 .sidebar-close-btn:hover {
@@ -655,31 +654,50 @@ h4 {
     background-color: #fefefe;
     position: relative;
     overflow: hidden;
+    flex-grow: 1; /* Make sure it takes up remaining vertical space */
+}
+
+#whiteboard-canvas-wrapper {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+#whiteboard-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    background-color: white;
 }
 
 #whiteboard-controls {
     display: flex;
-    justify-content: center; /* Center horizontally */
+    justify-content: center;
     align-items: center;
     gap: var(--spacing-md); /* Increased gap */
     padding: var(--spacing-md);
     background-color: #f0f4f7;
-    border-bottom: 2px solid #e0e6ed;
-    border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+    border-top: 2px solid #e0e6ed;
     flex-wrap: wrap;
+    border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
 }
 
 .whiteboard-tool {
     @extend .btn-base;
-    background-color: #dee2e6;
+    width: 60px; /* Larger fixed width */
+    height: 60px; /* Larger fixed height */
+    padding: 0; /* Remove padding to make icon fill button */
+    font-size: 2em; /* Larger icon size */
+    background-color: #e9ecef;
     color: #495057;
-    padding: var(--spacing-sm) var(--spacing-md); /* Same padding as normal buttons for consistency */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Beautified shadow */
     border-radius: var(--border-radius-lg);
 }
 
 .whiteboard-tool:hover {
-    background-color: #ced4da;
+    background-color: #dcdfe6;
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
@@ -691,21 +709,32 @@ h4 {
     transform: translateY(0);
 }
 
-/* New, larger color picker style */
-#whiteboard-color-picker {
-    width: 50px; /* Increased size */
-    height: 50px; /* Increased size */
-    padding: 0;
-    border: 2px solid #ccc;
-    border-radius: var(--border-radius-md);
-    cursor: pointer;
-    box-shadow: var(--subtle-shadow);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+/* Color picker specific styling */
+#whiteboard-color-picker-group {
+    display: flex;
+    gap: var(--spacing-md); /* Maintain spacing between buttons */
+    flex-wrap: wrap;
 }
 
-#whiteboard-color-picker:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+.color-picker-btn {
+    width: 50px;
+    height: 50px;
+    border: 3px solid transparent;
+    border-radius: 50%; /* Make them round */
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.color-picker-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.color-picker-btn.active-color {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.4);
+    transform: scale(1.1);
 }
 
 /* Video Conferencing */
