@@ -685,20 +685,21 @@ h4 {
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
     width: 100%;
     box-sizing: border-box;
-    flex-wrap: wrap; /* Allows buttons to wrap on smaller screens */
+    flex-wrap: wrap;
 }
 
 .whiteboard-tool {
-    flex: 0 0 auto; /* Do not grow, do not shrink, base on content */
-    width: 80px; /* Smaller button size for better fit */
-    height: 80px; /* Consistent height */
-    font-size: 1.5em; /* Smaller icon size */
+    /* Change this line to make the buttons fill the space */
+    flex: 1;
+    /* You can remove the fixed width and height */
+    /* width: 80px; */
+    /* height: 80px; */
+    font-size: 1.5em;
     margin: 0;
-    display: flex; /* Ensures content is centered */
+    display: flex;
     align-items: center;
     justify-content: center;
 }
-
 
 .whiteboard-tool:hover {
     background-color: #dcdfe6;
