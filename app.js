@@ -1535,7 +1535,31 @@ async function createPeerConnection(peerUserId, isCaller, peerUsername, peerSock
         }
     }
 }
+/**
+ * Initiates WebRTC offers to all active participants in the current classroom.
+ * This function is called by the admin to start broadcasting their stream.
+ */
+async function broadcastToAllPeers() {
+    try {
+        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
+        }
+        const participants = await response.json();
+        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
 
+        for (const participant of participants) {
+            if (participant.id !== currentUser.id) {
+                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
+                await createPeerConnection(participant.id, true, participant.username, null);
+            }
+        }
+        console.log('[Broadcast] All initial offers sent to participants.');
+    } catch (error) {
+        console.error('[WebRTC] Error broadcasting to all peers:', error);
+        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
+    }
+}
 
     
     // --- Video Zoom Functions ---
