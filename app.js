@@ -2014,97 +2014,99 @@ async function createPeerConnection(peerUserId, isCaller, peerUsername, peerSock
     }
 
     /**
-     * Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
-     * Finalizes the drawing action, adds the complete drawing to the page's history,
-     * emits the complete drawing data, and saves state for undo/redo.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     */
-    function handleDrawingEnd(e) {
-        if (!isDrawing && !isDraggingText) return; // Only proceed if an action was active
-        if (currentUser.role !== 'admin') return; // Only admins can draw/drag
-        e.preventDefault();
+* Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
+* Finalizes the drawing action, adds the complete drawing to the page's history,
+* emits the complete drawing data, and saves state for undo/redo.
+* @param {MouseEvent|TouchEvent} e - The event object.
+*/
+function handleDrawingEnd(e) {
+    if (!isDrawing && !isDraggingText) return; // Only proceed if an action was active
+    if (currentUser.role !== 'admin') return; // Only admins can draw/drag
+    e.preventDefault();
 
-        // Handle text dragging end
-        if (isDraggingText) {
-            isDraggingText = false;
-            if (draggedTextItemIndex !== -1) {
-                // Emit update for dragged text and push to undo stack
-                const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
-                // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
-                const originalTextItem = undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
-                if (originalTextItem && (originalTextItem.x !== textItem.x || originalTextItem.y !== textItem.y)) {
-                    emitWhiteboardData('draw', textItem); // Re-emit the updated text item
-                    pushToUndoStack();
-                    console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
-                } else {
-                    console.log('[Text Tool] Text drag ended, but position did not change. No emission or undo push.');
-                }
-            }
-            draggedTextItemIndex = -1;
-            return;
-        }
-
-        // Handle drawing tools (pen, eraser, shapes)
-        isDrawing = false; // Stop drawing
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            // If it was just a click (single point) or a very short drag
-            if (currentStrokePoints.length <= 1) {
-                const p = currentStrokePoints[0] || { x: startX, y: startY };
-                const dotData = {
-                    type: currentTool,
-                    points: [{ x: p.x, y: p.y, width: currentBrushSize }],
-                    color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
-                    size: currentBrushSize
-                };
-                whiteboardPages[currentPageIndex].push(dotData); // Add to local history
-                emitWhiteboardData('draw', dotData); // Emit to others
-                console.log(`[Whiteboard] Emitted dot data: (${p.x}, ${p.y}) for tool '${currentTool}'`);
-            } else if (currentStrokePoints.length > 1) {
-                // Finalize and emit the complete stroke
-                const strokeData = {
-                    type: currentTool,
-                    points: currentStrokePoints,
-                    color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
-                    size: currentBrushSize
-                };
-                whiteboardPages[currentPageIndex].push(strokeData); // Add to local history
-                emitWhiteboardData('draw', strokeData); // Emit to others
-                console.log(`[Whiteboard] Emitted stroke data with ${currentStrokePoints.length} points for tool '${currentTool}'`);
-            }
-            currentStrokePoints = []; // Reset points for next stroke
-        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            const coords = getCanvasCoords(e);
-            const shapeData = buildShapeData(currentTool, startX, startY, coords.x, coords.y);
-            
-            // Only add if the shape has a meaningful size (e.g., not a tiny dot)
-            const minSizeThreshold = 2; // Pixels
-            let isMeaningful = true;
-            if (currentTool === 'line') {
-                isMeaningful = Math.abs(shapeData.startX - shapeData.endX) > minSizeThreshold || Math.abs(shapeData.startY - shapeData.endY) > minSizeThreshold;
-            } else if (currentTool === 'rectangle') {
-                isMeaningful = shapeData.width > minSizeThreshold && shapeData.height > minSizeThreshold;
-            } else if (currentTool === 'circle') {
-                isMeaningful = shapeData.radius > minSizeThreshold;
-            }
-
-            if (isMeaningful) {
-                whiteboardPages[currentPageIndex].push(shapeData); // Add to local history
-                emitWhiteboardData('draw', shapeData); // Emit to others
-                console.log(`[Whiteboard] Emitted shape data for tool '${currentTool}':`, shapeData);
+    // Handle text dragging end
+    if (isDraggingText) {
+        isDraggingText = false;
+        if (draggedTextItemIndex !== -1) {
+            // Emit update for dragged text and push to undo stack
+            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
+            // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
+            const originalTextItem = undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
+            if (originalTextItem && (originalTextItem.x !== textItem.x || originalTextItem.y !== textItem.y)) {
+                emitWhiteboardData('draw', textItem); // Re-emit the updated text item
+                pushToUndoStack();
+                console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
             } else {
-                console.log(`[Whiteboard] Skipping tiny shape for tool '${currentTool}':`, shapeData);
+                console.log('[Text Tool] Text drag ended, but position did not change. No emission or undo push.');
             }
-            
-            temporaryShapeData = null; // Clear temporary shape data
+        }
+        draggedTextItemIndex = -1;
+        return;
+    }
+
+    // Handle drawing tools (pen, eraser, shapes)
+    isDrawing = false; // Stop drawing
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        // If it was just a click (single point) or a very short drag
+        if (currentStrokePoints.length <= 1) {
+            const p = currentStrokePoints[0] || { x: startX, y: startY };
+            const dotData = {
+                type: currentTool,
+                points: [{ x: p.x, y: p.y, width: currentBrushSize }],
+                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
+                size: currentBrushSize
+            };
+            whiteboardPages[currentPageIndex].push(dotData); // Add to local history
+            emitWhiteboardData('draw', dotData); // Emit to others
+            console.log(`[Whiteboard] Emitted dot data: (${p.x}, ${p.y}) for tool '${currentTool}'`);
+        } else if (currentStrokePoints.length > 1) {
+            // Finalize and emit the complete stroke
+            const strokeData = {
+                type: currentTool,
+                points: currentStrokePoints,
+                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
+                size: currentBrushSize
+            };
+            whiteboardPages[currentPageIndex].push(strokeData); // Add to local history
+            emitWhiteboardData('draw', strokeData); // Emit to others
+            console.log(`[Whiteboard] Emitted stroke data with ${currentStrokePoints.length} points for tool '${currentTool}'`);
+        }
+        currentStrokePoints = []; // Reset points for next stroke
+    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        const coords = getCanvasCoords(e);
+        const shapeData = buildShapeData(currentTool, startX, startY, coords.x, coords.y);
+        
+        // Only add if the shape has a meaningful size (e.g., not a tiny dot)
+        const minSizeThreshold = 2; // Pixels
+        let isMeaningful = true;
+        if (currentTool === 'line') {
+            isMeaningful = Math.abs(shapeData.startX - shapeData.endX) > minSizeThreshold || Math.abs(shapeData.startY - shapeData.endY) > minSizeThreshold;
+        } else if (currentTool === 'rectangle') {
+            isMeaningful = shapeData.width > minSizeThreshold && shapeData.height > minSizeThreshold;
+        } else if (currentTool === 'circle') {
+            isMeaningful = shapeData.radius > minSizeThreshold;
+        }
+
+        if (isMeaningful) {
+            // --- ADD THIS LINE TO FIX THE ISSUE ---
+            whiteboardPages[currentPageIndex].push(shapeData); // Add to local history
+            // -------------------------------------
+            emitWhiteboardData('draw', shapeData); // Emit to others
+            console.log(`[Whiteboard] Emitted shape data for tool '${currentTool}':`, shapeData);
+        } else {
+            console.log(`[Whiteboard] Skipping tiny shape for tool '${currentTool}':`, shapeData);
         }
         
-        // After any drawing ends (or text drag ends), re-render the entire page to ensure consistent state
-        renderCurrentWhiteboardPage();
-        
-        // Only push to undo stack if an actual modification happened (not just a drag preview)
-        pushToUndoStack(); 
-        console.log(`[Whiteboard] Drawing ended with tool '${currentTool}'.`);
+        temporaryShapeData = null; // Clear temporary shape data
     }
+    
+    // After any drawing ends (or text drag ends), re-render the entire page to ensure consistent state
+    renderCurrentWhiteboardPage();
+    
+    // Only push to undo stack if an actual modification happened (not just a drag preview)
+    pushToUndoStack();
+    console.log(`[Whiteboard] Drawing ended with tool '${currentTool}'.`);
+}
 
     /**
      * Helper function to find a text item at given canvas coordinates.
