@@ -47,8 +47,8 @@
     /* New Button/Input Enhancements */
     --button-gradient-start-light: rgba(255, 255, 255, 0.1);
     --button-gradient-end-light: rgba(255, 255, 255, 0);
-    --button-shadow-inset: inset 0 3px 6px rgba(0, 0, 0, 0.2); /* For active states */
-    --input-focus-shadow-strong: 0 0 0 5px rgba(0, 123, 255, 0.3); /* Stronger focus ring */
+    --button-shadow-inset: inset 0 3px 6px rgba(0, 0, 0, 0.2);
+    --input-focus-shadow-strong: 0 0 0 5px rgba(0, 123, 255, 0.3);
 }
 
 body {
@@ -62,7 +62,7 @@ body {
     min-height: 100vh;
     box-sizing: border-box;
     color: var(--text-color);
-    font-size: 1.1em; /* Overall font size increase */
+    font-size: 1.1em;
 }
 
 #app {
@@ -98,17 +98,17 @@ h2, h3, h4 {
     margin-bottom: var(--spacing-lg);
 }
 h2 {
-    font-size: 2.2em; /* Increased size */
+    font-size: 2.2em;
     border-bottom: 3px solid var(--body-bg);
     padding-bottom: var(--spacing-sm);
 }
 h3 {
-    font-size: 1.8em; /* Increased size */
+    font-size: 1.8em;
     border-bottom: 2px dashed var(--border-color);
     padding-bottom: var(--spacing-sm);
 }
 h4 {
-    font-size: 1.4em; /* Increased size */
+    font-size: 1.4em;
 }
 
 /* Visibility Classes */
@@ -147,10 +147,10 @@ h4 {
     border-radius: var(--border-radius-md);
     cursor: pointer;
     font-weight: 600;
-    padding: var(--spacing-sm) var(--spacing-lg); /* Increased padding */
-    font-size: 1.1em; /* Increased font size */
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: 1.1em;
     transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
-    box-shadow: 0 3px 6px var(--subtle-shadow); /* More pronounced default shadow */
+    box-shadow: 0 3px 6px var(--subtle-shadow);
     position: relative;
     overflow: hidden;
     display: inline-flex;
@@ -161,8 +161,8 @@ h4 {
 }
 
 .btn-base:hover {
-    transform: translateY(-4px); /* Slightly more pronounced lift */
-    box-shadow: 0 6px 15px var(--medium-shadow); /* More pronounced shadow */
+    transform: translateY(-4px);
+    box-shadow: 0 6px 15px var(--medium-shadow);
 }
 
 .btn-base:active {
@@ -224,10 +224,10 @@ h4 {
 
 /* Base Input Styles - ENHANCED */
 .input-base {
-    padding: 14px 18px; /* Increased padding */
-    border: 2px solid #dcdfe6; /* Thicker border */
+    padding: 14px 18px;
+    border: 2px solid #dcdfe6;
     border-radius: var(--border-radius-md);
-    font-size: 1em; /* Increased font size */
+    font-size: 1em;
     transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
     box-shadow: var(--subtle-shadow);
 }
@@ -265,14 +265,14 @@ h4 {
 #auth-section input[type="password"],
 #auth-section input[type="text"],
 #auth-section select {
-    width: calc(100% - 36px); /* Adjust for new padding */
+    width: calc(100% - 36px);
 }
 
 #auth-section button {
     background: linear-gradient(135deg, var(--primary-color), var(--primary-dark-color));
     color: white;
     padding: 14px 22px;
-    font-size: 1.2em; /* Increased size */
+    font-size: 1.2em;
     font-weight: 700;
 }
 #auth-section button:hover {
@@ -327,7 +327,7 @@ h4 {
     background-color: #e9ecef;
     color: var(--light-text-color);
     padding: var(--spacing-sm) var(--spacing-lg);
-    font-size: 1.1em; /* Increased size */
+    font-size: 1.1em;
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
@@ -459,7 +459,7 @@ h4 {
 .hamburger-menu {
     background: none;
     border: none;
-    font-size: 32px; /* Increased size */
+    font-size: 32px;
     cursor: pointer;
     color: var(--light-text-color);
     padding: var(--spacing-sm);
@@ -472,7 +472,7 @@ h4 {
 
 .sidebar {
     height: 65vh;
-    width: 250px; /* Increased width */
+    width: 250px;
     position: fixed;
     top: 60px;
     left: 0;
@@ -494,8 +494,8 @@ h4 {
 }
 
 .sidebar button {
-    padding: 20px 30px; /* Increased padding */
-    font-size: 1.2em; /* Increased size */
+    padding: 20px 30px;
+    font-size: 1.2em;
     color: var(--sidebar-text);
     display: block;
     background: none;
@@ -508,19 +508,19 @@ h4 {
 
 .sidebar button:hover {
     background-color: var(--sidebar-hover-bg);
-    padding-left: 35px; /* Increased effect */
+    padding-left: 35px;
 }
 
 .sidebar button.active-sidebar-btn {
     background-color: var(--sidebar-hover-bg);
-    border-left: 6px solid var(--primary-color); /* Thicker border */
+    border-left: 6px solid var(--primary-color);
     color: white;
-    padding-left: 25px; /* Adjust padding */
+    padding-left: 25px;
 }
 
 .sidebar-close-btn {
     align-self: flex-end;
-    font-size: 28px; /* Increased size */
+    font-size: 28px;
     padding: var(--spacing-sm);
     color: var(--sidebar-text);
     background: none;
@@ -535,7 +535,7 @@ h4 {
 
 .sidebar-heading {
     text-align: center;
-    font-size: 1.6em; /* Increased size */
+    font-size: 1.6em;
     color: white;
     margin: 0 0 var(--spacing-lg) 0;
 }
@@ -567,7 +567,7 @@ h4 {
 }
 
 .chat-message-item {
-    padding: 12px 18px; /* Increased padding */
+    padding: 12px 18px;
     border-radius: var(--border-radius-lg);
     max-width: 80%;
     word-wrap: break-word;
@@ -636,8 +636,8 @@ h4 {
 }
 
 .user-status-dot {
-    width: 12px; /* Increased size */
-    height: 12px; /* Increased size */
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background-color: var(--success-color);
     box-shadow: 0 0 8px var(--success-color);
@@ -648,13 +648,14 @@ h4 {
     flex: 3;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md); /* Increased gap */
+    gap: var(--spacing-md);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-lg);
     background-color: #fefefe;
     position: relative;
     overflow: hidden;
-    flex-grow: 1; /* Make sure it takes up remaining vertical space */
+    flex-grow: 1;
+    height: 100%; /* Ensure it takes full vertical space */
 }
 
 #whiteboard-canvas-wrapper {
@@ -675,9 +676,9 @@ h4 {
 
 #whiteboard-controls {
     display: flex;
-    justify-content: center;
+    justify-content: space-between; /* This is the key change */
     align-items: center;
-    gap: var(--spacing-md); /* Increased gap */
+    gap: var(--spacing-md);
     padding: var(--spacing-md);
     background-color: #f0f4f7;
     border-top: 2px solid #e0e6ed;
@@ -687,10 +688,10 @@ h4 {
 
 .whiteboard-tool {
     @extend .btn-base;
-    width: 60px; /* Larger fixed width */
-    height: 60px; /* Larger fixed height */
-    padding: 0; /* Remove padding to make icon fill button */
-    font-size: 2em; /* Larger icon size */
+    width: 70px; /* Larger fixed width */
+    height: 70px; /* Larger fixed height */
+    padding: 0;
+    font-size: 2.5em; /* Larger icon size */
     background-color: #e9ecef;
     color: #495057;
     border-radius: var(--border-radius-lg);
@@ -712,15 +713,15 @@ h4 {
 /* Color picker specific styling */
 #whiteboard-color-picker-group {
     display: flex;
-    gap: var(--spacing-md); /* Maintain spacing between buttons */
+    gap: var(--spacing-md);
     flex-wrap: wrap;
 }
 
 .color-picker-btn {
-    width: 50px;
-    height: 50px;
+    width: 60px; /* Larger size */
+    height: 60px; /* Larger size */
     border: 3px solid transparent;
-    border-radius: 50%; /* Make them round */
+    border-radius: 50%;
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
@@ -740,8 +741,8 @@ h4 {
 /* Video Conferencing */
 .video-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Increased min size */
-    gap: var(--spacing-lg); /* Increased gap */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
     margin-top: var(--spacing-xl);
 }
 
@@ -784,8 +785,8 @@ h4 {
     color: white;
     padding: var(--spacing-sm);
     border-radius: 50%;
-    width: 36px; /* Increased size */
-    height: 36px; /* Increased size */
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -885,7 +886,7 @@ h4 {
 }
 .mcq-options input[type="radio"] {
     cursor: pointer;
-    transform: scale(1.2); /* Increased size */
+    transform: scale(1.2);
 }
 .mcq-options input[type="text"] {
     @extend .input-base;
@@ -1058,8 +1059,8 @@ h4 {
 
     .chat-message-item {
         max-width: 95%;
-        padding: 10px 15px; /* Adjust padding */
-        font-size: 1em; /* Adjust font size */
+        padding: 10px 15px;
+        font-size: 1em;
     }
 
     .chat-input-area {
