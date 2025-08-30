@@ -1725,7 +1725,7 @@ async function broadcastToAllPeers() {
         renderCurrentWhiteboardPage(); // Redraw all content on the current page after resize
     }
 
-    /**
+  /**
  * Handles the `mousedown` or `touchstart` event on the canvas.
  * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
  * @param {MouseEvent|TouchEvent} e - The event object.
@@ -1743,6 +1743,26 @@ function handleDrawingStart(e) {
     currentStrokePoints = [];
     temporaryShapeData = null;
 
+    if (activeTextInput) {
+        commitText(e);
+    }
+
+    if (currentTool === 'text') {
+        const textItem = findTextItemAtCoords(coords.x, coords.y);
+        if (textItem) {
+            isDraggingText = true;
+            draggedTextItemIndex = whiteboardPages[currentPageIndex].indexOf(textItem);
+            dragStartOffsetX = coords.x - textItem.x;
+            dragStartOffsetY = coords.y - textItem.y;
+            console.log(`[Text Tool] Started dragging text item at index ${draggedTextItemIndex}.`);
+            return;
+        } else {
+            createTextInput(coords.x, coords.y);
+            return;
+        }
+    }
+
+    // For drawing tools (pen, eraser, shapes)
     if (currentTool === 'pen' || currentTool === 'eraser') {
         currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
         whiteboardCtx.beginPath();
@@ -1763,6 +1783,14 @@ function handleDrawingMove(e) {
     const coords = getCanvasCoords(e);
     const currentX = coords.x;
     const currentY = coords.y;
+
+    if (isDraggingText) {
+        // Update the position of the dragged text item
+        whiteboardPages[currentPageIndex][draggedTextItemIndex].x = currentX - dragStartOffsetX;
+        whiteboardPages[currentPageIndex][draggedTextItemIndex].y = currentY - dragStartOffsetY;
+        renderCurrentWhiteboardPage();
+        return;
+    }
 
     if (currentTool === 'pen' || currentTool === 'eraser') {
         const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
@@ -1800,10 +1828,20 @@ function handleDrawingMove(e) {
  * @param {MouseEvent|TouchEvent} e - The event object.
  */
 function handleDrawingEnd(e) {
-    if (!isDrawing) return;
+    if (!isDrawing && !isDraggingText) return;
     if (currentUser.role !== 'admin') return;
     e.preventDefault();
     isDrawing = false;
+
+    if (isDraggingText) {
+        isDraggingText = false;
+        draggedTextItemIndex = -1;
+        pushToUndoStack();
+        // The text item has already been updated in the array, so just emit the page data.
+        emitWhiteboardData('page_update', whiteboardPages[currentPageIndex]);
+        renderCurrentWhiteboardPage();
+        return;
+    }
 
     let newItem;
     if (currentTool === 'pen' || currentTool === 'eraser') {
@@ -1836,7 +1874,6 @@ function handleDrawingEnd(e) {
     temporaryShapeData = null;
     currentStrokePoints = [];
 }
-
     /**
      * Helper function to find a text item at given canvas coordinates.
      * @param {number} x - X coordinate on canvas.
@@ -1910,33 +1947,98 @@ function handleDrawingEnd(e) {
                 return baseData;
         }
     }
-
 /**
- * Gets mouse or touch coordinates relative to the canvas,
- * and converts them to a ratio (0-1) for responsiveness.
- * @param {MouseEvent|TouchEvent} e - The event object.
- * @returns {{x: number, y: number}} An object with x and y coordinates as a ratio.
+ * Draws a single whiteboard item (stroke, shape, or text) onto the canvas.
+ * This function applies styling, draws the item, and then restores the context.
+ * The coordinates and sizes are scaled to fit the current canvas dimensions.
+ * @param {object} item - Object containing drawing command details (type, coordinates, style, etc.).
  */
-function getCanvasCoords(e) {
-    if (!whiteboardCanvas) return { x: 0, y: 0 };
-    const rect = whiteboardCanvas.getBoundingClientRect();
-    let clientX, clientY;
-
-    // Differentiate between mouse and touch events
-    if (e.touches && e.touches.length > 0) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-    } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
+function drawWhiteboardItem(item) {
+    if (!whiteboardCtx || !item || typeof item.type === 'undefined') {
+        console.warn('[Whiteboard] Attempted to draw invalid whiteboard item:', item);
+        return;
     }
 
-    // Calculate coordinates as a ratio (0-1) of the canvas dimensions
-    return {
-        x: (clientX - rect.left) / whiteboardCanvas.offsetWidth,
-        y: (clientY - rect.top) / whiteboardCanvas.offsetHeight
-    };
+    whiteboardCtx.save();
+
+    const scaleX = whiteboardCanvas.offsetWidth;
+    const scaleY = whiteboardCanvas.offsetHeight;
+    const scaledLineWidth = (item.size || currentBrushSize) * Math.min(scaleX, scaleY) / 1000;
+
+    whiteboardCtx.strokeStyle = item.color || currentColor;
+    whiteboardCtx.lineWidth = scaledLineWidth;
+    whiteboardCtx.fillStyle = item.color || currentColor;
+    whiteboardCtx.lineCap = 'round';
+    whiteboardCtx.lineJoin = 'round';
+
+    whiteboardCtx.globalCompositeOperation = 'source-over';
+    if (item.type === 'eraser') {
+        whiteboardCtx.globalCompositeOperation = 'destination-out';
+    }
+
+    switch (item.type) {
+        case 'pen':
+        case 'eraser':
+            if (!item.points || item.points.length < 2) {
+                if (item.points && item.points.length === 1) {
+                    const p = item.points[0];
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, scaledLineWidth / 2, 0, Math.PI * 2);
+                    whiteboardCtx.fill();
+                }
+                break;
+            }
+
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(item.points[0].x * scaleX, item.points[0].y * scaleY);
+            for (let i = 1; i < item.points.length - 1; i++) {
+                const p1 = item.points[i];
+                const p2 = item.points[i + 1];
+                const midX = (p1.x + p2.x) / 2 * scaleX;
+                const midY = (p1.y + p2.y) / 2 * scaleY;
+                whiteboardCtx.lineWidth = (p1.width || item.size) * Math.min(scaleX, scaleY) / 1000;
+                whiteboardCtx.quadraticCurveTo(p1.x * scaleX, p1.y * scaleY, midX, midY);
+            }
+            const lastPoint = item.points[item.points.length - 1];
+            const secondLastPoint = item.points[item.points.length - 2];
+            if (secondLastPoint && lastPoint) {
+                whiteboardCtx.quadraticCurveTo(secondLastPoint.x * scaleX, secondLastPoint.y * scaleY, lastPoint.x * scaleX, lastPoint.y * scaleY);
+            } else if (lastPoint) {
+                whiteboardCtx.lineTo(lastPoint.x * scaleX, lastPoint.y * scaleY);
+            }
+            whiteboardCtx.stroke();
+            break;
+
+        case 'line':
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(item.startX * scaleX, item.startY * scaleY);
+            whiteboardCtx.lineTo(item.endX * scaleX, item.endY * scaleY);
+            whiteboardCtx.stroke();
+            break;
+
+        case 'rectangle':
+            whiteboardCtx.beginPath();
+            whiteboardCtx.strokeRect(item.startX * scaleX, item.startY * scaleY, item.width * scaleX, item.height * scaleY);
+            break;
+
+        case 'circle':
+            whiteboardCtx.beginPath();
+            whiteboardCtx.arc(item.centerX * scaleX, item.centerY * scaleY, item.radius * scaleX, 0, Math.PI * 2);
+            whiteboardCtx.stroke();
+            break;
+
+        case 'text':
+            const scaledFontSize = item.size * scaleY;
+            whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
+            const lines = item.text.split('\n');
+            lines.forEach((line, i) => {
+                whiteboardCtx.fillText(line, item.x * scaleX, item.y * scaleY + i * scaledFontSize * 1.2);
+            });
+            break;
+    }
+    whiteboardCtx.restore();
 }
+
    /**
  * Gets mouse or touch coordinates relative to the canvas,
  * and converts them to a ratio (0-1) for responsiveness.
