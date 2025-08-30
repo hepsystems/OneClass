@@ -2126,33 +2126,32 @@ function handleDrawingEnd(e) {
         whiteboardCtx.restore(); // Restore the canvas context to its previous state
     }
 
-    /**
-     * Gets mouse or touch coordinates relative to the canvas.
-     * Handles both `MouseEvent` and `TouchEvent` objects.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     * @returns {{x: number, y: number}} An object with x and y coordinates.
-     */
-    function getCanvasCoords(e) {
-        if (!whiteboardCanvas) return { x: 0, y: 0 };
-        const rect = whiteboardCanvas.getBoundingClientRect();
-        let clientX, clientY;
+   /**
+ * Gets mouse or touch coordinates relative to the canvas,
+ * and converts them to a ratio (0-1) for responsiveness.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ * @returns {{x: number, y: number}} An object with x and y coordinates as a ratio.
+ */
+function getCanvasCoords(e) {
+    if (!whiteboardCanvas) return { x: 0, y: 0 };
+    const rect = whiteboardCanvas.getBoundingClientRect();
+    let clientX, clientY;
 
-        // Differentiate between mouse and touch events
-        if (e.touches && e.touches.length > 0) {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
-        } else {
-            clientX = e.clientX;
-            clientY = e.clientY;
-        }
-
-        // Calculate coordinates relative to the canvas
-        return {
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        };
+    // Differentiate between mouse and touch events
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
     }
 
+    // Calculate coordinates as a ratio (0-1) of the canvas dimensions
+    return {
+        x: (clientX - rect.left) / whiteboardCanvas.offsetWidth,
+        y: (clientY - rect.top) / whiteboardCanvas.offsetHeight
+    };
+}
     /**
      * Selects the active drawing tool and updates UI.
      * @param {string} tool - The tool to select ('pen', 'eraser', 'line', 'rectangle', 'circle', 'text').
