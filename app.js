@@ -1726,228 +1726,115 @@ async function broadcastToAllPeers() {
     }
 
     /**
-     * Handles the `mousedown` or `touchstart` event on the canvas.
-     * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     */
-    function handleDrawingStart(e) {
-        if (currentUser.role !== 'admin') {
-            showNotification('Only administrators can draw on the whiteboard.', true);
-            return;
-        }
-        e.preventDefault(); // Prevent default touch actions like scrolling
-
-        const coords = getCanvasCoords(e);
-        startX = coords.x;
-        startY = coords.y;
-
-        // Commit any active text input if a new drawing action starts.
-        if (activeTextInput) {
-            commitText(e); // Commit existing text before starting new action.
-        }
-
-        if (currentTool === 'text') {
-            // Check if clicking on existing text for dragging
-            const textItem = findTextItemAtCoords(coords.x, coords.y);
-            if (textItem) {
-                isDraggingText = true;
-                draggedTextItemIndex = whiteboardPages[currentPageIndex].indexOf(textItem);
-                dragStartOffsetX = coords.x - textItem.x;
-                dragStartOffsetY = coords.y - textItem.y;
-                console.log(`[Text Tool] Started dragging text item at index ${draggedTextItemIndex}. Initial click offset: (${dragStartOffsetX}, ${dragStartOffsetY})`);
-                return; // Don't start drawing a new text box, just drag.
-            } else {
-                // If not clicking on existing text, create a new text input
-                createTextInput(coords.x, coords.y);
-                return; // Text input created, no further drawing actions for now.
-            }
-        }
-
-        // For drawing tools (pen, eraser, shapes)
-        isDrawing = true; // Set drawing flag
-        currentStrokePoints = []; // Reset for new stroke
-        temporaryShapeData = null; // Reset for new shape
-
-        // Store initial point for pen/eraser
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
-        }
-        console.log(`[Whiteboard] Drawing started with tool '${currentTool}' at (${startX}, ${startY}).`);
-    }
-
-    /**
-     * Handles the `mousemove` or `touchmove` event on the canvas.
-     * Continuously draws, updates shape previews, or drags text based on the current tool.
-     * @param {MouseEvent|TouchEvent} e - The event object.
-     */
-    function handleDrawingMove(e) {
-        if (!isDrawing && !isDraggingText) return; // Only proceed if an action is active
-        if (currentUser.role !== 'admin') return; // Only admins can draw/drag
-        e.preventDefault(); // Prevent default browser behavior (e.g., scrolling)
-
-        const coords = getCanvasCoords(e);
-        const currentX = coords.x;
-        const currentY = coords.y;
-
-        if (isDraggingText) {
-            if (draggedTextItemIndex === -1 || !whiteboardPages[currentPageIndex][draggedTextItemIndex]) {
-                console.warn('[Text Tool] Attempted to drag text but item not found or index invalid.');
-                isDraggingText = false;
-                draggedTextItemIndex = -1;
-                return;
-            }
-            // Update the text item's position
-            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
-            textItem.x = currentX - dragStartOffsetX;
-            textItem.y = currentY - dragStartOffsetY;
-            renderCurrentWhiteboardPage(); // Redraw the page to show text in new position
-            return;
-        }
-
-        // Handle drawing tools (pen, eraser, shapes)
-        if (currentTool === 'pen' || currentTool === 'eraser') {
-            const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
-            // Only add if moved a significant distance or is the first point after startX,startY
-            if (!lastPoint || (Math.abs(currentX - lastPoint.x) > 1 || Math.abs(currentY - lastPoint.y) > 1)) {
-                 currentStrokePoints.push({ x: currentX, y: currentY, width: currentBrushSize });
-
-                // Render the entire page to show the continuous stroke, including previous items.
-                // This approach ensures shapes underneath are not temporarily erased.
-                renderCurrentWhiteboardPage();
-
-                // Draw the very last segment directly for smoother real-time feedback.
-                // This segment will be covered by the next full render, but gives immediate visual.
-                whiteboardCtx.save();
-                // Eraser should draw black color, not make transparent.
-                whiteboardCtx.globalCompositeOperation = 'source-over';
-                whiteboardCtx.strokeStyle = (currentTool === 'eraser') ? '#000000' : currentColor; // Eraser draws black
-                whiteboardCtx.lineWidth = currentBrushSize;
-                whiteboardCtx.beginPath();
-                if(lastPoint) { // Only draw segment if there's a previous point
-                    whiteboardCtx.moveTo(lastPoint.x, lastPoint.y);
-                    whiteboardCtx.lineTo(currentX, currentY);
-                    whiteboardCtx.stroke();
-                } else { // Draw a dot if it's the very first point of the stroke
-                    whiteboardCtx.arc(currentX, currentY, currentBrushSize / 2, 0, Math.PI * 2);
-                    whiteboardCtx.fill();
-                }
-                whiteboardCtx.restore();
-
-                // Emit small segments of the stroke for real-time sync with other users
-                // This is a trade-off: sending all points constantly is too much, segments help.
-                if (currentStrokePoints.length % 5 === 0) {
-                     const tempStroke = {
-                        type: currentTool,
-                        points: currentStrokePoints.slice(-5), // Send only the last few points
-                        color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
-                        size: currentBrushSize
-                    };
-                    emitWhiteboardData('draw', tempStroke);
-                }
-            }
-
-        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-            // For shapes, update the temporaryShapeData and re-render the entire page.
-            // This re-render includes all previous items + the current shape preview.
-            temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
-            renderCurrentWhiteboardPage(); // Render all existing items first
-            drawWhiteboardItem(temporaryShapeData); // Then draw the temporary shape on top
-        }
-    }
-
-    /**
-* Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
-* Finalizes the drawing action, adds the complete drawing to the page's history,
-* emits the complete drawing data, and saves state for undo/redo.
-* @param {MouseEvent|TouchEvent} e - The event object.
-*/
-function handleDrawingEnd(e) {
-    if (!isDrawing && !isDraggingText) return; // Only proceed if an action was active
-    if (currentUser.role !== 'admin') return; // Only admins can draw/drag
-    e.preventDefault();
-
-    // Handle text dragging end
-    if (isDraggingText) {
-        isDraggingText = false;
-        if (draggedTextItemIndex !== -1) {
-            // Emit update for dragged text and push to undo stack
-            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
-            // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
-            const originalTextItem = undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
-            if (originalTextItem && (originalTextItem.x !== textItem.x || originalTextItem.y !== textItem.y)) {
-                emitWhiteboardData('draw', textItem); // Re-emit the updated text item
-                pushToUndoStack();
-                console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
-            } else {
-                console.log('[Text Tool] Text drag ended, but position did not change. No emission or undo push.');
-            }
-        }
-        draggedTextItemIndex = -1;
+ * Handles the `mousedown` or `touchstart` event on the canvas.
+ * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ */
+function handleDrawingStart(e) {
+    if (currentUser.role !== 'admin') {
+        showNotification('Only administrators can draw on the whiteboard.', true);
         return;
     }
+    e.preventDefault();
+    const coords = getCanvasCoords(e);
+    startX = coords.x;
+    startY = coords.y;
+    isDrawing = true;
+    currentStrokePoints = [];
+    temporaryShapeData = null;
 
-    // Handle drawing tools (pen, eraser, shapes)
-    isDrawing = false; // Stop drawing
     if (currentTool === 'pen' || currentTool === 'eraser') {
-        // If it was just a click (single point) or a very short drag
-        if (currentStrokePoints.length <= 1) {
-            const p = currentStrokePoints[0] || { x: startX, y: startY };
-            const dotData = {
+        currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
+        whiteboardCtx.beginPath();
+        whiteboardCtx.moveTo(startX * whiteboardCanvas.offsetWidth, startY * whiteboardCanvas.offsetHeight);
+    }
+    console.log(`[Whiteboard] Drawing started with tool '${currentTool}' at (${startX}, ${startY}).`);
+}
+
+/**
+ * Handles the `mousemove` or `touchmove` event on the canvas.
+ * Continuously draws, updates shape previews, or drags text based on the current tool.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ */
+function handleDrawingMove(e) {
+    if (!isDrawing) return;
+    if (currentUser.role !== 'admin') return;
+    e.preventDefault();
+    const coords = getCanvasCoords(e);
+    const currentX = coords.x;
+    const currentY = coords.y;
+
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
+        if (Math.abs(currentX - lastPoint.x) > 0.001 || Math.abs(currentY - lastPoint.y) > 0.001) {
+            currentStrokePoints.push({ x: currentX, y: currentY, width: currentBrushSize });
+
+            whiteboardCtx.save();
+            whiteboardCtx.lineJoin = 'round';
+            whiteboardCtx.lineCap = 'round';
+            whiteboardCtx.strokeStyle = (currentTool === 'eraser') ? '#000000' : currentColor;
+            whiteboardCtx.lineWidth = currentBrushSize;
+            
+            const scaledLastX = lastPoint.x * whiteboardCanvas.offsetWidth;
+            const scaledLastY = lastPoint.y * whiteboardCanvas.offsetHeight;
+            const scaledCurrentX = currentX * whiteboardCanvas.offsetWidth;
+            const scaledCurrentY = currentY * whiteboardCanvas.offsetHeight;
+
+            whiteboardCtx.beginPath();
+            whiteboardCtx.moveTo(scaledLastX, scaledLastY);
+            whiteboardCtx.lineTo(scaledCurrentX, scaledCurrentY);
+            whiteboardCtx.stroke();
+            whiteboardCtx.restore();
+        }
+    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+        renderCurrentWhiteboardPage();
+        temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
+        drawWhiteboardItem(temporaryShapeData);
+    }
+}
+
+/**
+ * Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
+ * Finalizes the drawing action, adds the complete drawing to the page's history,
+ * emits the complete drawing data, and saves state for undo/redo.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ */
+function handleDrawingEnd(e) {
+    if (!isDrawing) return;
+    if (currentUser.role !== 'admin') return;
+    e.preventDefault();
+    isDrawing = false;
+
+    let newItem;
+    if (currentTool === 'pen' || currentTool === 'eraser') {
+        if (currentStrokePoints.length < 2) {
+            const coords = getCanvasCoords(e);
+            newItem = {
                 type: currentTool,
-                points: [{ x: p.x, y: p.y, width: currentBrushSize }],
-                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
+                points: [{ x: coords.x, y: coords.y, width: currentBrushSize }],
+                color: (currentTool === 'eraser') ? '#000000' : currentColor,
                 size: currentBrushSize
             };
-            whiteboardPages[currentPageIndex].push(dotData); // Add to local history
-            emitWhiteboardData('draw', dotData); // Emit to others
-            console.log(`[Whiteboard] Emitted dot data: (${p.x}, ${p.y}) for tool '${currentTool}'`);
-        } else if (currentStrokePoints.length > 1) {
-            // Finalize and emit the complete stroke
-            const strokeData = {
+        } else {
+            newItem = {
                 type: currentTool,
                 points: currentStrokePoints,
-                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
+                color: (currentTool === 'eraser') ? '#000000' : currentColor,
                 size: currentBrushSize
             };
-            whiteboardPages[currentPageIndex].push(strokeData); // Add to local history
-            emitWhiteboardData('draw', strokeData); // Emit to others
-            console.log(`[Whiteboard] Emitted stroke data with ${currentStrokePoints.length} points for tool '${currentTool}'`);
         }
-        currentStrokePoints = []; // Reset points for next stroke
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-        const coords = getCanvasCoords(e);
-        const shapeData = buildShapeData(currentTool, startX, startY, coords.x, coords.y);
-        
-        // Only add if the shape has a meaningful size (e.g., not a tiny dot)
-        const minSizeThreshold = 2; // Pixels
-        let isMeaningful = true;
-        if (currentTool === 'line') {
-            isMeaningful = Math.abs(shapeData.startX - shapeData.endX) > minSizeThreshold || Math.abs(shapeData.startY - shapeData.endY) > minSizeThreshold;
-        } else if (currentTool === 'rectangle') {
-            isMeaningful = shapeData.width > minSizeThreshold && shapeData.height > minSizeThreshold;
-        } else if (currentTool === 'circle') {
-            isMeaningful = shapeData.radius > minSizeThreshold;
-        }
-
-        if (isMeaningful) {
-            // --- ADD THIS LINE TO FIX THE ISSUE ---
-            whiteboardPages[currentPageIndex].push(shapeData); // Add to local history
-            // -------------------------------------
-            emitWhiteboardData('draw', shapeData); // Emit to others
-            console.log(`[Whiteboard] Emitted shape data for tool '${currentTool}':`, shapeData);
-        } else {
-            console.log(`[Whiteboard] Skipping tiny shape for tool '${currentTool}':`, shapeData);
-        }
-        
-        temporaryShapeData = null; // Clear temporary shape data
+        newItem = temporaryShapeData;
     }
-    
-    // After any drawing ends (or text drag ends), re-render the entire page to ensure consistent state
-    renderCurrentWhiteboardPage();
-    
-    // Only push to undo stack if an actual modification happened (not just a drag preview)
-    pushToUndoStack();
-    console.log(`[Whiteboard] Drawing ended with tool '${currentTool}'.`);
+
+    if (newItem) {
+        whiteboardPages[currentPageIndex].push(newItem);
+        pushToUndoStack();
+        emitWhiteboardData('draw', newItem);
+        renderCurrentWhiteboardPage();
+    }
+    temporaryShapeData = null;
+    currentStrokePoints = [];
 }
 
     /**
@@ -2025,106 +1912,31 @@ function handleDrawingEnd(e) {
     }
 
 /**
-     * Draws a single whiteboard item (stroke, shape, or text) onto the canvas.
-     * This function applies styling, draws the item, and then restores the context.
-     * @param {object} item - Object containing drawing command details (type, coordinates, style, etc.).
-     */
-    function drawWhiteboardItem(item) {
-        if (!whiteboardCtx || !item || typeof item.type === 'undefined') {
-            console.warn('[Whiteboard] Attempted to draw invalid whiteboard item:', item);
-            return;
-        }
+ * Gets mouse or touch coordinates relative to the canvas,
+ * and converts them to a ratio (0-1) for responsiveness.
+ * @param {MouseEvent|TouchEvent} e - The event object.
+ * @returns {{x: number, y: number}} An object with x and y coordinates as a ratio.
+ */
+function getCanvasCoords(e) {
+    if (!whiteboardCanvas) return { x: 0, y: 0 };
+    const rect = whiteboardCanvas.getBoundingClientRect();
+    let clientX, clientY;
 
-        whiteboardCtx.save(); // Save the current canvas context state before applying item-specific styles
-
-        // Apply shared styles from the drawing item, falling back to current global tool settings
-        whiteboardCtx.strokeStyle = item.color || currentColor;
-        whiteboardCtx.lineWidth = item.size || currentBrushSize;
-        whiteboardCtx.fillStyle = item.color || currentColor;
-        whiteboardCtx.lineCap = 'round';
-        whiteboardCtx.lineJoin = 'round';
-
-        // Set globalCompositeOperation based on item type
-        // Eraser now draws with background color (black)
-        whiteboardCtx.globalCompositeOperation = 'source-over'; // Default for all, including eraser
-
-        if (item.type === 'eraser') {
-            whiteboardCtx.strokeStyle = '#000000'; // Eraser draws black
-            whiteboardCtx.fillStyle = '#000000'; // Also for filled shapes if eraser was misused
-        }
-
-
-        switch (item.type) {
-            case 'pen':
-            case 'eraser':
-                if (!item.points || item.points.length === 0) break;
-
-                // Draw a dot if it's a single point (click)
-                if (item.points.length === 1) {
-                    const p = item.points[0];
-                    whiteboardCtx.beginPath();
-                    whiteboardCtx.arc(p.x, p.y, (p.width || item.size) / 2, 0, Math.PI * 2);
-                    whiteboardCtx.fill();
-                    break;
-                }
-
-                // Draw continuous strokes using quadratic curves for smoother lines
-                whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(item.points[0].x, item.points[0].y);
-                for (let i = 1; i < item.points.length - 1; i++) {
-                    const p1 = item.points[i];
-                    const p2 = item.points[i + 1];
-                    const midX = (p1.x + p2.x) / 2;
-                    const midY = (p1.y + p2.y) / 2;
-                    whiteboardCtx.lineWidth = p1.width || item.size; // Use dynamic width from point if available
-                    whiteboardCtx.quadraticCurveTo(p1.x, p1.y, midX, midY);
-                }
-                // Draw the last segment to ensure the end of the stroke is included
-                const lastPoint = item.points[item.points.length - 1];
-                const secondLastPoint = item.points[item.points.length - 2];
-                if (secondLastPoint && lastPoint) {
-                    whiteboardCtx.quadraticCurveTo(secondLastPoint.x, secondLastPoint.y, lastPoint.x, lastPoint.y);
-                } else if (lastPoint) { // Case for a stroke with only 2 points
-                     whiteboardCtx.lineTo(lastPoint.x, lastPoint.y);
-                }
-                whiteboardCtx.stroke();
-                break;
-
-            case 'line':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.moveTo(item.startX, item.startY);
-                whiteboardCtx.lineTo(item.endX, item.endY);
-                whiteboardCtx.stroke();
-                break;
-
-            case 'rectangle':
-                whiteboardCtx.beginPath();
-                // Stroke rectangles by default. Could add an 'item.fill' property if filled shapes are needed.
-                whiteboardCtx.strokeRect(item.startX, item.startY, item.width, item.height);
-                break;
-
-            case 'circle':
-                whiteboardCtx.beginPath();
-                whiteboardCtx.arc(item.centerX, item.centerY, item.radius, 0, Math.PI * 2);
-                // Stroke circles by default. Could add an 'item.fill' property if filled shapes are needed.
-                whiteboardCtx.stroke();
-                break;
-
-            case 'text':
-                // Set font style and draw text
-                // Adjust font size dynamically if canvas is resized.
-                const scaledFontSize = item.size; // No dynamic scaling for now, use original size
-                whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
-                // Split text by newlines and draw each line
-                const lines = item.text.split('\n');
-                lines.forEach((line, i) => {
-                    whiteboardCtx.fillText(line, item.x, item.y + i * scaledFontSize * 1.2); // 1.2 for line spacing
-                });
-                break;
-        }
-        whiteboardCtx.restore(); // Restore the canvas context to its previous state
+    // Differentiate between mouse and touch events
+    if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+    } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
     }
 
+    // Calculate coordinates as a ratio (0-1) of the canvas dimensions
+    return {
+        x: (clientX - rect.left) / whiteboardCanvas.offsetWidth,
+        y: (clientY - rect.top) / whiteboardCanvas.offsetHeight
+    };
+}
    /**
  * Gets mouse or touch coordinates relative to the canvas,
  * and converts them to a ratio (0-1) for responsiveness.
