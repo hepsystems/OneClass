@@ -1240,7 +1240,6 @@ function toggleBroadcastButtons(isBroadcasting, broadcastType) {
 
 
 
-    
 /**
  * Handles the start broadcast action, initiating local media stream based on broadcast type.
  * @param {string} broadcastType - 'video_audio' for video and audio, or 'audio_only'.
@@ -1283,9 +1282,10 @@ async function startBroadcast(broadcastType) {
         }
 
         showNotification("Broadcast started successfully!");
-        // Pass the broadcastType to the function that updates the UI
         toggleBroadcastButtons(true, broadcastType);
-        await broadcastToAllPeers();
+        
+        // This is the new, correct function call to start WebRTC
+        await startWebRTC();
         
     } catch (error) {
         console.error('[Broadcast] Error starting broadcast:', error);
@@ -1301,34 +1301,27 @@ async function startBroadcast(broadcastType) {
 function endBroadcast() {
     console.log('[Broadcast] Admin is ending broadcast.');
     
-    // 1. Stop the local media stream (camera/mic) and clear the local video element
+    // 1. Stop the local media stream (camera/mic)
     stopLocalStream();
 
-    // 2. Update the UI and notify participants that the broadcast has ended
-    toggleBroadcastButtons(false); 
-    
-    // 3. Clean up all established WebRTC peer connections with students
-    for (const peerUserId in peerConnections) {
-        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
-            console.log(`[WebRTC] Closing peer connection with UserId: ${peerUserId} due to broadcast end.`);
-            peerConnections[peerUserId].pc.close();
-            delete peerConnections[peerUserId];
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-            if (videoWrapper) {
-                videoWrapper.remove();
-                console.log(`[WebRTC] Removed remote video element for UserId: ${peerUserId}.`);
-            }
+    // 2. Clean up all established WebRTC peer connections
+    for (const userId in peerConnections) {
+        if (peerConnections[userId]) {
+            console.log(`[WebRTC] Closing peer connection with UserId: ${userId} due to broadcast end.`);
+            peerConnections[userId].close();
         }
     }
+    peerConnections = {}; // Reset the map
     
-    if (remoteVideoContainer) {
-        remoteVideoContainer.innerHTML = '';
+    // 3. Update the UI and notify participants that the broadcast has ended
+    toggleBroadcastButtons(false);
+    if (remoteVideosContainer) {
+        remoteVideosContainer.innerHTML = '';
         console.log('[WebRTC] Cleared all remote video elements from container.');
     }
     
     showNotification('Broadcast ended.');
 }
-
 // A queue to store ICE candidates before the remote description is set.
 const iceCandidateQueue = [];
 /**
@@ -1506,33 +1499,7 @@ function createRemoteVideoElement(peerUserId, peerUsername) {
 
     console.log(`[UI] Created remote video element for peer: ${peerUsername}`);
 }
-/**
- * Initiates WebRTC offers to all active participants in the current classroom.
- * This function is called by the admin to start broadcasting their stream.
- */
-async function broadcastToAllPeers() {
-    try {
-        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
-        }
-        const participants = await response.json();
-        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
 
-        for (const participant of participants) {
-            if (participant.id !== currentUser.id) {
-                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
-                await createPeerConnection(participant.id, true, participant.username, null);
-            }
-        }
-        console.log('[Broadcast] All initial offers sent to participants.');
-    } catch (error) {
-        console.error('[WebRTC] Error broadcasting to all peers:', error);
-        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
-    }
-}
-
-    
     // --- Video Zoom Functions ---
 
     /**
