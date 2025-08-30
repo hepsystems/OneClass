@@ -2025,97 +2025,106 @@ function handleDrawingEnd(e) {
     }
 
 /**
- * Draws a single whiteboard item (stroke, shape, or text) onto the canvas.
- * This function applies styling, draws the item, and then restores the context.
- * The coordinates and sizes are scaled to fit the current canvas dimensions.
- * @param {object} item - Object containing drawing command details (type, coordinates, style, etc.).
- */
-function drawWhiteboardItem(item) {
-    if (!whiteboardCtx || !item || typeof item.type === 'undefined') {
-        console.warn('[Whiteboard] Attempted to draw invalid whiteboard item:', item);
-        return;
-    }
+     * Draws a single whiteboard item (stroke, shape, or text) onto the canvas.
+     * This function applies styling, draws the item, and then restores the context.
+     * @param {object} item - Object containing drawing command details (type, coordinates, style, etc.).
+     */
+    function drawWhiteboardItem(item) {
+        if (!whiteboardCtx || !item || typeof item.type === 'undefined') {
+            console.warn('[Whiteboard] Attempted to draw invalid whiteboard item:', item);
+            return;
+        }
 
-    whiteboardCtx.save();
+        whiteboardCtx.save(); // Save the current canvas context state before applying item-specific styles
 
-    // Define scaling factors based on current canvas size
-    const scaleX = whiteboardCanvas.offsetWidth;
-    const scaleY = whiteboardCanvas.offsetHeight;
-    const scaledLineWidth = (item.size || currentBrushSize) * Math.min(scaleX, scaleY) / 1000;
+        // Apply shared styles from the drawing item, falling back to current global tool settings
+        whiteboardCtx.strokeStyle = item.color || currentColor;
+        whiteboardCtx.lineWidth = item.size || currentBrushSize;
+        whiteboardCtx.fillStyle = item.color || currentColor;
+        whiteboardCtx.lineCap = 'round';
+        whiteboardCtx.lineJoin = 'round';
 
-    whiteboardCtx.strokeStyle = item.color || currentColor;
-    whiteboardCtx.lineWidth = scaledLineWidth;
-    whiteboardCtx.fillStyle = item.color || currentColor;
-    whiteboardCtx.lineCap = 'round';
-    whiteboardCtx.lineJoin = 'round';
+        // Set globalCompositeOperation based on item type
+        // Eraser now draws with background color (black)
+        whiteboardCtx.globalCompositeOperation = 'source-over'; // Default for all, including eraser
 
-    whiteboardCtx.globalCompositeOperation = 'source-over';
-    if (item.type === 'eraser') {
-        whiteboardCtx.globalCompositeOperation = 'destination-out';
-    }
+        if (item.type === 'eraser') {
+            whiteboardCtx.strokeStyle = '#000000'; // Eraser draws black
+            whiteboardCtx.fillStyle = '#000000'; // Also for filled shapes if eraser was misused
+        }
 
-    switch (item.type) {
-        case 'pen':
-        case 'eraser':
-            if (!item.points || item.points.length < 2) {
-                if (item.points && item.points.length === 1) {
+
+        switch (item.type) {
+            case 'pen':
+            case 'eraser':
+                if (!item.points || item.points.length === 0) break;
+
+                // Draw a dot if it's a single point (click)
+                if (item.points.length === 1) {
                     const p = item.points[0];
                     whiteboardCtx.beginPath();
-                    whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, scaledLineWidth / 2, 0, Math.PI * 2);
+                    whiteboardCtx.arc(p.x, p.y, (p.width || item.size) / 2, 0, Math.PI * 2);
                     whiteboardCtx.fill();
+                    break;
                 }
+
+                // Draw continuous strokes using quadratic curves for smoother lines
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(item.points[0].x, item.points[0].y);
+                for (let i = 1; i < item.points.length - 1; i++) {
+                    const p1 = item.points[i];
+                    const p2 = item.points[i + 1];
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    whiteboardCtx.lineWidth = p1.width || item.size; // Use dynamic width from point if available
+                    whiteboardCtx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                }
+                // Draw the last segment to ensure the end of the stroke is included
+                const lastPoint = item.points[item.points.length - 1];
+                const secondLastPoint = item.points[item.points.length - 2];
+                if (secondLastPoint && lastPoint) {
+                    whiteboardCtx.quadraticCurveTo(secondLastPoint.x, secondLastPoint.y, lastPoint.x, lastPoint.y);
+                } else if (lastPoint) { // Case for a stroke with only 2 points
+                     whiteboardCtx.lineTo(lastPoint.x, lastPoint.y);
+                }
+                whiteboardCtx.stroke();
                 break;
-            }
 
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo(item.points[0].x * scaleX, item.points[0].y * scaleY);
-            for (let i = 1; i < item.points.length - 1; i++) {
-                const p1 = item.points[i];
-                const p2 = item.points[i + 1];
-                const midX = (p1.x + p2.x) / 2 * scaleX;
-                const midY = (p1.y + p2.y) / 2 * scaleY;
-                whiteboardCtx.lineWidth = (p1.width || item.size) * Math.min(scaleX, scaleY) / 1000;
-                whiteboardCtx.quadraticCurveTo(p1.x * scaleX, p1.y * scaleY, midX, midY);
-            }
-            const lastPoint = item.points[item.points.length - 1];
-            const secondLastPoint = item.points[item.points.length - 2];
-            if (secondLastPoint && lastPoint) {
-                whiteboardCtx.quadraticCurveTo(secondLastPoint.x * scaleX, secondLastPoint.y * scaleY, lastPoint.x * scaleX, lastPoint.y * scaleY);
-            } else if (lastPoint) {
-                whiteboardCtx.lineTo(lastPoint.x * scaleX, lastPoint.y * scaleY);
-            }
-            whiteboardCtx.stroke();
-            break;
+            case 'line':
+                whiteboardCtx.beginPath();
+                whiteboardCtx.moveTo(item.startX, item.startY);
+                whiteboardCtx.lineTo(item.endX, item.endY);
+                whiteboardCtx.stroke();
+                break;
 
-        case 'line':
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo(item.startX * scaleX, item.startY * scaleY);
-            whiteboardCtx.lineTo(item.endX * scaleX, item.endY * scaleY);
-            whiteboardCtx.stroke();
-            break;
+            case 'rectangle':
+                whiteboardCtx.beginPath();
+                // Stroke rectangles by default. Could add an 'item.fill' property if filled shapes are needed.
+                whiteboardCtx.strokeRect(item.startX, item.startY, item.width, item.height);
+                break;
 
-        case 'rectangle':
-            whiteboardCtx.beginPath();
-            whiteboardCtx.strokeRect(item.startX * scaleX, item.startY * scaleY, item.width * scaleX, item.height * scaleY);
-            break;
+            case 'circle':
+                whiteboardCtx.beginPath();
+                whiteboardCtx.arc(item.centerX, item.centerY, item.radius, 0, Math.PI * 2);
+                // Stroke circles by default. Could add an 'item.fill' property if filled shapes are needed.
+                whiteboardCtx.stroke();
+                break;
 
-        case 'circle':
-            whiteboardCtx.beginPath();
-            whiteboardCtx.arc(item.centerX * scaleX, item.centerY * scaleY, item.radius * scaleX, 0, Math.PI * 2);
-            whiteboardCtx.stroke();
-            break;
-
-        case 'text':
-            const scaledFontSize = item.size * scaleY;
-            whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
-            const lines = item.text.split('\n');
-            lines.forEach((line, i) => {
-                whiteboardCtx.fillText(line, item.x * scaleX, item.y * scaleY + i * scaledFontSize * 1.2);
-            });
-            break;
+            case 'text':
+                // Set font style and draw text
+                // Adjust font size dynamically if canvas is resized.
+                const scaledFontSize = item.size; // No dynamic scaling for now, use original size
+                whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
+                // Split text by newlines and draw each line
+                const lines = item.text.split('\n');
+                lines.forEach((line, i) => {
+                    whiteboardCtx.fillText(line, item.x, item.y + i * scaledFontSize * 1.2); // 1.2 for line spacing
+                });
+                break;
+        }
+        whiteboardCtx.restore(); // Restore the canvas context to its previous state
     }
-    whiteboardCtx.restore();
-}
+
    /**
  * Gets mouse or touch coordinates relative to the canvas,
  * and converts them to a ratio (0-1) for responsiveness.
