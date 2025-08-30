@@ -2051,8 +2051,8 @@ function drawWhiteboardItem(item) {
 
     whiteboardCtx.globalCompositeOperation = 'source-over';
     if (item.type === 'eraser') {
-        whiteboardCtx.strokeStyle = '#000000';
-        whiteboardCtx.fillStyle = '#000000';
+        // Eraser needs to 'erase' the existing content, so we use 'destination-out'
+        whiteboardCtx.globalCompositeOperation = 'destination-out';
     }
 
     switch (item.type) {
@@ -2068,22 +2068,13 @@ function drawWhiteboardItem(item) {
                 break;
             }
 
+            // Corrected logic for drawing a continuous line 
             whiteboardCtx.beginPath();
             whiteboardCtx.moveTo(item.points[0].x * scaleX, item.points[0].y * scaleY);
-            for (let i = 1; i < item.points.length - 1; i++) {
-                const p1 = item.points[i];
-                const p2 = item.points[i + 1];
-                const midX = (p1.x + p2.x) / 2 * scaleX;
-                const midY = (p1.y + p2.y) / 2 * scaleY;
-                whiteboardCtx.lineWidth = (p1.width || item.size) * Math.min(scaleX, scaleY) / 1000;
-                whiteboardCtx.quadraticCurveTo(p1.x * scaleX, p1.y * scaleY, midX, midY);
-            }
-            const lastPoint = item.points[item.points.length - 1];
-            const secondLastPoint = item.points[item.points.length - 2];
-            if (secondLastPoint && lastPoint) {
-                whiteboardCtx.quadraticCurveTo(secondLastPoint.x * scaleX, secondLastPoint.y * scaleY, lastPoint.x * scaleX, lastPoint.y * scaleY);
-            } else if (lastPoint) {
-                whiteboardCtx.lineTo(lastPoint.x * scaleX, lastPoint.y * scaleY);
+
+            for (let i = 1; i < item.points.length; i++) {
+                const p = item.points[i];
+                whiteboardCtx.lineTo(p.x * scaleX, p.y * scaleY);
             }
             whiteboardCtx.stroke();
             break;
