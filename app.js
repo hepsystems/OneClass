@@ -1013,130 +1013,156 @@ function initializeSocketIO() {
         pushToUndoStack();
     });
 
-    // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
-    socket.on('webrtc_offer', async (data) => {
-        console.log(`[WebRTC] Received WebRTC Offer from: ${data.username} (UserID: ${data.offerer_user_id}, SID: ${data.offerer_socket_id}) to ${currentUser.id}`);
+  // Keep a map of RTCPeerConnections by user_id
+const peerConnections = {};
 
-        const offererUserId = data.offerer_user_id;       // The user_id of the offerer (admin)
-        const offererSocketId = data.offerer_socket_id;   // The Socket.IO SID of the offerer (admin)
-        const peerUsername = data.username || `Peer ${offererUserId.substring(0, 4)}`;
+// --- Utility: Create PeerConnection ---
+function createPeerConnection(remoteUserId) {
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
 
-        // Create a new peer connection if one doesn't exist for this offerer's USER_ID
-        // This is crucial for participants: they need to create a PC to respond to the admin's offer.
-        if (!peerConnections[offererUserId] || !peerConnections[offererUserId].pc) { // Key by user_id
-            console.log(`[WebRTC] No valid existing PC for offerer UserId ${offererUserId}. Creating new peer connection as receiver.`);
-            // This is the participant's side, so they are the receiver (isCaller = false)
-            await createPeerConnection(offererUserId, false, peerUsername, offererSocketId); 
-        } else {
-            // If PC already exists, update the socketId if it's different/newer
-            if (offererSocketId && peerConnections[offererUserId].socketId !== offererSocketId) {
-                peerConnections[offererUserId].socketId = offererSocketId;
-                console.log(`[WebRTC] Updating existing PC for UserId ${offererUserId} with new SocketId: ${offererSocketId}`);
-            }
-            console.log(`[WebRTC] Reusing existing valid PC for offerer UserId ${offererUserId}.`);
-        }
-
-        try {
-            const pcInfo = peerConnections[offererUserId]; // Look up PC by user_id
-            if (!pcInfo || !pcInfo.pc) {
-                console.error(`[WebRTC] PeerConnection object not found for offerer UserId ${offererUserId} AFTER creation/lookup. This is a critical error.`);
-                showNotification(`WebRTC error: Peer connection missing for ${peerUsername}.`, true);
-                return;
-            }
-            const pc = pcInfo.pc;
-
-            // Set remote description from the offer
-            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-            console.log(`[WebRTC] Set remote description (offer) for UserId ${offererUserId}.`);
-
-            // Create and set local answer
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            console.log(`[WebRTC] Created and set local description (answer) for UserId ${offererUserId}.`);
-
-            // Send the answer back to the offering peer
-            socket.emit('webrtc_answer', {
-                classroomId: currentClassroom.id,
-                recipient_id: offererUserId, // *** CRUCIAL: Send answer back to the offerer's USER_ID ***
-                answer: pc.localDescription
+    // Handle ICE candidates from this peer
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('webrtc_ice_candidate', {
+                classroomId: currentClassroomId,
+                recipient_id: remoteUserId,
+                candidate: event.candidate
             });
-            console.log(`[WebRTC] Sent WebRTC Answer to user: ${offererUserId} (via SID: ${offererSocketId}) from ${currentUser.id}`);
-        } catch (error) {
-            console.error(`[WebRTC] Error handling WebRTC offer for UserId ${offererUserId}:`, error);
-            showNotification(`WebRTC error with ${peerUsername}: ${error.message}`, true);
         }
-    });
+    };
 
-    // WebRTC signaling: Answer (from receiving peer)
-    socket.on('webrtc_answer', async (data) => {
-        // This handler is primarily for the OFFERER (admin) to receive the student's answer.
-        // If a participant receives this, it's likely an echo or misroute, but we'll handle defensively.
-        if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (shouldn't happen with server logic)
-        console.log(`[WebRTC] Received WebRTC Answer from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
-
-        const senderUserId = data.sender_user_id; // The UserID of the student who sent the answer
-        const senderSocketId = data.sender_socket_id;
-        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id (this should be the admin's PC with the student)
-
-        if (pcInfo && pcInfo.pc) {
-            pcInfo.socketId = senderSocketId; // Update socketId if needed
-            try {
-                await pcInfo.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                console.log(`[WebRTC] Set remote description (answer) for peer UserID ${senderUserId} (SID: ${senderSocketId}).`);
-            } catch (error) {
-                console.error('[WebRTC] Error handling WebRTC answer:', error);
-                showNotification(`WebRTC error with ${senderUserId}: ${error.message}`, true);
-            }
+    // Handle remote tracks (audio/video)
+    pc.ontrack = (event) => {
+        let videoWrapper = document.getElementById(`video-wrapper-${remoteUserId}`);
+        if (!videoWrapper) {
+            videoWrapper = document.createElement('div');
+            videoWrapper.id = `video-wrapper-${remoteUserId}`;
+            const videoEl = document.createElement('video');
+            videoEl.autoplay = true;
+            videoEl.playsInline = true;
+            videoEl.srcObject = event.streams[0];
+            videoWrapper.appendChild(videoEl);
+            document.getElementById('remote-videos-container').appendChild(videoWrapper);
         } else {
-             console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer. This might be expected if a participant received an answer meant for the admin.`);
+            const videoEl = videoWrapper.querySelector('video');
+            if (videoEl) videoEl.srcObject = event.streams[0];
         }
-    });
+    };
 
-    // WebRTC signaling: ICE Candidate (network information exchange)
-    socket.on('webrtc_ice_candidate', async (data) => {
-        if (data.sender_user_id === currentUser.id) return; // Ignore candidates from self
-        console.log(`[WebRTC] Received ICE Candidate from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
-        const senderUserId = data.sender_user_id; // Use userId to look up PC
-        const senderSocketId = data.sender_socket_id;
-        
-        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id
-        if (pcInfo && pcInfo.pc && data.candidate) {
-            pcInfo.socketId = senderSocketId; // Update socketId if needed
-            try {
-                await pcInfo.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                 console.log(`[WebRTC] Added ICE candidate from UserID ${senderUserId} (SID: ${senderSocketId}).`);
-            } catch (error) {
-                if (!error.message.includes('wrong state') && !error.message.includes('remote answer sdp')) {
-                    console.error('[WebRTC] Error adding ICE candidate:', error);
-                    showNotification(`WebRTC ICE error with ${senderUserId}: ${error.message}`, true);
-                }
-            }
-        } else {
-            console.warn(`[WebRTC] PeerConnection not found for UserID ${senderUserId} or no candidate data. Candidate might be for an uninitialized PC.`);
-        }
-    });
+    return pc;
+}
 
-    // WebRTC peer disconnected signal from server
-    socket.on('webrtc_peer_disconnected', (data) => {
-        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
-        const peerUserId = data.peer_user_id;
-        // Close peer connection and remove video element
-        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
-            console.log(`[WebRTC] Received 'webrtc_peer_disconnected'. Closing PC and removing video for UserId: ${peerUserId}`);
-            peerConnections[peerUserId].pc.close();
-            delete peerConnections[peerUserId];
-            // Video element ID uses peerUserId
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-            if (videoWrapper) {
-                videoWrapper.remove();
-                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
-            } else {
-                console.warn(`[WebRTC] Video element not found for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
-            }
-        } else {
-            console.warn(`[WebRTC] Peer connection not found for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
+// --- When Admin Sends Offer to Student ---
+socket.on('webrtc_offer', async (data) => {
+    console.log(`[WebRTC] Offer from ${data.username} (UserID: ${data.offerer_user_id})`);
+
+    const fromUserId = data.offerer_user_id;
+    const offer = data.offer;
+
+    if (!peerConnections[fromUserId]) {
+        peerConnections[fromUserId] = { pc: createPeerConnection(fromUserId) };
+    }
+
+    try {
+        await peerConnections[fromUserId].pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // If student needs to send audio/video back
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                peerConnections[fromUserId].pc.addTrack(track, localStream);
+            });
         }
+
+        const answer = await peerConnections[fromUserId].pc.createAnswer();
+        await peerConnections[fromUserId].pc.setLocalDescription(answer);
+
+        // Send answer back to admin
+        socket.emit('webrtc_answer', {
+            classroomId: currentClassroomId,
+            recipient_id: fromUserId,
+            answer: answer
+        });
+
+        console.log(`[WebRTC] Answer sent to Admin ${fromUserId}`);
+    } catch (err) {
+        console.error('[WebRTC] Error processing offer:', err);
+    }
+});
+
+// --- When Student Sends Answer Back to Admin ---
+socket.on('webrtc_answer', async (data) => {
+    if (data.sender_user_id === currentUser.id) return;
+    console.log(`[WebRTC] Answer from ${data.username} (UserID: ${data.sender_user_id})`);
+
+    const fromUserId = data.sender_user_id;
+    if (peerConnections[fromUserId] && peerConnections[fromUserId].pc) {
+        try {
+            await peerConnections[fromUserId].pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } catch (err) {
+            console.error('[WebRTC] Error applying answer:', err);
+        }
+    }
+});
+
+// --- ICE Candidates (both directions) ---
+socket.on('webrtc_ice_candidate', async (data) => {
+    if (data.sender_user_id === currentUser.id) return;
+    const fromUserId = data.sender_user_id;
+
+    if (peerConnections[fromUserId] && peerConnections[fromUserId].pc && data.candidate) {
+        try {
+            await peerConnections[fromUserId].pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } catch (err) {
+            if (!err.message.includes('wrong state')) {
+                console.error('[WebRTC] ICE candidate error:', err);
+            }
+        }
+    }
+});
+
+// --- Peer Disconnected ---
+socket.on('webrtc_peer_disconnected', (data) => {
+    const peerUserId = data.peer_user_id;
+    if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+        peerConnections[peerUserId].pc.close();
+        delete peerConnections[peerUserId];
+        const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
+        if (videoWrapper) videoWrapper.remove();
+    }
+});
+
+// --- Admin: Start Broadcast to Student ---
+async function startBroadcastTo(studentId) {
+    if (!peerConnections[studentId]) {
+        peerConnections[studentId] = { pc: createPeerConnection(studentId) };
+    }
+
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            peerConnections[studentId].pc.addTrack(track, localStream);
+        });
+    }
+
+    const offer = await peerConnections[studentId].pc.createOffer();
+    await peerConnections[studentId].pc.setLocalDescription(offer);
+
+    socket.emit('webrtc_offer', {
+        classroomId: currentClassroomId,
+        recipient_id: studentId,
+        offer: offer
     });
+}
+
+// --- Emit Peer Disconnected When Needed ---
+function disconnectPeer(peerUserId) {
+    socket.emit('webrtc_peer_disconnected', {
+        peer_user_id: peerUserId,
+        classroomId: currentClassroomId
+    });
+}
+
 
     // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
