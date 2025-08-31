@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 
 # Import Flask-SocketIO and SocketIO for real-time, bidirectional communication.
-from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms, disconnect
 # Flask-CORS for handling Cross-Origin Resource Sharing, necessary for frontend-backend communication.
 from flask_cors import CORS
 
@@ -68,6 +68,9 @@ cache = Cache(app)
 # Initializes Flask-PyMongo to connect to the MongoDB database configured in app.config.
 mongo = PyMongo(app)
 
+# Store user-to-socket mapping for direct communication
+user_to_socket_map = {}
+
 # --- MongoDB Collections Definitions ---
 # Defines references to various MongoDB collections for different data types.
 users_collection = mongo.db.users
@@ -80,7 +83,8 @@ assessment_submissions_collection = mongo.db.assessment_submissions
 whiteboard_collection = mongo.db.whiteboard_drawings_pages
 chat_messages_collection = mongo.db.chat_messages
 # Collection for persistent WebRTC signaling data.
-webrtc_signals_collection = mongo.db.webrtc_signals
+
+
 
 # --- File Uploads Configuration ---
 # Defines the folder where uploaded files will be stored.
@@ -1744,145 +1748,76 @@ def handle_whiteboard_page_change(data):
     
     print(f"Whiteboard page change to index {new_page_index} by '{username}' in classroom {classroom_id}. Client action: {client_action}.")
 
-# --- WebRTC Signaling Socket.IO Handlers ---
-# These handlers facilitate the exchange of WebRTC offers, answers, and ICE candidates
-# between peers, enabling real-time video/audio communication.
+
+        
+# New SocketIO events for WebRTC signaling
+@socketio.on('connect')
+def handle_connect():
+    user_id = session.get('user_id')
+    if user_id:
+        user_to_socket_map[user_id] = request.sid
+        print(f"User {user_id} connected with SID: {request.sid}")
+    else:
+        print("Unauthenticated user connected.")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    user_id = session.get('user_id')
+    if user_id in user_to_socket_map and user_to_socket_map[user_id] == request.sid:
+        del user_to_socket_map[user_id]
+        print(f"User {user_id} disconnected.")
+    print("A client disconnected.")
+
+@socketio.on('join_classroom')
+def handle_join_classroom(data):
+    classroom_id = data.get('classroomId')
+    user_id = session.get('user_id')
+    if not classroom_id or not user_id:
+        return
+    
+    join_room(classroom_id)
+    print(f"User {user_id} joined classroom {classroom_id}")
+    
+    # Notify others in the room that a new user has joined
+    emit('user_joined', {'userId': user_id}, room=classroom_id, include_self=False)
 
 @socketio.on('webrtc_offer')
 def handle_webrtc_offer(data):
-    """
-    Handles a WebRTC offer from one peer to another.
-    Stores the signal in the DB (for persistence/offline delivery) and forwards it to the recipient.
-    """
-    user_id = session.get('user_id') # This is the user_id of the offerer (e.g., admin)
-    username = session.get('username')
-    recipient_user_id = data.get('recipient_id') # The user_id of the intended recipient (e.g., student)
-    classroom_id = data.get('classroomId')
-    offer = data.get('offer') # The SDP offer.
-
-    # Validate required data.
-    if not all([user_id, username, recipient_user_id, classroom_id, offer]):
-        print(f"Socket.IO 'webrtc_offer' failed: Missing required data from user {user_id}.")
-        return
-
-    # Ensure both sender and recipient are participants of the classroom.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
-    if not classroom:
-        print(f"WebRTC offer from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
-        return
-
-    signal_id = str(uuid.uuid4())
-    webrtc_signals_collection.insert_one({
-        "id": signal_id,
-        "type": "offer",
-        "classroomId": classroom_id,
-        "fromUserId": user_id,
-        "fromUsername": username,
-        "toUserId": recipient_user_id,
-        "signalData": offer,
-        "timestamp": datetime.utcnow()
-    })
-
-    # Emit the offer directly to the recipient's personal Socket.IO room (joined on connect).
-    emit('webrtc_offer', {
-        'offerer_socket_id': request.sid,       # The Socket.IO SID of the offerer (for client-side PC lookup)
-        'offerer_user_id': user_id,             # The USER_ID of the offerer (for client to send answer back to)
-        'offer': offer,
-        'username': username
-    }, room=recipient_user_id) # Send to the recipient's user_id room.
-    
-    print(f"WebRTC offer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
+    recipient_id = data.get('recipient_id')
+    if recipient_id and recipient_id in user_to_socket_map:
+        # Get the sender's details
+        sender_id = session.get('user_id')
+        offer_data = {
+            'senderId': sender_id,
+            'offer': data.get('offer')
+        }
+        # Emit the offer directly to the recipient's socket
+        emit('webrtc_offer', offer_data, room=user_to_socket_map[recipient_id])
+        print(f"Relayed WebRTC offer from {sender_id} to {recipient_id}")
 
 @socketio.on('webrtc_answer')
 def handle_webrtc_answer(data):
-    """
-    Handles a WebRTC answer from one peer to another.
-    Stores the signal in the DB and forwards it to the original offerer.
-    """
-    user_id = session.get('user_id') # This is the user_id of the answerer (e.g., student)
-    username = session.get('username')
-    recipient_user_id = data.get('recipient_id') # The user_id of the original offerer (e.g., admin)
-    classroom_id = data.get('classroomId')
-    answer = data.get('answer') # The SDP answer.
-
-    # Validate required data.
-    if not all([user_id, username, recipient_user_id, classroom_id, answer]):
-        print(f"Socket.IO 'webrtc_answer' failed: Missing required data from user {user_id}.")
-        return
-
-    # Ensure both sender and recipient are participants.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
-    if not classroom:
-        print(f"WebRTC answer from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
-        return
-
-    signal_id = str(uuid.uuid4())
-    webrtc_signals_collection.insert_one({
-        "id": signal_id,
-        "type": "answer",
-        "classroomId": classroom_id,
-        "fromUserId": user_id,
-        "fromUsername": username,
-        "toUserId": recipient_user_id,
-        "signalData": answer,
-        "timestamp": datetime.utcnow()
-    })
-
-    # Emit the answer directly back to the original offerer's personal Socket.IO room (recipient_user_id is the offerer's user_id).
-    emit('webrtc_answer', {
-        'sender_socket_id': request.sid,        # The Socket.IO SID of the answerer (for offerer's PC lookup)
-        'sender_user_id': user_id,              # The USER_ID of the answerer
-        'answer': answer,
-        'username': username
-    }, room=recipient_user_id) # Send to the recipient's user_id room.
-    
-    print(f"WebRTC answer from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
+    recipient_id = data.get('recipient_id')
+    if recipient_id and recipient_id in user_to_socket_map:
+        sender_id = session.get('user_id')
+        answer_data = {
+            'senderId': sender_id,
+            'answer': data.get('answer')
+        }
+        emit('webrtc_answer', answer_data, room=user_to_socket_map[recipient_id])
+        print(f"Relayed WebRTC answer from {sender_id} to {recipient_id}")
 
 @socketio.on('webrtc_ice_candidate')
 def handle_webrtc_ice_candidate(data):
-    """
-    Handles WebRTC ICE candidates.
-    Stores the candidate in the DB and forwards it to the other peer.
-    """
-    user_id = session.get('user_id') # This is the user_id of the sender
-    username = session.get('username')
-    recipient_user_id = data.get('recipient_id') # The user_id of the other peer.
-    classroom_id = data.get('classroomId')
-    candidate = data.get('candidate') # The ICE candidate data.
-
-    # Validate required data.
-    if not all([user_id, username, recipient_user_id, classroom_id, candidate]):
-        print(f"Socket.IO 'webrtc_ice_candidate' failed: Missing required data from user {user_id}.")
-        return
-
-    # Ensure both sender and recipient are participants.
-    classroom = classrooms_collection.find_one({"id": classroom_id, "participants": {"$all": [user_id, recipient_user_id]}})
-    if not classroom:
-        print(f"WebRTC ICE candidate from {username} ({user_id}) to {recipient_user_id} in classroom {classroom_id} failed: One or both not participants.")
-        return
-
-    signal_id = str(uuid.uuid4())
-    webrtc_signals_collection.insert_one({
-        "id": signal_id,
-        "type": "ice_candidate",
-        "classroomId": classroom_id,
-        "fromUserId": user_id,
-        "fromUsername": username,
-        "toUserId": recipient_user_id,
-        "signalData": candidate,
-        "timestamp": datetime.utcnow()
-    })
-
-    # Emit the ICE candidate directly to the other peer's personal Socket.IO room.
-    emit('webrtc_ice_candidate', {
-        'sender_socket_id': request.sid,        # The Socket.IO SID of the sender
-        'sender_user_id': user_id,              # The USER_ID of the sender
-        'candidate': candidate,
-        'username': username
-    }, room=recipient_user_id) # Send to the recipient's user_id room.
-    
-    print(f"WebRTC ICE candidate from '{username}' ({user_id}) (SID: {request.sid}) to user {recipient_user_id} in classroom {classroom_id}.")
-
+    recipient_id = data.get('recipient_id')
+    if recipient_id and recipient_id in user_to_socket_map:
+        sender_id = session.get('user_id')
+        candidate_data = {
+            'senderId': sender_id,
+            'candidate': data.get('candidate')
+        }
+        emit('webrtc_ice_candidate', candidate_data, room=user_to_socket_map[recipient_id])
+        print(f"Relayed WebRTC ICE candidate from {sender_id} to {recipient_id}")
 
 @socketio.on('broadcast_status_update')
 def handle_broadcast_status_update(data):
@@ -1921,67 +1856,10 @@ def handle_broadcast_status_update(data):
     print(f"Broadcast status update from Admin '{admin_username}' ({user_id}) in classroom {classroom_id}: '{message}'.")
 
 
-
-@socketio.on('webrtc_peer_disconnected')
-def handle_webrtc_peer_disconnected(data):
-    """
-    Handles a signal that a WebRTC peer has disconnected.
-    Broadcasts this information to all other peers in the classroom.
-    """
-    # The client now sends 'peer_user_id' instead of 'peer_id' (SID)
-    peer_user_id = data.get('peer_user_id') 
-    classroom_id = data.get('classroomId')
-    
-    # Validate required data.
-    if not all([peer_user_id, classroom_id]):
-        print(f"Socket.IO 'webrtc_peer_disconnected' failed: Missing peer_user_id or classroom_id. Data: {data}.")
-        return
-
-    # Broadcast to all users in the classroom (excluding the sender, if sender is still connected).
-    emit('webrtc_peer_disconnected', {
-        'peer_user_id': peer_user_id
-    }, room=classroom_id, include_self=False)
-    
-    print(f"WebRTC peer disconnected signal broadcast for peer UserID: {peer_user_id} in classroom {classroom_id}.")
-
-@app.route('/api/webrtc-signals', methods=['GET'])
-def get_pending_webrtc_signals():
-    """
-    Endpoint for clients to fetch any pending WebRTC signals (offers, answers, candidates)
-    that were sent while they were offline or before their Socket.IO connection was fully established.
-    Clears fetched signals from the database.
-    """
-    user_id = session.get('user_id')
-    if not user_id:
-        print("GET /api/webrtc-signals: Unauthorized - No user_id in session.")
-        return jsonify({"error": "Unauthorized"}), 401
-
-    # Find all signals intended for the current user, sorted by timestamp.
-    signals = list(webrtc_signals_collection.find({"toUserId": user_id}, {"_id": 0}).sort("timestamp", 1))
-    
-    # After fetching, delete these signals from the database as they have been delivered.
-    webrtc_signals_collection.delete_many({"toUserId": user_id})
-    print(f"Fetched {len(signals)} pending WebRTC signals for user {user_id}. Signals cleared from DB.")
-    return jsonify(signals), 200
-
-# --- Error Handling ---
-# Custom error handlers for common HTTP status codes.
-
-@app.errorhandler(404)
-def not_found(e):
-    """Handles 404 Not Found errors."""
-    print(f"404 Error: Endpoint not found for request path: {request.path}.")
-    return jsonify({"error": "Endpoint not found"}), 404
-
-@app.errorhandler(500)
-def internal_error(e):
-    """Handles 500 Internal Server Errors."""
-    print(f"500 Error: Internal server error for request path: {request.path}. Error: {e}")
-    return jsonify({"error": "Internal server error"}), 500
-
-# --- Main Entry Point ---
 if __name__ == '__main__':
     print("Starting OneClass server...")
-    # Run the Flask app with Socket.IO. Host on 0.0.0.0 to be accessible externally, port 5000.
-    # Debug mode provides detailed error messages and auto-reloading.
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, debug=True, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0')
+
+
+
+    
