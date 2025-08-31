@@ -1447,7 +1447,7 @@ function stopLocalStream() {
   
 
 
- * Dynamically creates a video element for a remote peer and adds it to the DOM.
+ /** Dynamically creates a video element for a remote peer and adds it to the DOM.
  */
 function createRemoteVideoElement(peerUserId, peerUsername) {
     const remoteVideosContainer = document.getElementById('remote-videos-container');
