@@ -4024,9 +4024,13 @@ async function pollForWebRTCSignals() {
     });
 }
 
-if (endBroadcastBtn) {
-    endBroadcastBtn.addEventListener('click', endBroadcast);
-}
+const endBroadcastBtn = document.getElementById('end-broadcast-btn');
+    if (endBroadcastBtn) {
+        endBroadcastBtn.addEventListener('click', () => {
+            console.log('[UI] End Broadcast button clicked.');
+            endBroadcast();
+        });
+    }
 
     // --- Library Search Input Listener ---
     if (librarySearchInput) {
