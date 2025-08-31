@@ -1266,45 +1266,47 @@ async function startBroadcast(broadcastType) {
         stopLocalStream();
     }
 }
-/**
- * Stops the video/audio broadcast initiated by the admin.
- * Cleans up local media resources and updates the UI for all participants.
- */
+// Function to end the broadcast and clean up resources
 function endBroadcast() {
-    console.log('[Broadcast] Admin is ending broadcast.');
-    
-    // 1. Stop the local media stream (camera/mic) and clear the local video element
-    stopLocalStream();
+    if (localStream) {
+        // Stop all tracks in the local stream (camera/mic)
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+        console.log('[Broadcast] Local stream tracks stopped.');
+    }
 
-    // 2. Update the UI and notify participants that the broadcast has ended
-    toggleBroadcastButtons(false); 
-    
-    // 3. Clean up all established WebRTC peer connections with students
-    for (const peerUserId in peerConnections) {
-        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
-            console.log(`[WebRTC] Closing peer connection with UserId: ${peerUserId} due to broadcast end.`);
-            peerConnections[peerUserId].pc.close();
-            delete peerConnections[peerUserId];
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-            if (videoWrapper) {
-                videoWrapper.remove();
-                console.log(`[WebRTC] Removed remote video element for UserId: ${peerUserId}.`);
-            }
+    // Close all peer connections
+    for (const userId in peerConnections) {
+        if (peerConnections[userId].pc) {
+            peerConnections[userId].pc.close();
+            console.log(`[Broadcast] Closed peer connection for user: ${userId}`);
         }
+        delete peerConnections[userId];
     }
+    console.log('[Broadcast] All peer connections closed.');
+
+    // Remove all remote video elements
+    remoteVideoContainer.innerHTML = '';
+    // Hide the local video feed
+    localVideo.srcObject = null;
+    localVideoContainer.classList.add('hidden');
     
-    if (remoteVideoContainer) {
-        remoteVideoContainer.innerHTML = '';
-        console.log('[WebRTC] Cleared all remote video elements from container.');
+    // Notify all participants that the broadcast has ended
+    if (socket && currentClassroom && currentUser) {
+        socket.emit('broadcast_status_update', {
+            classroomId: currentClassroom.id,
+            is_broadcasting: false,
+            message: `${currentUser.username} has ended the broadcast.`,
+            admin_username: currentUser.username,
+            user_id: currentUser.id
+        });
     }
-    
-    showNotification('Broadcast ended.');
+
+    // Update UI state
+    startBroadcastBtn.classList.remove('hidden');
+    endBroadcastBtn.classList.add('hidden');
+    showNotification("Broadcast has ended.");
 }
-
-
-
-// A queue to store ICE candidates before the remote description is set.
-const iceCandidateQueue = [];
 
 async function handleWebRTCSignal(signal) {
     const peerUserId = signal.fromUserId;
@@ -4035,13 +4037,11 @@ async function pollForWebRTCSignals() {
         startBroadcast(broadcastType);
     });
 }
-
-    if (endBroadcastBtn) {
-        endBroadcastBtn.addEventListener('click', () => {
-            console.log('[UI] End Broadcast button clicked.');
-            endBroadcast();
-        });
-    }
+// Listener for the "End Broadcast" button
+endBroadcastBtn.addEventListener('click', async () => {
+    console.log('[Broadcast] Attempting to end broadcast...');
+    endBroadcast();
+});
 
     // --- Library Search Input Listener ---
     if (librarySearchInput) {
