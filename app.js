@@ -1306,77 +1306,68 @@ function endBroadcast() {
 // A queue to store ICE candidates before the remote description is set.
 const iceCandidateQueue = [];
 
-async function handleWebRTCSignal(signal) {
-    const peerUserId = signal.fromUserId;
-    
-    // Check if a peer connection already exists for this user
-    let peerConnection = peerConnections[peerUserId] ? peerConnections[peerUserId].pc : null;
+// Function to process WebRTC signals fetched from the server
+async function handleWebRTCSignal(signals) {
+    if (!signals || signals.length === 0) {
+        return;
+    }
 
-    if (signal.type === 'offer') {
-        console.log(`[WebRTC] Received offer from peer UserId: ${peerUserId}`);
+    console.log(`[WebRTC] Processing ${signals.length} pending signal(s).`);
 
-        // 1. Create a new peer connection if it doesn't exist
-        if (!peerConnection) {
-            peerConnection = createPeerConnection(peerUserId, false, signal.username, signal.socketId);
+    for (const signal of signals) {
+        const fromUserId = signal.fromUserId;
+        const signalData = signal.signalData;
+
+        // Ensure a peer connection exists for the sender, creating one if not
+        if (!peerConnections[fromUserId]) {
+            createPeerConnection(fromUserId);
         }
+        const pc = peerConnections[fromUserId].pc;
 
-        // 2. Set the remote description (the offer)
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
-        console.log(`[WebRTC] Set remote description (offer) for peer UserId ${peerUserId}`);
+        try {
+            switch (signal.type) {
+                case 'offer':
+                    console.log(`[WebRTC] Received offer from UserId: ${fromUserId}.`);
 
-        // 3. Create an answer
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        console.log(`[WebRTC] Created and set local answer for peer UserId: ${peerUserId}`);
+                    // Set the remote offer and create an answer
+                    await pc.setRemoteDescription(new RTCSessionDescription(signalData));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
 
-        // 4. Send the answer back to the admin
-        socket.emit('webrtc_signal', {
-            type: 'answer',
-            payload: peerConnection.localDescription,
-            toUserId: peerUserId
-        });
+                    // Send the answer back to the admin via the server
+                    socket.emit('webrtc_signal', {
+                        type: 'answer',
+                        payload: answer,
+                        toUserId: fromUserId
+                    });
 
-        // 5. Process any queued ICE candidates
-        while (iceCandidateQueue.length > 0) {
-            const candidate = iceCandidateQueue.shift();
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
-            } catch (error) {
-                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
+                    // Process any queued ICE candidates for this peer
+                    processQueuedIceCandidates(fromUserId);
+                    break;
+
+                case 'answer':
+                    console.log(`[WebRTC] Received answer from UserId: ${fromUserId}.`);
+                    await pc.setRemoteDescription(new RTCSessionDescription(signalData));
+                    processQueuedIceCandidates(fromUserId);
+                    break;
+
+                case 'ice_candidate':
+                    console.log(`[WebRTC] Received ICE candidate from UserId: ${fromUserId}.`);
+                    if (pc.remoteDescription) {
+                        await pc.addIceCandidate(new RTCIceCandidate(signalData));
+                    } else {
+                        // Queue the candidate if the remote description hasn't been set yet
+                        iceCandidateQueues[fromUserId] = iceCandidateQueues[fromUserId] || [];
+                        iceCandidateQueues[fromUserId].push(signalData);
+                    }
+                    break;
+
+                default:
+                    console.warn(`[WebRTC] Unknown signal type received: ${signal.type}`);
+                    break;
             }
-        }
-
-    } else if (signal.type === 'answer') {
-        // Step 1: Set the remote description (the answer)
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
-        console.log(`[WebRTC] Set remote description (answer) for peer UserId ${peerUserId}`);
-
-        // Step 2: Process any queued ICE candidates
-        while (iceCandidateQueue.length > 0) {
-            const candidate = iceCandidateQueue.shift();
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
-            } catch (error) {
-                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
-            }
-        }
-
-    } else if (signal.type === 'candidate') {
-        // Check if the remote description has been set
-        if (peerConnection && peerConnection.remoteDescription) {
-            // Add the candidate directly if the remote description is ready
-            try {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(signal.payload));
-                console.log(`[WebRTC] Added ICE candidate for peer UserId: ${peerUserId}`);
-            } catch (error) {
-                console.error(`[WebRTC] Error adding ICE candidate:`, error);
-            }
-        } else {
-            // Queue the candidate if the remote description is not yet ready
-            iceCandidateQueue.push(signal.payload);
-            console.log(`[WebRTC] Queued ICE candidate for peer UserId: ${peerUserId}`);
+        } catch (error) {
+            console.error(`[WebRTC] Error processing signal from ${fromUserId}:`, error);
         }
     }
 }
