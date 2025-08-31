@@ -1195,6 +1195,109 @@ function disconnectPeer(peerUserId) {
         }
     });
 }
+// Map of peer connections
+const peerConnections = {};
+
+// --- Create PeerConnection for a remote user ---
+function createPeerConnection(remoteUserId) {
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    // Send ICE candidates to remote peer via server
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit('webrtc_ice_candidate', {
+                classroomId: currentClassroomId,
+                recipient_id: remoteUserId,
+                candidate: event.candidate
+            });
+        }
+    };
+
+    // Handle remote video/audio tracks from peer
+    pc.ontrack = (event) => {
+        let videoWrapper = document.getElementById(`video-wrapper-${remoteUserId}`);
+        if (!videoWrapper) {
+            videoWrapper = document.createElement('div');
+            videoWrapper.id = `video-wrapper-${remoteUserId}`;
+            const videoEl = document.createElement('video');
+            videoEl.autoplay = true;
+            videoEl.playsInline = true;
+            videoEl.srcObject = event.streams[0];
+            videoWrapper.appendChild(videoEl);
+            document.getElementById('remote-videos-container').appendChild(videoWrapper);
+        } else {
+            const videoEl = videoWrapper.querySelector('video');
+            if (videoEl) videoEl.srcObject = event.streams[0];
+        }
+    };
+
+    return pc;
+}
+
+// --- Broadcast from Admin to All Participants ---
+async function broadcastToAllPeers(participants) {
+    if (!localStream) {
+        console.error("[WebRTC] No localStream found for admin broadcast.");
+        return;
+    }
+
+    console.log(`[WebRTC] Admin broadcasting to ${participants.length} participants...`);
+
+    for (const p of participants) {
+        const remoteUserId = p.userId;
+        const username = p.username || `User-${remoteUserId.substring(0, 5)}`;
+
+        try {
+            // Create PeerConnection for each participant
+            if (!peerConnections[remoteUserId]) {
+                peerConnections[remoteUserId] = { pc: createPeerConnection(remoteUserId) };
+            }
+            const pc = peerConnections[remoteUserId].pc;
+
+            // Add local video/audio tracks
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            // Create SDP offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Send offer to this participant via server
+            socket.emit('webrtc_offer', {
+                classroomId: currentClassroomId,
+                recipient_id: remoteUserId,
+                offer: offer
+            });
+
+            console.log(`[WebRTC] Sent offer to ${username} (${remoteUserId})`);
+        } catch (err) {
+            console.error(`[WebRTC] Error broadcasting to ${username}:`, err);
+        }
+    }
+}
+
+// --- Start Broadcast when Admin clicks Start Button ---
+async function startBroadcast() {
+    try {
+        console.log("[Broadcast] Attempting to start broadcast...");
+
+        // Get admin's camera + microphone
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        console.log("[Broadcast] Obtained local stream.");
+
+        // Fetch participants from server or state
+        const participants = classroomParticipants || [];
+        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
+
+        // Broadcast offers to everyone
+        await broadcastToAllPeers(participants);
+
+        console.log("[Broadcast] Broadcast started.");
+    } catch (err) {
+        console.error("[Broadcast] Error starting broadcast:", err);
+    }
+}
 
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
