@@ -1446,60 +1446,7 @@ function stopLocalStream() {
 }
   
 
-// Function to create and configure a new RTCPeerConnection
-function createPeerConnection(remoteUserId) {
-    console.log(`[WebRTC] Creating new RTCPeerConnection for UserId: ${remoteUserId}`);
-    const pc = new RTCPeerConnection(iceServers);
 
-    // Event listener for when the peer connection generates an ICE candidate
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            // Send the ICE candidate to the peer via the server
-            socket.emit('webrtc_signal', {
-                type: 'ice_candidate',
-                payload: event.candidate,
-                toUserId: remoteUserId
-            });
-        }
-    };
-
-    // This is the CRUCIAL event that fires when a remote stream is added
-    pc.ontrack = (event) => {
-        console.log('[WebRTC] Received remote track. Attaching to video element.');
-
-        // Find or create the video element for the remote stream
-        let remoteVideo = document.getElementById(`remote-video-${remoteUserId}`);
-        if (!remoteVideo) {
-            remoteVideo = document.createElement('video');
-            remoteVideo.id = `remote-video-${remoteUserId}`;
-            remoteVideo.autoplay = true;
-            remoteVideo.playsInline = true;
-            remoteVideo.muted = false; // Ensure audio is not muted for the recipient
-            if (remoteVideoContainer) {
-                remoteVideoContainer.appendChild(remoteVideo);
-            }
-        }
-        
-        // Attach the incoming stream to the video element
-        remoteVideo.srcObject = event.streams[0];
-    };
-
-    // Store the newly created peer connection object
-    peerConnections[remoteUserId] = { pc: pc, userId: remoteUserId };
-    return pc;
-}
-
-// Function to process ICE candidates that were received before the remote description was set
-function processQueuedIceCandidates(remoteUserId) {
-    if (iceCandidateQueues[remoteUserId] && iceCandidateQueues[remoteUserId].length > 0) {
-        console.log(`[WebRTC] Processing ${iceCandidateQueues[remoteUserId].length} queued ICE candidates for ${remoteUserId}.`);
-        while (iceCandidateQueues[remoteUserId].length > 0) {
-            const candidate = new RTCIceCandidate(iceCandidateQueues[remoteUserId].shift());
-            peerConnections[remoteUserId].pc.addIceCandidate(candidate);
-        }
-    }
-}
-/**
  * Dynamically creates a video element for a remote peer and adds it to the DOM.
  */
 function createRemoteVideoElement(peerUserId, peerUsername) {
