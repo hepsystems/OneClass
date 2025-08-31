@@ -722,149 +722,127 @@ function enterClassroom(id, name) {
             assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
         }
     }
-
-  
-function initializeSocketIo() {
+/**
+ * Initializes the Socket.IO connection and sets up all event listeners for real-time communication.
+ * This function ensures that previous connections are properly closed before a new one is established.
+ */
+function initializeSocketIO() {
     if (socket && socket.connected) {
-        console.log('[Socket.IO] Already connected.');
-        return;
+        console.warn('[Socket.IO] Existing socket connection found. Disconnecting before re-initializing.');
+        socket.disconnect(); // Disconnect any existing socket
     }
 
-    const socketUrl = window.location.protocol + '//' + document.domain + ':' + location.port;
-    socket = io(socketUrl, {
-        withCredentials: true,
-        extraHeaders: { "my-custom-header": "Socket.IO" }
-    });
+    socket = io(); // Initialize a new Socket.IO client instance
 
-    socket.on('connect', () => {
-        console.log('[Socket.IO] Connected to server.');
-        showNotification('Connected to server.');
-        if (currentClassroom) {
-            socket.emit('join_classroom', { classroomId: currentClassroom.id });
+    // Helper function to render a single chat message
+    const renderChatMessage = (msg, isHistory = false) => {
+        if (!chatMessages) {
+            console.warn('[Chat] chatMessages element not found. Cannot render message.');
+            return;
         }
-    });
 
-    socket.on('disconnect', () => {
-        console.log('[Socket.IO] Disconnected from server.');
-        showNotification('Disconnected from server.', true);
-        Object.values(peerConnections).forEach(pcObj => {
-            if (pcObj.pc) pcObj.pc.close();
-        });
-        peerConnections = {};
-    });
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('chat-message-item');
 
-    socket.on('message', (data) => {
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatMessages) {
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message');
-            messageElement.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
-            chatMessages.appendChild(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    });
-
-    socket.on('broadcast_started', (data) => {
-        console.log(`[WebRTC] Broadcast has started in classroom ${data.classroomId}.`);
-        if (currentUser.role !== 'admin') {
-            document.getElementById('start-broadcast-btn').style.display = 'none';
-            showNotification('Admin has started the broadcast.');
-        }
-    });
-
-    socket.on('broadcast_ended', () => {
-        console.log('[WebRTC] Broadcast has ended.');
-        if (currentUser.role !== 'admin') {
-            document.getElementById('start-broadcast-btn').style.display = 'inline-block';
-            showNotification('Broadcast has ended.');
-            Object.values(peerConnections).forEach(pcObj => {
-                if (pcObj.pc) pcObj.pc.close();
-            });
-            peerConnections = {};
-            if (remoteVideoContainer) {
-                remoteVideoContainer.innerHTML = '';
-            }
-        }
-    });
-
-    socket.on('user_joined', async (data) => {
-        const remoteUserId = data.userId;
-        console.log(`[WebRTC] New user joined: ${remoteUserId}`);
-        if (currentUser.role === 'admin' && localStream) {
-            console.log(`[WebRTC] Admin is creating an offer for new participant: ${remoteUserId}`);
-            const pc = createPeerConnection(remoteUserId);
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                socket.emit('webrtc_offer', { recipient_id: remoteUserId, offer: offer });
-            } catch (error) {
-                console.error('[WebRTC] Error creating or sending offer:', error);
-            }
-        }
-    });
-
-    socket.on('webrtc_offer', async (data) => {
-        const senderId = data.senderId;
-        const offer = data.offer;
-        console.log(`[WebRTC] Received offer from ${senderId}`);
-        const pc = createPeerConnection(senderId);
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit('webrtc_answer', { recipient_id: senderId, answer: answer });
-    });
-
-    socket.on('webrtc_answer', async (data) => {
-        const senderId = data.senderId;
-        const answer = data.answer;
-        console.log(`[WebRTC] Received answer from ${senderId}`);
-        const pcObj = peerConnections[senderId];
-        if (pcObj && pcObj.pc && pcObj.pc.remoteDescription === null) {
-            await pcObj.pc.setRemoteDescription(new RTCSessionDescription(answer));
+        // Apply specific CSS classes based on sender and role
+        if (currentUser && msg.userId === currentUser.id) { // Use msg.userId for comparison
+            messageElement.classList.add('chat-message-current-user');
         } else {
-            console.warn(`[WebRTC] Answer received but no peer connection or remote description already set for ${senderId}.`);
+            messageElement.classList.add('chat-message-other-user');
+        }
+        if (msg.role === 'admin') {
+            messageElement.classList.add('chat-message-admin');
+        }
+
+        const senderDisplayName = getDisplayName(msg.username, msg.role);
+        const date = new Date(msg.timestamp);
+        const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true };
+        const formattedDateTime = date.toLocaleString(undefined, options);
+
+        messageElement.innerHTML = `<span class="chat-sender-name">${senderDisplayName}</span> <span class="chat-timestamp">(${formattedDateTime}):</span> ${msg.message}`;
+        chatMessages.appendChild(messageElement);
+
+        // Only scroll to bottom for new messages or after all history is loaded
+        if (!isHistory) {
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message
+        }
+    };
+
+    // Event listener for successful connection
+    socket.on('connect', () => {
+        console.log('[Socket.IO] Connected. Session ID (SID):', socket.id);
+        // Attempt to join the classroom if `currentClassroom` is set
+        if (currentClassroom && currentClassroom.id && currentUser && currentUser.role) {
+            console.log(`[Socket.IO] Emitting 'join' event for classroom ${currentClassroom.id}`);
+            socket.emit('join', {
+                'classroomId': currentClassroom.id,
+                'role': currentUser.role,
+                'username': currentUser.username, // Include username for server logs/peer display
+                'userId': currentUser.id // Include userId for server identification
+            });
+            showNotification(`Connected to classroom: ${currentClassroom.name}`);
+
+            // IMPORTANT: Fetch whiteboard history *after* ensuring the user has joined the room.
+            // A small delay gives the server time to process the 'join' event.
+            setTimeout(() => {
+                if (socket.connected && currentClassroom && currentClassroom.id) {
+                    fetchWhiteboardHistory();
+                    console.log('[Socket.IO] Requested whiteboard history after join.');
+                } else {
+                    console.error('[Socket.IO] Socket not connected or classroom not set after delay. Cannot fetch history.');
+                }
+            }, 500); // 500ms delay
+
+        } else {
+            console.error('[Socket.IO] Cannot join classroom: currentClassroom or currentUser is undefined or missing required properties.');
+            showNotification("Error: Could not join classroom. Please try re-entering the classroom.", true);
         }
     });
 
-    socket.on('webrtc_ice_candidate', async (data) => {
-        const senderId = data.senderId;
-        const candidate = data.candidate;
-        const pcObj = peerConnections[senderId];
-        if (pcObj && pcObj.pc) {
-            console.log(`[WebRTC] Received ICE candidate from ${senderId}`);
-            try {
-                await pcObj.pc.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (error) {
-                console.error('[WebRTC] Error adding received ICE candidate:', error);
+    // Event listener for disconnection
+    socket.on('disconnect', (reason) => {
+        console.log(`[Socket.IO] Disconnected. Reason: ${reason}`);
+        showNotification("Disconnected from classroom. " + (reason === 'io server disconnect' ? 'Admin ended session.' : ''), true);
+        // Clean up WebRTC peer connections and remote videos upon disconnect
+        for (const peerUserId in peerConnections) { // peerUserId here is the USER_ID of the remote peer
+            if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+                peerConnections[peerUserId].pc.close();
+                delete peerConnections[peerUserId];
             }
         }
+        if (remoteVideoContainer) remoteVideoContainer.innerHTML = '';
     });
 
+    // General status updates from the server
     socket.on('status', (data) => {
         console.log('[Socket.IO] Server Status:', data.message);
     });
 
+    // Event for admin actions that affect other users (e.g., library updates, assessment changes)
     socket.on('admin_action_update', (data) => {
         console.log('[Admin Action] Received:', data.message);
         showNotification(`Admin Action: ${data.message}`);
         if (data.message.includes('library')) {
-            loadLibraryFiles();
+            loadLibraryFiles(); // Reload library if files were updated
         }
         if (data.message.includes('assessment')) {
-            loadAssessments();
+            loadAssessments(); // Reload assessments to reflect changes
         }
     });
 
+    // Event for broadcast status updates from admin
     socket.on('broadcast_status_update', (data) => {
         console.log('[Broadcast Status Update] Received:', data.message);
         showNotification(data.message);
+        // If broadcast ended, ensure participant's remote video is also cleaned up
         if (!data.isBroadcasting) {
             console.log(`[Broadcast Status Update] Admin ended broadcast. Cleaning up remote video for ${data.adminUsername} (UserID: ${data.adminUsername} if available).`);
+            // Assuming adminUsername can be used to derive admin's UserId if not directly provided
+            // For now, let's just clear all remote videos for simplicity if the admin explicitly ends broadcast
             if (remoteVideoContainer) {
                 remoteVideoContainer.innerHTML = '';
             }
+            // Clear all peer connections, as the broadcast from admin is over
             for (const peerUserId in peerConnections) {
                 if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
                     peerConnections[peerUserId].pc.close();
@@ -874,20 +852,23 @@ function initializeSocketIo() {
         }
     });
 
+    // Event for receiving new chat messages
     socket.on('message', (data) => {
         console.log('Received chat message:', data);
         renderChatMessage(data);
     });
 
+    // Event for receiving chat history on joining a classroom
     socket.on('chat_history', (history) => {
         console.log('Received chat history:', history);
-        if (chatMessages) chatMessages.innerHTML = '';
+        if (chatMessages) chatMessages.innerHTML = ''; // Clear previous messages
         history.forEach(msg => {
-            renderChatMessage(msg, true);
+            renderChatMessage(msg, true); // Pass true to indicate it's history
         });
-        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message after all history
     });
 
+    // Event when a user joins the classroom
     socket.on('user_joined', (data) => {
         console.log(`[Socket.IO] User joined: ${data.username} (UserID: ${data.userId}, SID: ${data.sid})`);
         const statusMessage = document.createElement('div');
@@ -897,12 +878,16 @@ function initializeSocketIo() {
         if (chatMessages) chatMessages.appendChild(statusMessage);
         if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 
+        // If the current user is an admin and broadcasting, create a WebRTC offer for the new participant
         if (currentUser && currentUser.role === 'admin' && localStream && localStream.active && data.userId !== currentUser.id) {
             console.log(`[WebRTC] Admin (${socket.id}) broadcasting. Creating offer for new peer UserID: ${data.userId}`);
-            createPeerConnection(data.userId, true, data.username, data.sid);
+            // Call createPeerConnection with the new user's ID as the primary identifier
+            // Pass their SID as well for potential logging/distinction, but the PC will be keyed by userId
+            createPeerConnection(data.userId, true, data.username, data.sid); // peerId becomes data.userId
         }
     });
 
+    // Event when a user leaves the classroom
     socket.on('user_left', (data) => {
         console.log(`[Socket.IO] User left: ${data.username} (UserID: ${data.userId}, SID: ${data.sid})`);
         const statusMessage = document.createElement('div');
@@ -911,15 +896,17 @@ function initializeSocketIo() {
         if (chatMessages) chatMessages.appendChild(statusMessage);
         if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        const peerUserId = data.userId;
+        const peerUserId = data.userId; // Use userId for PC map lookup
+        // Close WebRTC connection and remove video element for the departed peer
         if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
             console.log(`[WebRTC] User left. Closing PC and removing video for UserId: ${peerUserId}`);
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
+            // The video element ID should now also be based on userId for consistency
+            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`); 
             if (videoWrapper) {
                 videoWrapper.remove();
-                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId} on user_left.`);
+                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId}`);
             } else {
                 console.warn(`[WebRTC] Video element not found for UserId: ${peerUserId} on user_left.`);
             }
@@ -936,6 +923,7 @@ function initializeSocketIo() {
             return;
         }
 
+        // Validate incoming whiteboard data structure
         if (!data || typeof data.action === 'undefined' || typeof data.pageIndex === 'undefined') {
             console.error('[Whiteboard] Received malformed whiteboard data, missing action or pageIndex:', data);
             return;
@@ -950,76 +938,194 @@ function initializeSocketIo() {
                 return;
             }
 
+            // Ensure the target page exists locally; create if it's a new page
             while (whiteboardPages.length <= pageIndex) {
                 whiteboardPages.push([]);
             }
-            whiteboardPages[pageIndex].push(drawingItem);
+            whiteboardPages[pageIndex].push(drawingItem); // Store the drawing command
 
+            // Only render if it's the currently active page
             if (pageIndex === currentPageIndex) {
-                renderCurrentWhiteboardPage();
+                renderCurrentWhiteboardPage(); // Re-render the entire page to include the new item
             }
         } else if (action === 'clear') {
+            // Clear local data for the specified page
             if (whiteboardPages[pageIndex]) {
                 whiteboardPages[pageIndex] = [];
                 showNotification(`Whiteboard page ${pageIndex + 1} cleared by admin.`);
             }
+            // If it's the current page, clear the canvas visually and redraw
             if (pageIndex === currentPageIndex) {
-                renderCurrentWhiteboardPage();
+                renderCurrentWhiteboardPage(); // Re-render effectively clears and sets background
             }
         } else if (action === 'history' && Array.isArray(data.history)) {
+            // Initial load of whiteboard history for all pages
             console.log('[Whiteboard] Received whiteboard history from server:', data.history);
             whiteboardPages = data.history;
             if (whiteboardPages.length === 0) {
-                whiteboardPages = [[]];
+                whiteboardPages = [[]]; // Ensure at least one page
             }
-            currentPageIndex = 0;
-            renderCurrentWhiteboardPage();
-            updateWhiteboardPageDisplay();
-            pushToUndoStack();
+            currentPageIndex = 0; // Reset to the first page on history load
+            renderCurrentWhiteboardPage(); // Render the first page
+            updateWhiteboardPageDisplay(); // Update page display and buttons
+            pushToUndoStack(); // Save initial loaded history to undo stack
             showNotification('Whiteboard history loaded.');
         }
     });
     socket.on('whiteboard_clear', (data) => {
         console.log('[Socket] Received whiteboard clear command.');
+        // Clear the canvas and reset history to a single empty page
         if (whiteboardCtx) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             whiteboardCtx.fillStyle = '#000000';
             whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
-        whiteboardPages = [[]];
+        whiteboardPages = [[]]; // Reset to a single, empty page
         currentPageIndex = 0;
         undoStack = [];
         redoStack = [];
         updateUndoRedoButtons();
         updateWhiteboardPageDisplay();
     });
+    
 
+    // Whiteboard page change synchronization event
     socket.on('whiteboard_page_change', (data) => {
+        // Validate incoming page index
         const { newPageIndex } = data;
         if (typeof newPageIndex !== 'number' || newPageIndex < 0) {
             console.error('[Whiteboard] Received invalid newPageIndex for page change:', newPageIndex);
             return;
         }
 
+        // Handle creation of new pages if `newPageIndex` is beyond current `whiteboardPages.length`
         while (whiteboardPages.length <= newPageIndex) {
-            whiteboardPages.push([]);
+            whiteboardPages.push([]); // Add new empty pages until `newPageIndex` is valid
+            console.log(`[Whiteboard] Auto-created new local whiteboard page: ${whiteboardPages.length}`);
         }
 
+        // Update local page index and re-render
         currentPageIndex = newPageIndex;
         renderCurrentWhiteboardPage();
         updateWhiteboardPageDisplay();
         showNotification(`Whiteboard page changed to ${newPageIndex + 1}`);
+        // Also push to undo stack for the new page
         pushToUndoStack();
     });
 
+    // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
+    socket.on('webrtc_offer', async (data) => {
+        console.log(`[WebRTC] Received WebRTC Offer from: ${data.username} (UserID: ${data.offerer_user_id}, SID: ${data.offerer_socket_id}) to ${currentUser.id}`);
 
+        const offererUserId = data.offerer_user_id;       // The user_id of the offerer (admin)
+        const offererSocketId = data.offerer_socket_id;   // The Socket.IO SID of the offerer (admin)
+        const peerUsername = data.username || `Peer ${offererUserId.substring(0, 4)}`;
+
+        // Create a new peer connection if one doesn't exist for this offerer's USER_ID
+        // This is crucial for participants: they need to create a PC to respond to the admin's offer.
+        if (!peerConnections[offererUserId] || !peerConnections[offererUserId].pc) { // Key by user_id
+            console.log(`[WebRTC] No valid existing PC for offerer UserId ${offererUserId}. Creating new peer connection as receiver.`);
+            // This is the participant's side, so they are the receiver (isCaller = false)
+            await createPeerConnection(offererUserId, false, peerUsername, offererSocketId); 
+        } else {
+            // If PC already exists, update the socketId if it's different/newer
+            if (offererSocketId && peerConnections[offererUserId].socketId !== offererSocketId) {
+                peerConnections[offererUserId].socketId = offererSocketId;
+                console.log(`[WebRTC] Updating existing PC for UserId ${offererUserId} with new SocketId: ${offererSocketId}`);
+            }
+            console.log(`[WebRTC] Reusing existing valid PC for offerer UserId ${offererUserId}.`);
+        }
+
+        try {
+            const pcInfo = peerConnections[offererUserId]; // Look up PC by user_id
+            if (!pcInfo || !pcInfo.pc) {
+                console.error(`[WebRTC] PeerConnection object not found for offerer UserId ${offererUserId} AFTER creation/lookup. This is a critical error.`);
+                showNotification(`WebRTC error: Peer connection missing for ${peerUsername}.`, true);
+                return;
+            }
+            const pc = pcInfo.pc;
+
+            // Set remote description from the offer
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            console.log(`[WebRTC] Set remote description (offer) for UserId ${offererUserId}.`);
+
+            // Create and set local answer
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            console.log(`[WebRTC] Created and set local description (answer) for UserId ${offererUserId}.`);
+
+            // Send the answer back to the offering peer
+            socket.emit('webrtc_answer', {
+                classroomId: currentClassroom.id,
+                recipient_id: offererUserId, // *** CRUCIAL: Send answer back to the offerer's USER_ID ***
+                answer: pc.localDescription
+            });
+            console.log(`[WebRTC] Sent WebRTC Answer to user: ${offererUserId} (via SID: ${offererSocketId}) from ${currentUser.id}`);
+        } catch (error) {
+            console.error(`[WebRTC] Error handling WebRTC offer for UserId ${offererUserId}:`, error);
+            showNotification(`WebRTC error with ${peerUsername}: ${error.message}`, true);
+        }
+    });
+
+    // WebRTC signaling: Answer (from receiving peer)
+    socket.on('webrtc_answer', async (data) => {
+        // This handler is primarily for the OFFERER (admin) to receive the student's answer.
+        // If a participant receives this, it's likely an echo or misroute, but we'll handle defensively.
+        if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (shouldn't happen with server logic)
+        console.log(`[WebRTC] Received WebRTC Answer from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
+
+        const senderUserId = data.sender_user_id; // The UserID of the student who sent the answer
+        const senderSocketId = data.sender_socket_id;
+        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id (this should be the admin's PC with the student)
+
+        if (pcInfo && pcInfo.pc) {
+            pcInfo.socketId = senderSocketId; // Update socketId if needed
+            try {
+                await pcInfo.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                console.log(`[WebRTC] Set remote description (answer) for peer UserID ${senderUserId} (SID: ${senderSocketId}).`);
+            } catch (error) {
+                console.error('[WebRTC] Error handling WebRTC answer:', error);
+                showNotification(`WebRTC error with ${senderUserId}: ${error.message}`, true);
+            }
+        } else {
+             console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer. This might be expected if a participant received an answer meant for the admin.`);
+        }
+    });
+
+    // WebRTC signaling: ICE Candidate (network information exchange)
+    socket.on('webrtc_ice_candidate', async (data) => {
+        if (data.sender_user_id === currentUser.id) return; // Ignore candidates from self
+        console.log(`[WebRTC] Received ICE Candidate from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
+        const senderUserId = data.sender_user_id; // Use userId to look up PC
+        const senderSocketId = data.sender_socket_id;
+        
+        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id
+        if (pcInfo && pcInfo.pc && data.candidate) {
+            pcInfo.socketId = senderSocketId; // Update socketId if needed
+            try {
+                await pcInfo.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                 console.log(`[WebRTC] Added ICE candidate from UserID ${senderUserId} (SID: ${senderSocketId}).`);
+            } catch (error) {
+                if (!error.message.includes('wrong state') && !error.message.includes('remote answer sdp')) {
+                    console.error('[WebRTC] Error adding ICE candidate:', error);
+                    showNotification(`WebRTC ICE error with ${senderUserId}: ${error.message}`, true);
+                }
+            }
+        } else {
+            console.warn(`[WebRTC] PeerConnection not found for UserID ${senderUserId} or no candidate data. Candidate might be for an uninitialized PC.`);
+        }
+    });
+
+    // WebRTC peer disconnected signal from server
     socket.on('webrtc_peer_disconnected', (data) => {
-        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`);
+        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
         const peerUserId = data.peer_user_id;
+        // Close peer connection and remove video element
         if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
             console.log(`[WebRTC] Received 'webrtc_peer_disconnected'. Closing PC and removing video for UserId: ${peerUserId}`);
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
+            // Video element ID uses peerUserId
             const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
             if (videoWrapper) {
                 videoWrapper.remove();
@@ -1032,20 +1138,28 @@ function initializeSocketIo() {
         }
     });
 
+    // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
         console.log('[Assessment] Received assessment_started event:', data);
+        // Only act if the user is currently viewing or has set this assessment to take
         if (currentAssessmentToTake && currentAssessmentToTake.id === data.assessmentId) {
             showNotification(`Assessment "${data.title}" has started!`);
-            startAssessmentTimer(new Date(data.endTime));
+            startAssessmentTimer(new Date(data.endTime)); // Start the client-side countdown
         }
     });
 
+    // New Socket.IO event: A submission has been marked (server-side push)
     socket.on('submission_marked', (data) => {
         console.log('[Assessment] Received submission_marked event:', data);
+        // Notify the specific student whose submission was marked
         if (currentUser && currentUser.id === data.studentId) {
             showNotification(`Your assessment "${data.assessmentTitle}" has been marked!`);
+            // In a full application, you might also trigger fetching their marked submission details here
         }
+        // If an admin is viewing submissions, they might want to refresh the list
         if (currentUser && currentUser.role === 'admin' && viewSubmissionsContainer && !viewSubmissionsContainer.classList.contains('hidden')) {
+            // Assuming submissionsAssessmentTitle has the current assessment ID in a dataset or similar
+            // For simplicity, just refresh if admin is on submission page
             const currentAssessmentId = submissionsAssessmentTitle.dataset.assessmentId;
             if (currentAssessmentId === data.assessmentId) {
                 viewSubmissions(currentAssessmentId, data.assessmentTitle);
@@ -1053,7 +1167,7 @@ function initializeSocketIo() {
         }
     });
 }
-}
+
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
  * @param {boolean} isBroadcasting - True if broadcast is active.
@@ -1267,7 +1381,32 @@ async function handleWebRTCSignal(signal) {
     }
 }
 
- 
+   /**
+ * Periodically polls the server for any pending WebRTC signals.
+ * This is a fallback mechanism for signals sent while a client was offline or
+ * before their Socket.IO connection was fully established.
+ */
+async function pollForWebRTCSignals() {
+    if (!currentUser || !currentUser.id) {
+        // console.log('[WebRTC] Cannot poll for signals: currentUser not available.');
+        return; // Don't poll if not logged in
+    }
+
+    try {
+        const response = await fetch('/api/webrtc-signals');
+        if (!response.ok) {
+            console.error(`[WebRTC] Failed to poll for signals. Status: ${response.status}`);
+            return;
+        }
+        const signals = await response.json();
+        if (signals.length > 0) {
+            console.log(`[WebRTC] Fetched ${signals.length} new signals from server.`);
+            signals.forEach(signal => handleWebRTCSignal(signal));
+        }
+    } catch (error) {
+        console.error('[WebRTC] Error polling for signals:', error);
+    }
+}
  
 
   /**
@@ -1288,55 +1427,52 @@ function stopLocalStream() {
         console.log('[Broadcast] Local video element cleared.');
     }
 }
+  
 
-  function createPeerConnection(remoteUserId) {
-    if (peerConnections[remoteUserId]) {
-        console.log(`[WebRTC] Reusing existing peer connection for ${remoteUserId}`);
-        peerConnections[remoteUserId].pc.close();
-    }
-
+/**
+ * Sets up a new RTCPeerConnection for a participant to receive a broadcast.
+ * This function should be called for each incoming broadcast offer.
+ */
+function createPeerConnection(peerUserId, isCaller, peerUsername, socketId) {
     const pc = new RTCPeerConnection(iceServers);
-    console.log(`[WebRTC] Created new RTCPeerConnection for ${remoteUserId}`);
 
+    // This listener is crucial for handling incoming media streams
     pc.ontrack = (event) => {
-        console.log('[WebRTC] Remote track received:', event.streams[0]);
-        const remoteVideo = document.createElement('video');
-        remoteVideo.id = `remote-video-${remoteUserId}`;
-        remoteVideo.autoplay = true;
-        remoteVideo.playsInline = true;
-        remoteVideo.srcObject = event.streams[0];
-        remoteVideo.muted = false;
-        
-        remoteVideo.addEventListener('loadedmetadata', () => {
-            console.log(`[WebRTC] Remote video for ${remoteUserId} loaded.`);
-            if (remoteVideoContainer) {
-                const existingVideo = document.getElementById(remoteVideo.id);
-                if (existingVideo) {
-                    existingVideo.remove();
-                }
-                remoteVideoContainer.appendChild(remoteVideo);
-            }
-        });
-        showNotification(`Video stream received from ${getDisplayName(remoteUserId, 'admin')}.`);
+        console.log('[WebRTC] Remote track received:', event.track.kind);
+        const remoteVideoElement = document.getElementById(`video-${peerUserId}`);
+
+        if (!remoteVideoElement) {
+            console.warn(`[WebRTC] Remote video element not found for user ${peerUserId}. Creating a new one.`);
+            createRemoteVideoElement(peerUserId, peerUsername);
+        }
+
+        const videoElement = document.getElementById(`video-${peerUserId}`);
+        if (event.track.kind === 'video') {
+            videoElement.srcObject = event.streams[0];
+            videoElement.style.display = 'block'; // Ensure the element is visible
+            console.log(`[WebRTC] Remote video stream attached for peer UserId: ${peerUserId}.`);
+        } else if (event.track.kind === 'audio') {
+            console.log(`[WebRTC] Remote audio track received for peer UserId: ${peerUserId}.`);
+        }
     };
 
+    // Other event listeners (onicecandidate, etc.) would go here.
     pc.onicecandidate = (event) => {
         if (event.candidate) {
-            console.log('[WebRTC] Sending ICE candidate:', event.candidate);
-            socket.emit('webrtc_ice_candidate', { 
-                recipient_id: remoteUserId, 
-                candidate: event.candidate 
+            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}.`);
+            socket.emit('webrtc_signal', {
+                type: 'candidate',
+                payload: event.candidate,
+                toUserId: peerUserId
             });
         }
     };
 
-    peerConnections[remoteUserId] = { pc: pc };
+    // Store the connection in the global object
+    peerConnections[peerUserId] = { pc, username: peerUsername, socketId };
     
     return pc;
-}  
-  
-
-            
+}
 
 /**
  * Dynamically creates a video element for a remote peer and adds it to the DOM.
