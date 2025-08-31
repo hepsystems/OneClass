@@ -748,7 +748,7 @@ function initializeSocketIo() {
         console.log('[Socket.IO] Disconnected from server.');
         showNotification('Disconnected from server.', true);
         Object.values(peerConnections).forEach(pcObj => {
-            if (pcObj.pc) pc.close();
+            if (pcObj.pc) pcObj.pc.close();
         });
         peerConnections = {};
     });
@@ -777,13 +777,12 @@ function initializeSocketIo() {
         if (currentUser.role !== 'admin') {
             document.getElementById('start-broadcast-btn').style.display = 'inline-block';
             showNotification('Broadcast has ended.');
-            // Close all peer connections
             Object.values(peerConnections).forEach(pcObj => {
                 if (pcObj.pc) pcObj.pc.close();
             });
             peerConnections = {};
             if (remoteVideoContainer) {
-                remoteVideoContainer.innerHTML = ''; // Clear all remote videos
+                remoteVideoContainer.innerHTML = '';
             }
         }
     });
@@ -843,36 +842,29 @@ function initializeSocketIo() {
         }
     });
 
-    // General status updates from the server
     socket.on('status', (data) => {
         console.log('[Socket.IO] Server Status:', data.message);
     });
 
-    // Event for admin actions that affect other users (e.g., library updates, assessment changes)
     socket.on('admin_action_update', (data) => {
         console.log('[Admin Action] Received:', data.message);
         showNotification(`Admin Action: ${data.message}`);
         if (data.message.includes('library')) {
-            loadLibraryFiles(); // Reload library if files were updated
+            loadLibraryFiles();
         }
         if (data.message.includes('assessment')) {
-            loadAssessments(); // Reload assessments to reflect changes
+            loadAssessments();
         }
     });
 
-    // Event for broadcast status updates from admin
     socket.on('broadcast_status_update', (data) => {
         console.log('[Broadcast Status Update] Received:', data.message);
         showNotification(data.message);
-        // If broadcast ended, ensure participant's remote video is also cleaned up
         if (!data.isBroadcasting) {
             console.log(`[Broadcast Status Update] Admin ended broadcast. Cleaning up remote video for ${data.adminUsername} (UserID: ${data.adminUsername} if available).`);
-            // Assuming adminUsername can be used to derive admin's UserId if not directly provided
-            // For now, let's just clear all remote videos for simplicity if the admin explicitly ends broadcast
             if (remoteVideoContainer) {
                 remoteVideoContainer.innerHTML = '';
             }
-            // Clear all peer connections, as the broadcast from admin is over
             for (const peerUserId in peerConnections) {
                 if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
                     peerConnections[peerUserId].pc.close();
@@ -882,23 +874,20 @@ function initializeSocketIo() {
         }
     });
 
-    // Event for receiving new chat messages
     socket.on('message', (data) => {
         console.log('Received chat message:', data);
         renderChatMessage(data);
     });
 
-    // Event for receiving chat history on joining a classroom
     socket.on('chat_history', (history) => {
         console.log('Received chat history:', history);
-        if (chatMessages) chatMessages.innerHTML = ''; // Clear previous messages
+        if (chatMessages) chatMessages.innerHTML = '';
         history.forEach(msg => {
-            renderChatMessage(msg, true); // Pass true to indicate it's history
+            renderChatMessage(msg, true);
         });
-        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message after all history
+        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
     });
 
-    // Event when a user joins the classroom
     socket.on('user_joined', (data) => {
         console.log(`[Socket.IO] User joined: ${data.username} (UserID: ${data.userId}, SID: ${data.sid})`);
         const statusMessage = document.createElement('div');
@@ -908,16 +897,12 @@ function initializeSocketIo() {
         if (chatMessages) chatMessages.appendChild(statusMessage);
         if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // If the current user is an admin and broadcasting, create a WebRTC offer for the new participant
         if (currentUser && currentUser.role === 'admin' && localStream && localStream.active && data.userId !== currentUser.id) {
             console.log(`[WebRTC] Admin (${socket.id}) broadcasting. Creating offer for new peer UserID: ${data.userId}`);
-            // Call createPeerConnection with the new user's ID as the primary identifier
-            // Pass their SID as well for potential logging/distinction, but the PC will be keyed by userId
-            createPeerConnection(data.userId, true, data.username, data.sid); // peerId becomes data.userId
+            createPeerConnection(data.userId, true, data.username, data.sid);
         }
     });
 
-    // Event when a user leaves the classroom
     socket.on('user_left', (data) => {
         console.log(`[Socket.IO] User left: ${data.username} (UserID: ${data.userId}, SID: ${data.sid})`);
         const statusMessage = document.createElement('div');
@@ -926,13 +911,11 @@ function initializeSocketIo() {
         if (chatMessages) chatMessages.appendChild(statusMessage);
         if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        const peerUserId = data.userId; // Use userId for PC map lookup
-        // Close WebRTC connection and remove video element for the departed peer
+        const peerUserId = data.userId;
         if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
             console.log(`[WebRTC] User left. Closing PC and removing video for UserId: ${peerUserId}`);
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
-            // The video element ID should now also be based on userId for consistency
             const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
             if (videoWrapper) {
                 videoWrapper.remove();
@@ -953,7 +936,6 @@ function initializeSocketIo() {
             return;
         }
 
-        // Validate incoming whiteboard data structure
         if (!data || typeof data.action === 'undefined' || typeof data.pageIndex === 'undefined') {
             console.error('[Whiteboard] Received malformed whiteboard data, missing action or pageIndex:', data);
             return;
@@ -968,49 +950,43 @@ function initializeSocketIo() {
                 return;
             }
 
-            // Ensure the target page exists locally; create if it's a new page
             while (whiteboardPages.length <= pageIndex) {
                 whiteboardPages.push([]);
             }
-            whiteboardPages[pageIndex].push(drawingItem); // Store the drawing command
+            whiteboardPages[pageIndex].push(drawingItem);
 
-            // Only render if it's the currently active page
             if (pageIndex === currentPageIndex) {
-                renderCurrentWhiteboardPage(); // Re-render the entire page to include the new item
+                renderCurrentWhiteboardPage();
             }
         } else if (action === 'clear') {
-            // Clear local data for the specified page
             if (whiteboardPages[pageIndex]) {
                 whiteboardPages[pageIndex] = [];
                 showNotification(`Whiteboard page ${pageIndex + 1} cleared by admin.`);
             }
-            // If it's the current page, clear the canvas visually and redraw
             if (pageIndex === currentPageIndex) {
-                renderCurrentWhiteboardPage(); // Re-render effectively clears and sets background
+                renderCurrentWhiteboardPage();
             }
         } else if (action === 'history' && Array.isArray(data.history)) {
-            // Initial load of whiteboard history for all pages
             console.log('[Whiteboard] Received whiteboard history from server:', data.history);
             whiteboardPages = data.history;
             if (whiteboardPages.length === 0) {
-                whiteboardPages = [[]]; // Ensure at least one page
+                whiteboardPages = [[]];
             }
-            currentPageIndex = 0; // Reset to the first page on history load
-            renderCurrentWhiteboardPage(); // Render the first page
-            updateWhiteboardPageDisplay(); // Update page display and buttons
-            pushToUndoStack(); // Save initial loaded history to undo stack
+            currentPageIndex = 0;
+            renderCurrentWhiteboardPage();
+            updateWhiteboardPageDisplay();
+            pushToUndoStack();
             showNotification('Whiteboard history loaded.');
         }
     });
     socket.on('whiteboard_clear', (data) => {
         console.log('[Socket] Received whiteboard clear command.');
-        // Clear the canvas and reset history to a single empty page
         if (whiteboardCtx) {
             whiteboardCtx.clearRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
             whiteboardCtx.fillStyle = '#000000';
             whiteboardCtx.fillRect(0, 0, whiteboardCanvas.width, whiteboardCanvas.height);
         }
-        whiteboardPages = [[]]; // Reset to a single, empty page
+        whiteboardPages = [[]];
         currentPageIndex = 0;
         undoStack = [];
         redoStack = [];
@@ -1018,41 +994,32 @@ function initializeSocketIo() {
         updateWhiteboardPageDisplay();
     });
 
-    // Whiteboard page change synchronization event
     socket.on('whiteboard_page_change', (data) => {
-        // Validate incoming page index
         const { newPageIndex } = data;
         if (typeof newPageIndex !== 'number' || newPageIndex < 0) {
             console.error('[Whiteboard] Received invalid newPageIndex for page change:', newPageIndex);
             return;
         }
 
-        // Handle creation of new pages if `newPageIndex` is beyond current `whiteboardPages.length`
         while (whiteboardPages.length <= newPageIndex) {
-            whiteboardPages.push([]); // Add new empty pages until `newPageIndex` is valid
-            console.log(`[Whiteboard] Auto-created new local whiteboard page: ${whiteboardPages.length}`);
+            whiteboardPages.push([]);
         }
 
-        // Update local page index and re-render
         currentPageIndex = newPageIndex;
         renderCurrentWhiteboardPage();
         updateWhiteboardPageDisplay();
         showNotification(`Whiteboard page changed to ${newPageIndex + 1}`);
-        // Also push to undo stack for the new page
         pushToUndoStack();
     });
 
 
-    // WebRTC peer disconnected signal from server
     socket.on('webrtc_peer_disconnected', (data) => {
-        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
+        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`);
         const peerUserId = data.peer_user_id;
-        // Close peer connection and remove video element
         if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
             console.log(`[WebRTC] Received 'webrtc_peer_disconnected'. Closing PC and removing video for UserId: ${peerUserId}`);
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
-            // Video element ID uses peerUserId
             const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
             if (videoWrapper) {
                 videoWrapper.remove();
@@ -1065,34 +1032,27 @@ function initializeSocketIo() {
         }
     });
 
-    // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
         console.log('[Assessment] Received assessment_started event:', data);
-        // Only act if the user is currently viewing or has set this assessment to take
         if (currentAssessmentToTake && currentAssessmentToTake.id === data.assessmentId) {
             showNotification(`Assessment "${data.title}" has started!`);
-            startAssessmentTimer(new Date(data.endTime)); // Start the client-side countdown
+            startAssessmentTimer(new Date(data.endTime));
         }
     });
 
-    // New Socket.IO event: A submission has been marked (server-side push)
     socket.on('submission_marked', (data) => {
         console.log('[Assessment] Received submission_marked event:', data);
-        // Notify the specific student whose submission was marked
         if (currentUser && currentUser.id === data.studentId) {
             showNotification(`Your assessment "${data.assessmentTitle}" has been marked!`);
-            // In a full application, you might also trigger fetching their marked submission details here
         }
-        // If an admin is viewing submissions, they might want to refresh the list
         if (currentUser && currentUser.role === 'admin' && viewSubmissionsContainer && !viewSubmissionsContainer.classList.contains('hidden')) {
-            // Assuming submissionsAssessmentTitle has the current assessment ID in a dataset or similar
-            // For simplicity, just refresh if admin is on submission page
             const currentAssessmentId = submissionsAssessmentTitle.dataset.assessmentId;
             if (currentAssessmentId === data.assessmentId) {
                 viewSubmissions(currentAssessmentId, data.assessmentTitle);
             }
         }
     });
+}
 }
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
