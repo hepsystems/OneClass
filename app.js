@@ -1095,7 +1095,7 @@ function enterClassroom(id, name) {
             }
         }
     });
-}
+})
 
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
