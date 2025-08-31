@@ -1480,13 +1480,41 @@ async function broadcastToAllPeers() {
         const participants = await response.json();
         console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
 
+        // 1. Check if the localStream is available
+        if (!localStream) {
+            console.error('[WebRTC] Local stream is not available. Cannot broadcast to peers.');
+            showNotification('Failed to start broadcast: Local media stream is not active.', true);
+            return;
+        }
+
         for (const participant of participants) {
+            // Do not create a peer connection for the admin user themselves
             if (participant.id !== currentUser.id) {
                 console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
-                await createPeerConnection(participant.id, true, participant.username, null);
+
+                // 2. Create the peer connection
+                const peerConnection = createPeerConnection(participant.id, true, participant.username, null);
+
+                // 3. Add the local stream's tracks to the connection
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                    console.log(`[WebRTC] Added local track (${track.kind}) to peer connection for ${participant.username}.`);
+                });
+                
+                // 4. Create the offer and set local description
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                console.log(`[WebRTC] Created and set local offer for peer UserId: ${participant.id}`);
+
+                // 5. Send the offer to the peer via the signaling server
+                socket.emit('webrtc_signal', {
+                    type: 'offer',
+                    payload: peerConnection.localDescription,
+                    toUserId: participant.id
+                });
             }
         }
-        console.log('[Broadcast] All initial offers sent to participants.');
+        console.log('[Broadcast] All initial offers created and sent to participants.');
     } catch (error) {
         console.error('[WebRTC] Error broadcasting to all peers:', error);
         showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
