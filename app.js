@@ -2037,51 +2037,44 @@ function drawWhiteboardItem(item) {
         return;
     }
 
-    whiteboardCtx.save(); // Save the current canvas context state
+    whiteboardCtx.save();
 
-    // --- New: Define scaling factors based on current canvas size ---
     const scaleX = whiteboardCanvas.offsetWidth;
     const scaleY = whiteboardCanvas.offsetHeight;
-    const scaledLineWidth = (item.size || currentBrushSize) * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000); // Scale line width proportionally
-    // --- End New ---
+    const scaledLineWidth = (item.size || currentBrushSize) * Math.min(scaleX, scaleY) / 1000;
 
-    // Apply shared styles from the drawing item, falling back to current global tool settings
     whiteboardCtx.strokeStyle = item.color || currentColor;
-    whiteboardCtx.lineWidth = scaledLineWidth; // Use the scaled line width
+    whiteboardCtx.lineWidth = scaledLineWidth;
     whiteboardCtx.fillStyle = item.color || currentColor;
     whiteboardCtx.lineCap = 'round';
     whiteboardCtx.lineJoin = 'round';
 
-    // Set globalCompositeOperation based on item type
     whiteboardCtx.globalCompositeOperation = 'source-over';
     if (item.type === 'eraser') {
-        whiteboardCtx.strokeStyle = '#000000';
-        whiteboardCtx.fillStyle = '#000000';
+        whiteboardCtx.globalCompositeOperation = 'destination-out';
     }
 
     switch (item.type) {
         case 'pen':
         case 'eraser':
-            if (!item.points || item.points.length === 0) break;
-
-            if (item.points.length === 1) {
-                const p = item.points[0];
-                whiteboardCtx.beginPath();
-                // Use scaled coordinates for the circle
-                whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, (p.width || item.size) / 2 * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000), 0, Math.PI * 2);
-                whiteboardCtx.fill();
+            if (!item.points || item.points.length < 2) {
+                if (item.points && item.points.length === 1) {
+                    const p = item.points[0];
+                    whiteboardCtx.beginPath();
+                    whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, scaledLineWidth / 2, 0, Math.PI * 2);
+                    whiteboardCtx.fill();
+                }
                 break;
             }
 
             whiteboardCtx.beginPath();
-            // Use scaled coordinates to move to the first point
             whiteboardCtx.moveTo(item.points[0].x * scaleX, item.points[0].y * scaleY);
             for (let i = 1; i < item.points.length - 1; i++) {
                 const p1 = item.points[i];
                 const p2 = item.points[i + 1];
                 const midX = (p1.x + p2.x) / 2 * scaleX;
                 const midY = (p1.y + p2.y) / 2 * scaleY;
-                whiteboardCtx.lineWidth = (p1.width || item.size) * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000); // Scale dynamic width
+                whiteboardCtx.lineWidth = (p1.width || item.size) * Math.min(scaleX, scaleY) / 1000;
                 whiteboardCtx.quadraticCurveTo(p1.x * scaleX, p1.y * scaleY, midX, midY);
             }
             const lastPoint = item.points[item.points.length - 1];
@@ -2096,7 +2089,6 @@ function drawWhiteboardItem(item) {
 
         case 'line':
             whiteboardCtx.beginPath();
-            // Use scaled coordinates for the line
             whiteboardCtx.moveTo(item.startX * scaleX, item.startY * scaleY);
             whiteboardCtx.lineTo(item.endX * scaleX, item.endY * scaleY);
             whiteboardCtx.stroke();
@@ -2104,19 +2096,16 @@ function drawWhiteboardItem(item) {
 
         case 'rectangle':
             whiteboardCtx.beginPath();
-            // Use scaled coordinates and dimensions for the rectangle
             whiteboardCtx.strokeRect(item.startX * scaleX, item.startY * scaleY, item.width * scaleX, item.height * scaleY);
             break;
 
         case 'circle':
             whiteboardCtx.beginPath();
-            // Use scaled coordinates and radius for the circle
             whiteboardCtx.arc(item.centerX * scaleX, item.centerY * scaleY, item.radius * scaleX, 0, Math.PI * 2);
             whiteboardCtx.stroke();
             break;
 
         case 'text':
-            // Scale font size and position
             const scaledFontSize = item.size * scaleY;
             whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
             const lines = item.text.split('\n');
@@ -2125,21 +2114,13 @@ function drawWhiteboardItem(item) {
             });
             break;
     }
-    whiteboardCtx.restore(); // Restore the canvas context
+    whiteboardCtx.restore();
 }
 
-     /**
- * Gets mouse or touch coordinates relative to the canvas,
- * and converts them to a ratio (0-1) for responsiveness.
- * @param {MouseEvent|TouchEvent} e - The event object.
- * @returns {{x: number, y: number}} An object with x and y coordinates as a ratio.
- */
-function getCanvasCoords(e) {
+ function getCanvasCoords(e) {
     if (!whiteboardCanvas) return { x: 0, y: 0 };
     const rect = whiteboardCanvas.getBoundingClientRect();
     let clientX, clientY;
-
-    // Differentiate between mouse and touch events
     if (e.touches && e.touches.length > 0) {
         clientX = e.touches[0].clientX;
         clientY = e.touches[0].clientY;
@@ -2147,14 +2128,11 @@ function getCanvasCoords(e) {
         clientX = e.clientX;
         clientY = e.clientY;
     }
-
-    // Calculate coordinates as a ratio (0-1) of the canvas dimensions
     return {
-        x: (clientX - rect.left) / whiteboardCanvas.offsetWidth,
-        y: (clientY - rect.top) / whiteboardCanvas.offsetHeight
+        x: clientX - rect.left,
+        y: clientY - rect.top
     };
 }
-
     /**
      * Selects the active drawing tool and updates UI.
      * @param {string} tool - The tool to select ('pen', 'eraser', 'line', 'rectangle', 'circle', 'text').
