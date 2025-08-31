@@ -1547,52 +1547,55 @@ function stopLocalStream() {
         console.log('[Broadcast] Local video element cleared.');
     }
 }
-  
 
-/**
- * Sets up a new RTCPeerConnection for a participant to receive a broadcast.
- * This function should be called for each incoming broadcast offer.
- */
-function createPeerConnection(peerUserId, isCaller, peerUsername, socketId) {
+  function createPeerConnection(remoteUserId) {
+    if (peerConnections[remoteUserId]) {
+        console.log(`[WebRTC] Reusing existing peer connection for ${remoteUserId}`);
+        peerConnections[remoteUserId].pc.close();
+    }
+
     const pc = new RTCPeerConnection(iceServers);
+    console.log(`[WebRTC] Created new RTCPeerConnection for ${remoteUserId}`);
 
-    // This listener is crucial for handling incoming media streams
     pc.ontrack = (event) => {
-        console.log('[WebRTC] Remote track received:', event.track.kind);
-        const remoteVideoElement = document.getElementById(`video-${peerUserId}`);
-
-        if (!remoteVideoElement) {
-            console.warn(`[WebRTC] Remote video element not found for user ${peerUserId}. Creating a new one.`);
-            createRemoteVideoElement(peerUserId, peerUsername);
-        }
-
-        const videoElement = document.getElementById(`video-${peerUserId}`);
-        if (event.track.kind === 'video') {
-            videoElement.srcObject = event.streams[0];
-            videoElement.style.display = 'block'; // Ensure the element is visible
-            console.log(`[WebRTC] Remote video stream attached for peer UserId: ${peerUserId}.`);
-        } else if (event.track.kind === 'audio') {
-            console.log(`[WebRTC] Remote audio track received for peer UserId: ${peerUserId}.`);
-        }
+        console.log('[WebRTC] Remote track received:', event.streams[0]);
+        const remoteVideo = document.createElement('video');
+        remoteVideo.id = `remote-video-${remoteUserId}`;
+        remoteVideo.autoplay = true;
+        remoteVideo.playsInline = true;
+        remoteVideo.srcObject = event.streams[0];
+        remoteVideo.muted = false;
+        
+        remoteVideo.addEventListener('loadedmetadata', () => {
+            console.log(`[WebRTC] Remote video for ${remoteUserId} loaded.`);
+            if (remoteVideoContainer) {
+                const existingVideo = document.getElementById(remoteVideo.id);
+                if (existingVideo) {
+                    existingVideo.remove();
+                }
+                remoteVideoContainer.appendChild(remoteVideo);
+            }
+        });
+        showNotification(`Video stream received from ${getDisplayName(remoteUserId, 'admin')}.`);
     };
 
-    // Other event listeners (onicecandidate, etc.) would go here.
     pc.onicecandidate = (event) => {
         if (event.candidate) {
-            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}.`);
-            socket.emit('webrtc_signal', {
-                type: 'candidate',
-                payload: event.candidate,
-                toUserId: peerUserId
+            console.log('[WebRTC] Sending ICE candidate:', event.candidate);
+            socket.emit('webrtc_ice_candidate', { 
+                recipient_id: remoteUserId, 
+                candidate: event.candidate 
             });
         }
     };
 
-    // Store the connection in the global object
-    peerConnections[peerUserId] = { pc, username: peerUsername, socketId };
+    peerConnections[remoteUserId] = { pc: pc };
     
     return pc;
-}
+}  
+  
+
+            
 
 /**
  * Dynamically creates a video element for a remote peer and adds it to the DOM.
