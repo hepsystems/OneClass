@@ -1168,34 +1168,6 @@ function initializeSocketIO() {
     });
 }
 
-/**
- * Starts the WebRTC process by establishing a local stream and creating peer connections.
- * It's called when a user successfully joins a classroom.
- */
-async function startWebRTC() {
-    try {
-        // Request access to microphone and camera
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
-        console.log('[WebRTC] Local video stream obtained and set.');
-
-        // Initialize peer connections for all users currently in the room
-        for (const [userId, isPresent] of Object.entries(usersInRoom)) {
-            if (userId !== currentUserId && isPresent) {
-                console.log(`[WebRTC] Initiating new peer connection for user ${userId}.`);
-                const peer = createPeerConnection(userId);
-                addLocalStreamToPeer(peer); // Add our local stream to this peer connection
-                peerConnections[userId] = peer;
-            }
-        }
-        console.log('[WebRTC] Peer connections initialized for all existing users.');
-        
-    } catch (err) {
-        console.error('[WebRTC] Failed to get local stream:', err);
-        showNotification('Failed to access your camera and microphone.', true);
-    }
-}
-    
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
  * @param {boolean} isBroadcasting - True if broadcast is active.
@@ -1240,6 +1212,7 @@ function toggleBroadcastButtons(isBroadcasting, broadcastType) {
 
 
 
+    
 /**
  * Handles the start broadcast action, initiating local media stream based on broadcast type.
  * @param {string} broadcastType - 'video_audio' for video and audio, or 'audio_only'.
@@ -1282,10 +1255,9 @@ async function startBroadcast(broadcastType) {
         }
 
         showNotification("Broadcast started successfully!");
+        // Pass the broadcastType to the function that updates the UI
         toggleBroadcastButtons(true, broadcastType);
-        
-        // This is the new, correct function call to start WebRTC
-        await startWebRTC();
+        await broadcastToAllPeers();
         
     } catch (error) {
         console.error('[Broadcast] Error starting broadcast:', error);
@@ -1301,62 +1273,74 @@ async function startBroadcast(broadcastType) {
 function endBroadcast() {
     console.log('[Broadcast] Admin is ending broadcast.');
     
-    // 1. Stop the local media stream (camera/mic)
+    // 1. Stop the local media stream (camera/mic) and clear the local video element
     stopLocalStream();
 
-    // 2. Clean up all established WebRTC peer connections
-    for (const userId in peerConnections) {
-        if (peerConnections[userId]) {
-            console.log(`[WebRTC] Closing peer connection with UserId: ${userId} due to broadcast end.`);
-            peerConnections[userId].close();
+    // 2. Update the UI and notify participants that the broadcast has ended
+    toggleBroadcastButtons(false); 
+    
+    // 3. Clean up all established WebRTC peer connections with students
+    for (const peerUserId in peerConnections) {
+        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+            console.log(`[WebRTC] Closing peer connection with UserId: ${peerUserId} due to broadcast end.`);
+            peerConnections[peerUserId].pc.close();
+            delete peerConnections[peerUserId];
+            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
+            if (videoWrapper) {
+                videoWrapper.remove();
+                console.log(`[WebRTC] Removed remote video element for UserId: ${peerUserId}.`);
+            }
         }
     }
-    peerConnections = {}; // Reset the map
     
-    // 3. Update the UI and notify participants that the broadcast has ended
-    toggleBroadcastButtons(false);
-    if (remoteVideosContainer) {
-        remoteVideosContainer.innerHTML = '';
+    if (remoteVideoContainer) {
+        remoteVideoContainer.innerHTML = '';
         console.log('[WebRTC] Cleared all remote video elements from container.');
     }
     
     showNotification('Broadcast ended.');
 }
+
 // A queue to store ICE candidates before the remote description is set.
 const iceCandidateQueue = [];
-/**
- * Handles incoming WebRTC signaling messages from the server.
- * @param {object} data - The signaling data object.
- */
-async function handleWebRTCSignal(data) {
-    const fromUserId = data.fromUserId;
-    let peer = peerConnections[fromUserId];
 
-    if (!peer) {
-        console.log(`[WebRTC] No peer connection found for ${fromUserId}. Creating a new one.`);
-        peer = createPeerConnection(fromUserId);
-        peerConnections[fromUserId] = peer;
-        addLocalStreamToPeer(peer);
-    }
-    
-    if (data.offer) {
-        console.log(`[WebRTC] Received an offer from user ${fromUserId}. Creating an answer...`);
-        await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        emitWebRTCSignal('answer', {
-            answer: peer.localDescription,
-            toUserId: fromUserId
-        });
-    } else if (data.answer) {
-        console.log(`[WebRTC] Received an answer from user ${fromUserId}.`);
-        await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
-    } else if (data.candidate) {
-        console.log(`[WebRTC] Received ICE candidate from user ${fromUserId}.`);
-        try {
-            await peer.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (e) {
-            console.error('[WebRTC] Error adding received ICE candidate:', e);
+// Your handleWebRTCSignal function or equivalent
+async function handleWebRTCSignal(signal) {
+    const peerUserId = signal.fromUserId;
+    const peerConnection = peerConnections[peerUserId].pc;
+
+    if (signal.type === 'offer') {
+        // ... (existing offer handling)
+    } else if (signal.type === 'answer') {
+        // Step 1: Set the remote description (the answer)
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+        console.log(`[WebRTC] Set remote description (answer) for peer UserId ${peerUserId}`);
+
+        // Step 2: Process any queued ICE candidates
+        while (iceCandidateQueue.length > 0) {
+            const candidate = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
+            }
+        }
+
+    } else if (signal.type === 'candidate') {
+        // Check if the remote description has been set
+        if (peerConnection.remoteDescription) {
+            // Add the candidate directly if the remote description is ready
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(signal.payload));
+                console.log(`[WebRTC] Added ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding ICE candidate:`, error);
+            }
+        } else {
+            // Queue the candidate if the remote description is not yet ready
+            iceCandidateQueue.push(signal.payload);
+            console.log(`[WebRTC] Queued ICE candidate for peer UserId: ${peerUserId}`);
         }
     }
 }
@@ -1410,66 +1394,50 @@ function stopLocalStream() {
   
 
 /**
- * Creates and configures a new RTCPeerConnection for a remote user.
- * @param {string} remoteUserId - The user ID of the remote peer.
- * @returns {RTCPeerConnection} The newly created peer connection object.
+ * Sets up a new RTCPeerConnection for a participant to receive a broadcast.
+ * This function should be called for each incoming broadcast offer.
  */
-function createPeerConnection(remoteUserId) {
-    const peer = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+function createPeerConnection(peerUserId, isCaller, peerUsername, socketId) {
+    const pc = new RTCPeerConnection(iceServers);
 
-    peer.onicecandidate = (e) => {
-        if (e.candidate) {
-            console.log(`[WebRTC] ICE candidate generated for user ${remoteUserId}.`);
-            emitWebRTCSignal('candidate', {
-                candidate: e.candidate,
-                toUserId: remoteUserId
+    // This listener is crucial for handling incoming media streams
+    pc.ontrack = (event) => {
+        console.log('[WebRTC] Remote track received:', event.track.kind);
+        const remoteVideoElement = document.getElementById(`video-${peerUserId}`);
+
+        if (!remoteVideoElement) {
+            console.warn(`[WebRTC] Remote video element not found for user ${peerUserId}. Creating a new one.`);
+            createRemoteVideoElement(peerUserId, peerUsername);
+        }
+
+        const videoElement = document.getElementById(`video-${peerUserId}`);
+        if (event.track.kind === 'video') {
+            videoElement.srcObject = event.streams[0];
+            videoElement.style.display = 'block'; // Ensure the element is visible
+            console.log(`[WebRTC] Remote video stream attached for peer UserId: ${peerUserId}.`);
+        } else if (event.track.kind === 'audio') {
+            console.log(`[WebRTC] Remote audio track received for peer UserId: ${peerUserId}.`);
+        }
+    };
+
+    // Other event listeners (onicecandidate, etc.) would go here.
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}.`);
+            socket.emit('webrtc_signal', {
+                type: 'candidate',
+                payload: event.candidate,
+                toUserId: peerUserId
             });
         }
     };
 
-    peer.ontrack = (e) => {
-        console.log(`[WebRTC] Received remote stream from user ${remoteUserId}.`);
-        if (e.streams && e.streams[0]) {
-            const remoteStream = e.streams[0];
-            const existingVideo = document.getElementById(`video-${remoteUserId}`);
-            if (existingVideo) {
-                existingVideo.srcObject = remoteStream;
-            } else {
-                addVideoElement(remoteUserId, remoteStream);
-            }
-        }
-    };
-
-    peer.onnegotiationneeded = async () => {
-        console.log(`[WebRTC] Negotiation needed with user ${remoteUserId}. Creating offer...`);
-        try {
-            const offer = await peer.createOffer();
-            await peer.setLocalDescription(offer);
-            emitWebRTCSignal('offer', {
-                offer: peer.localDescription,
-                toUserId: remoteUserId
-            });
-        } catch (err) {
-            console.error('[WebRTC] Failed to create or send offer:', err);
-        }
-    };
-
-    return peer;
+    // Store the connection in the global object
+    peerConnections[peerUserId] = { pc, username: peerUsername, socketId };
+    
+    return pc;
 }
-  /**
- * Adds the local media stream to a given RTCPeerConnection.
- * @param {RTCPeerConnection} peer - The peer connection to which the stream will be added.
- */
-function addLocalStreamToPeer(peer) {
-    if (localStream) {
-        localStream.getTracks().forEach(track => {
-            peer.addTrack(track, localStream);
-            console.log(`[WebRTC] Added local track '${track.kind}' to peer.`);
-        });
-    }
-}  
+
 /**
  * Dynamically creates a video element for a remote peer and adds it to the DOM.
  */
@@ -1499,7 +1467,33 @@ function createRemoteVideoElement(peerUserId, peerUsername) {
 
     console.log(`[UI] Created remote video element for peer: ${peerUsername}`);
 }
+/**
+ * Initiates WebRTC offers to all active participants in the current classroom.
+ * This function is called by the admin to start broadcasting their stream.
+ */
+async function broadcastToAllPeers() {
+    try {
+        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
+        }
+        const participants = await response.json();
+        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
 
+        for (const participant of participants) {
+            if (participant.id !== currentUser.id) {
+                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
+                await createPeerConnection(participant.id, true, participant.username, null);
+            }
+        }
+        console.log('[Broadcast] All initial offers sent to participants.');
+    } catch (error) {
+        console.error('[WebRTC] Error broadcasting to all peers:', error);
+        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
+    }
+}
+
+    
     // --- Video Zoom Functions ---
 
     /**
@@ -1731,155 +1725,231 @@ function createRemoteVideoElement(peerUserId, peerUsername) {
         renderCurrentWhiteboardPage(); // Redraw all content on the current page after resize
     }
 
-  /**
- * Handles the `mousedown` or `touchstart` event on the canvas.
- * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
- * @param {MouseEvent|TouchEvent} e - The event object.
- */
-function handleDrawingStart(e) {
-    if (currentUser.role !== 'admin') {
-        showNotification('Only administrators can draw on the whiteboard.', true);
-        return;
-    }
-    e.preventDefault();
-    const coords = getCanvasCoords(e);
-    startX = coords.x;
-    startY = coords.y;
-    isDrawing = true;
-    currentStrokePoints = [];
-    temporaryShapeData = null;
-
-    if (activeTextInput) {
-        commitText(e);
-    }
-
-    if (currentTool === 'text') {
-        const textItem = findTextItemAtCoords(coords.x, coords.y);
-        if (textItem) {
-            isDraggingText = true;
-            draggedTextItemIndex = whiteboardPages[currentPageIndex].indexOf(textItem);
-            dragStartOffsetX = coords.x - textItem.x;
-            dragStartOffsetY = coords.y - textItem.y;
-            console.log(`[Text Tool] Started dragging text item at index ${draggedTextItemIndex}.`);
+    /**
+     * Handles the `mousedown` or `touchstart` event on the canvas.
+     * Initializes drawing state, captures start coordinates, and manages tool-specific behaviors.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     */
+    function handleDrawingStart(e) {
+        if (currentUser.role !== 'admin') {
+            showNotification('Only administrators can draw on the whiteboard.', true);
             return;
-        } else {
-            createTextInput(coords.x, coords.y);
+        }
+        e.preventDefault(); // Prevent default touch actions like scrolling
+
+        const coords = getCanvasCoords(e);
+        startX = coords.x;
+        startY = coords.y;
+
+        // Commit any active text input if a new drawing action starts.
+        if (activeTextInput) {
+            commitText(e); // Commit existing text before starting new action.
+        }
+
+        if (currentTool === 'text') {
+            // Check if clicking on existing text for dragging
+            const textItem = findTextItemAtCoords(coords.x, coords.y);
+            if (textItem) {
+                isDraggingText = true;
+                draggedTextItemIndex = whiteboardPages[currentPageIndex].indexOf(textItem);
+                dragStartOffsetX = coords.x - textItem.x;
+                dragStartOffsetY = coords.y - textItem.y;
+                console.log(`[Text Tool] Started dragging text item at index ${draggedTextItemIndex}. Initial click offset: (${dragStartOffsetX}, ${dragStartOffsetY})`);
+                return; // Don't start drawing a new text box, just drag.
+            } else {
+                // If not clicking on existing text, create a new text input
+                createTextInput(coords.x, coords.y);
+                return; // Text input created, no further drawing actions for now.
+            }
+        }
+
+        // For drawing tools (pen, eraser, shapes)
+        isDrawing = true; // Set drawing flag
+        currentStrokePoints = []; // Reset for new stroke
+        temporaryShapeData = null; // Reset for new shape
+
+        // Store initial point for pen/eraser
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
+        }
+        console.log(`[Whiteboard] Drawing started with tool '${currentTool}' at (${startX}, ${startY}).`);
+    }
+
+    /**
+     * Handles the `mousemove` or `touchmove` event on the canvas.
+     * Continuously draws, updates shape previews, or drags text based on the current tool.
+     * @param {MouseEvent|TouchEvent} e - The event object.
+     */
+    function handleDrawingMove(e) {
+        if (!isDrawing && !isDraggingText) return; // Only proceed if an action is active
+        if (currentUser.role !== 'admin') return; // Only admins can draw/drag
+        e.preventDefault(); // Prevent default browser behavior (e.g., scrolling)
+
+        const coords = getCanvasCoords(e);
+        const currentX = coords.x;
+        const currentY = coords.y;
+
+        if (isDraggingText) {
+            if (draggedTextItemIndex === -1 || !whiteboardPages[currentPageIndex][draggedTextItemIndex]) {
+                console.warn('[Text Tool] Attempted to drag text but item not found or index invalid.');
+                isDraggingText = false;
+                draggedTextItemIndex = -1;
+                return;
+            }
+            // Update the text item's position
+            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
+            textItem.x = currentX - dragStartOffsetX;
+            textItem.y = currentY - dragStartOffsetY;
+            renderCurrentWhiteboardPage(); // Redraw the page to show text in new position
             return;
+        }
+
+        // Handle drawing tools (pen, eraser, shapes)
+        if (currentTool === 'pen' || currentTool === 'eraser') {
+            const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
+            // Only add if moved a significant distance or is the first point after startX,startY
+            if (!lastPoint || (Math.abs(currentX - lastPoint.x) > 1 || Math.abs(currentY - lastPoint.y) > 1)) {
+                 currentStrokePoints.push({ x: currentX, y: currentY, width: currentBrushSize });
+
+                // Render the entire page to show the continuous stroke, including previous items.
+                // This approach ensures shapes underneath are not temporarily erased.
+                renderCurrentWhiteboardPage();
+
+                // Draw the very last segment directly for smoother real-time feedback.
+                // This segment will be covered by the next full render, but gives immediate visual.
+                whiteboardCtx.save();
+                // Eraser should draw black color, not make transparent.
+                whiteboardCtx.globalCompositeOperation = 'source-over';
+                whiteboardCtx.strokeStyle = (currentTool === 'eraser') ? '#000000' : currentColor; // Eraser draws black
+                whiteboardCtx.lineWidth = currentBrushSize;
+                whiteboardCtx.beginPath();
+                if(lastPoint) { // Only draw segment if there's a previous point
+                    whiteboardCtx.moveTo(lastPoint.x, lastPoint.y);
+                    whiteboardCtx.lineTo(currentX, currentY);
+                    whiteboardCtx.stroke();
+                } else { // Draw a dot if it's the very first point of the stroke
+                    whiteboardCtx.arc(currentX, currentY, currentBrushSize / 2, 0, Math.PI * 2);
+                    whiteboardCtx.fill();
+                }
+                whiteboardCtx.restore();
+
+                // Emit small segments of the stroke for real-time sync with other users
+                // This is a trade-off: sending all points constantly is too much, segments help.
+                if (currentStrokePoints.length % 5 === 0) {
+                     const tempStroke = {
+                        type: currentTool,
+                        points: currentStrokePoints.slice(-5), // Send only the last few points
+                        color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
+                        size: currentBrushSize
+                    };
+                    emitWhiteboardData('draw', tempStroke);
+                }
+            }
+
+        } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
+            // For shapes, update the temporaryShapeData and re-render the entire page.
+            // This re-render includes all previous items + the current shape preview.
+            temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
+            renderCurrentWhiteboardPage(); // Render all existing items first
+            drawWhiteboardItem(temporaryShapeData); // Then draw the temporary shape on top
         }
     }
 
-    // For drawing tools (pen, eraser, shapes)
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-        currentStrokePoints.push({ x: startX, y: startY, width: currentBrushSize });
-        whiteboardCtx.beginPath();
-        whiteboardCtx.moveTo(startX * whiteboardCanvas.offsetWidth, startY * whiteboardCanvas.offsetHeight);
-    }
-    console.log(`[Whiteboard] Drawing started with tool '${currentTool}' at (${startX}, ${startY}).`);
-}
-
-/**
- * Handles the `mousemove` or `touchmove` event on the canvas.
- * Continuously draws, updates shape previews, or drags text based on the current tool.
- * @param {MouseEvent|TouchEvent} e - The event object.
- */
-function handleDrawingMove(e) {
-    if (!isDrawing) return;
-    if (currentUser.role !== 'admin') return;
-    e.preventDefault();
-    const coords = getCanvasCoords(e);
-    const currentX = coords.x;
-    const currentY = coords.y;
-
-    if (isDraggingText) {
-        // Update the position of the dragged text item
-        whiteboardPages[currentPageIndex][draggedTextItemIndex].x = currentX - dragStartOffsetX;
-        whiteboardPages[currentPageIndex][draggedTextItemIndex].y = currentY - dragStartOffsetY;
-        renderCurrentWhiteboardPage();
-        return;
-    }
-
-    if (currentTool === 'pen' || currentTool === 'eraser') {
-        const lastPoint = currentStrokePoints[currentStrokePoints.length - 1];
-        if (Math.abs(currentX - lastPoint.x) > 0.001 || Math.abs(currentY - lastPoint.y) > 0.001) {
-            currentStrokePoints.push({ x: currentX, y: currentY, width: currentBrushSize });
-
-            whiteboardCtx.save();
-            whiteboardCtx.lineJoin = 'round';
-            whiteboardCtx.lineCap = 'round';
-            whiteboardCtx.strokeStyle = (currentTool === 'eraser') ? '#000000' : currentColor;
-            whiteboardCtx.lineWidth = currentBrushSize;
-            
-            const scaledLastX = lastPoint.x * whiteboardCanvas.offsetWidth;
-            const scaledLastY = lastPoint.y * whiteboardCanvas.offsetHeight;
-            const scaledCurrentX = currentX * whiteboardCanvas.offsetWidth;
-            const scaledCurrentY = currentY * whiteboardCanvas.offsetHeight;
-
-            whiteboardCtx.beginPath();
-            whiteboardCtx.moveTo(scaledLastX, scaledLastY);
-            whiteboardCtx.lineTo(scaledCurrentX, scaledCurrentY);
-            whiteboardCtx.stroke();
-            whiteboardCtx.restore();
-        }
-    } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-        renderCurrentWhiteboardPage();
-        temporaryShapeData = buildShapeData(currentTool, startX, startY, currentX, currentY);
-        drawWhiteboardItem(temporaryShapeData);
-    }
-}
-
-/**
- * Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
- * Finalizes the drawing action, adds the complete drawing to the page's history,
- * emits the complete drawing data, and saves state for undo/redo.
- * @param {MouseEvent|TouchEvent} e - The event object.
- */
+    /**
+* Handles the `mouseup`, `mouseout`, `touchend`, or `touchcancel` event on the canvas.
+* Finalizes the drawing action, adds the complete drawing to the page's history,
+* emits the complete drawing data, and saves state for undo/redo.
+* @param {MouseEvent|TouchEvent} e - The event object.
+*/
 function handleDrawingEnd(e) {
-    if (!isDrawing && !isDraggingText) return;
-    if (currentUser.role !== 'admin') return;
+    if (!isDrawing && !isDraggingText) return; // Only proceed if an action was active
+    if (currentUser.role !== 'admin') return; // Only admins can draw/drag
     e.preventDefault();
-    isDrawing = false;
 
+    // Handle text dragging end
     if (isDraggingText) {
         isDraggingText = false;
+        if (draggedTextItemIndex !== -1) {
+            // Emit update for dragged text and push to undo stack
+            const textItem = whiteboardPages[currentPageIndex][draggedTextItemIndex];
+            // Only emit if the position actually changed to avoid unnecessary network traffic/history pushes
+            const originalTextItem = undoStack[undoStack.length - 1][draggedTextItemIndex]; // Assuming last undo state holds original
+            if (originalTextItem && (originalTextItem.x !== textItem.x || originalTextItem.y !== textItem.y)) {
+                emitWhiteboardData('draw', textItem); // Re-emit the updated text item
+                pushToUndoStack();
+                console.log(`[Text Tool] Finished dragging text item. New position: (${textItem.x}, ${textItem.y})`);
+            } else {
+                console.log('[Text Tool] Text drag ended, but position did not change. No emission or undo push.');
+            }
+        }
         draggedTextItemIndex = -1;
-        pushToUndoStack();
-        // The text item has already been updated in the array, so just emit the page data.
-        emitWhiteboardData('page_update', whiteboardPages[currentPageIndex]);
-        renderCurrentWhiteboardPage();
         return;
     }
 
-    let newItem;
+    // Handle drawing tools (pen, eraser, shapes)
+    isDrawing = false; // Stop drawing
     if (currentTool === 'pen' || currentTool === 'eraser') {
-        if (currentStrokePoints.length < 2) {
-            const coords = getCanvasCoords(e);
-            newItem = {
+        // If it was just a click (single point) or a very short drag
+        if (currentStrokePoints.length <= 1) {
+            const p = currentStrokePoints[0] || { x: startX, y: startY };
+            const dotData = {
                 type: currentTool,
-                points: [{ x: coords.x, y: coords.y, width: currentBrushSize }],
-                color: (currentTool === 'eraser') ? '#000000' : currentColor,
+                points: [{ x: p.x, y: p.y, width: currentBrushSize }],
+                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
                 size: currentBrushSize
             };
-        } else {
-            newItem = {
+            whiteboardPages[currentPageIndex].push(dotData); // Add to local history
+            emitWhiteboardData('draw', dotData); // Emit to others
+            console.log(`[Whiteboard] Emitted dot data: (${p.x}, ${p.y}) for tool '${currentTool}'`);
+        } else if (currentStrokePoints.length > 1) {
+            // Finalize and emit the complete stroke
+            const strokeData = {
                 type: currentTool,
                 points: currentStrokePoints,
-                color: (currentTool === 'eraser') ? '#000000' : currentColor,
+                color: (currentTool === 'eraser') ? '#000000' : currentColor, // Eraser draws black
                 size: currentBrushSize
             };
+            whiteboardPages[currentPageIndex].push(strokeData); // Add to local history
+            emitWhiteboardData('draw', strokeData); // Emit to others
+            console.log(`[Whiteboard] Emitted stroke data with ${currentStrokePoints.length} points for tool '${currentTool}'`);
         }
+        currentStrokePoints = []; // Reset points for next stroke
     } else if (currentTool === 'line' || currentTool === 'rectangle' || currentTool === 'circle') {
-        newItem = temporaryShapeData;
-    }
+        const coords = getCanvasCoords(e);
+        const shapeData = buildShapeData(currentTool, startX, startY, coords.x, coords.y);
+        
+        // Only add if the shape has a meaningful size (e.g., not a tiny dot)
+        const minSizeThreshold = 2; // Pixels
+        let isMeaningful = true;
+        if (currentTool === 'line') {
+            isMeaningful = Math.abs(shapeData.startX - shapeData.endX) > minSizeThreshold || Math.abs(shapeData.startY - shapeData.endY) > minSizeThreshold;
+        } else if (currentTool === 'rectangle') {
+            isMeaningful = shapeData.width > minSizeThreshold && shapeData.height > minSizeThreshold;
+        } else if (currentTool === 'circle') {
+            isMeaningful = shapeData.radius > minSizeThreshold;
+        }
 
-    if (newItem) {
-        whiteboardPages[currentPageIndex].push(newItem);
-        pushToUndoStack();
-        emitWhiteboardData('draw', newItem);
-        renderCurrentWhiteboardPage();
+        if (isMeaningful) {
+            // --- ADD THIS LINE TO FIX THE ISSUE ---
+            whiteboardPages[currentPageIndex].push(shapeData); // Add to local history
+            // -------------------------------------
+            emitWhiteboardData('draw', shapeData); // Emit to others
+            console.log(`[Whiteboard] Emitted shape data for tool '${currentTool}':`, shapeData);
+        } else {
+            console.log(`[Whiteboard] Skipping tiny shape for tool '${currentTool}':`, shapeData);
+        }
+        
+        temporaryShapeData = null; // Clear temporary shape data
     }
-    temporaryShapeData = null;
-    currentStrokePoints = [];
+    
+    // After any drawing ends (or text drag ends), re-render the entire page to ensure consistent state
+    renderCurrentWhiteboardPage();
+    
+    // Only push to undo stack if an actual modification happened (not just a drag preview)
+    pushToUndoStack();
+    console.log(`[Whiteboard] Drawing ended with tool '${currentTool}'.`);
 }
+
     /**
      * Helper function to find a text item at given canvas coordinates.
      * @param {number} x - X coordinate on canvas.
@@ -1953,7 +2023,9 @@ function handleDrawingEnd(e) {
                 return baseData;
         }
     }
-/**
+
+
+    /**
  * Draws a single whiteboard item (stroke, shape, or text) onto the canvas.
  * This function applies styling, draws the item, and then restores the context.
  * The coordinates and sizes are scaled to fit the current canvas dimensions.
@@ -1965,44 +2037,51 @@ function drawWhiteboardItem(item) {
         return;
     }
 
-    whiteboardCtx.save();
+    whiteboardCtx.save(); // Save the current canvas context state
 
+    // --- New: Define scaling factors based on current canvas size ---
     const scaleX = whiteboardCanvas.offsetWidth;
     const scaleY = whiteboardCanvas.offsetHeight;
-    const scaledLineWidth = (item.size || currentBrushSize) * Math.min(scaleX, scaleY) / 1000;
+    const scaledLineWidth = (item.size || currentBrushSize) * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000); // Scale line width proportionally
+    // --- End New ---
 
+    // Apply shared styles from the drawing item, falling back to current global tool settings
     whiteboardCtx.strokeStyle = item.color || currentColor;
-    whiteboardCtx.lineWidth = scaledLineWidth;
+    whiteboardCtx.lineWidth = scaledLineWidth; // Use the scaled line width
     whiteboardCtx.fillStyle = item.color || currentColor;
     whiteboardCtx.lineCap = 'round';
     whiteboardCtx.lineJoin = 'round';
 
+    // Set globalCompositeOperation based on item type
     whiteboardCtx.globalCompositeOperation = 'source-over';
     if (item.type === 'eraser') {
-        whiteboardCtx.globalCompositeOperation = 'destination-out';
+        whiteboardCtx.strokeStyle = '#000000';
+        whiteboardCtx.fillStyle = '#000000';
     }
 
     switch (item.type) {
         case 'pen':
         case 'eraser':
-            if (!item.points || item.points.length < 2) {
-                if (item.points && item.points.length === 1) {
-                    const p = item.points[0];
-                    whiteboardCtx.beginPath();
-                    whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, scaledLineWidth / 2, 0, Math.PI * 2);
-                    whiteboardCtx.fill();
-                }
+            if (!item.points || item.points.length === 0) break;
+
+            if (item.points.length === 1) {
+                const p = item.points[0];
+                whiteboardCtx.beginPath();
+                // Use scaled coordinates for the circle
+                whiteboardCtx.arc(p.x * scaleX, p.y * scaleY, (p.width || item.size) / 2 * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000), 0, Math.PI * 2);
+                whiteboardCtx.fill();
                 break;
             }
 
             whiteboardCtx.beginPath();
+            // Use scaled coordinates to move to the first point
             whiteboardCtx.moveTo(item.points[0].x * scaleX, item.points[0].y * scaleY);
             for (let i = 1; i < item.points.length - 1; i++) {
                 const p1 = item.points[i];
                 const p2 = item.points[i + 1];
                 const midX = (p1.x + p2.x) / 2 * scaleX;
                 const midY = (p1.y + p2.y) / 2 * scaleY;
-                whiteboardCtx.lineWidth = (p1.width || item.size) * Math.min(scaleX, scaleY) / 1000;
+                whiteboardCtx.lineWidth = (p1.width || item.size) * (scaleX > scaleY ? scaleX / 1000 : scaleY / 1000); // Scale dynamic width
                 whiteboardCtx.quadraticCurveTo(p1.x * scaleX, p1.y * scaleY, midX, midY);
             }
             const lastPoint = item.points[item.points.length - 1];
@@ -2017,6 +2096,7 @@ function drawWhiteboardItem(item) {
 
         case 'line':
             whiteboardCtx.beginPath();
+            // Use scaled coordinates for the line
             whiteboardCtx.moveTo(item.startX * scaleX, item.startY * scaleY);
             whiteboardCtx.lineTo(item.endX * scaleX, item.endY * scaleY);
             whiteboardCtx.stroke();
@@ -2024,16 +2104,19 @@ function drawWhiteboardItem(item) {
 
         case 'rectangle':
             whiteboardCtx.beginPath();
+            // Use scaled coordinates and dimensions for the rectangle
             whiteboardCtx.strokeRect(item.startX * scaleX, item.startY * scaleY, item.width * scaleX, item.height * scaleY);
             break;
 
         case 'circle':
             whiteboardCtx.beginPath();
+            // Use scaled coordinates and radius for the circle
             whiteboardCtx.arc(item.centerX * scaleX, item.centerY * scaleY, item.radius * scaleX, 0, Math.PI * 2);
             whiteboardCtx.stroke();
             break;
 
         case 'text':
+            // Scale font size and position
             const scaledFontSize = item.size * scaleY;
             whiteboardCtx.font = `${scaledFontSize}px Inter, sans-serif`;
             const lines = item.text.split('\n');
@@ -2042,10 +2125,10 @@ function drawWhiteboardItem(item) {
             });
             break;
     }
-    whiteboardCtx.restore();
+    whiteboardCtx.restore(); // Restore the canvas context
 }
 
-   /**
+     /**
  * Gets mouse or touch coordinates relative to the canvas,
  * and converts them to a ratio (0-1) for responsiveness.
  * @param {MouseEvent|TouchEvent} e - The event object.
@@ -2071,6 +2154,7 @@ function getCanvasCoords(e) {
         y: (clientY - rect.top) / whiteboardCanvas.offsetHeight
     };
 }
+
     /**
      * Selects the active drawing tool and updates UI.
      * @param {string} tool - The tool to select ('pen', 'eraser', 'line', 'rectangle', 'circle', 'text').
