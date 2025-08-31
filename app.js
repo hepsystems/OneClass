@@ -1067,7 +1067,7 @@ function enterClassroom(id, name) {
         }
     });
 
-    // New Socket.IO event: Assessment has started (server-side push)
+     // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
         console.log('[Assessment] Received assessment_started event:', data);
         // Only act if the user is currently viewing or has set this assessment to take
@@ -1095,7 +1095,8 @@ function enterClassroom(id, name) {
             }
         }
     });
-})
+}
+
 
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
