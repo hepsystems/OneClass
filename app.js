@@ -723,7 +723,8 @@ function enterClassroom(id, name) {
         }
     }
 
-   function initializeSocketIo() {
+  
+function initializeSocketIo() {
     if (socket && socket.connected) {
         console.log('[Socket.IO] Already connected.');
         return;
@@ -747,7 +748,7 @@ function enterClassroom(id, name) {
         console.log('[Socket.IO] Disconnected from server.');
         showNotification('Disconnected from server.', true);
         Object.values(peerConnections).forEach(pcObj => {
-            if (pcObj.pc) pcObj.pc.close();
+            if (pcObj.pc) pc.close();
         });
         peerConnections = {};
     });
@@ -794,7 +795,7 @@ function enterClassroom(id, name) {
             console.log(`[WebRTC] Admin is creating an offer for new participant: ${remoteUserId}`);
             const pc = createPeerConnection(remoteUserId);
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            
+
             try {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -841,8 +842,6 @@ function enterClassroom(id, name) {
             }
         }
     });
-} 
-
 
     // General status updates from the server
     socket.on('status', (data) => {
@@ -934,10 +933,10 @@ function enterClassroom(id, name) {
             peerConnections[peerUserId].pc.close();
             delete peerConnections[peerUserId];
             // The video element ID should now also be based on userId for consistency
-            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`); 
+            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
             if (videoWrapper) {
                 videoWrapper.remove();
-                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId}`);
+                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId} on user_left.`);
             } else {
                 console.warn(`[WebRTC] Video element not found for UserId: ${peerUserId} on user_left.`);
             }
@@ -1018,7 +1017,6 @@ function enterClassroom(id, name) {
         updateUndoRedoButtons();
         updateWhiteboardPageDisplay();
     });
-    
 
     // Whiteboard page change synchronization event
     socket.on('whiteboard_page_change', (data) => {
@@ -1044,7 +1042,7 @@ function enterClassroom(id, name) {
         pushToUndoStack();
     });
 
-   
+
     // WebRTC peer disconnected signal from server
     socket.on('webrtc_peer_disconnected', (data) => {
         console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
@@ -1067,7 +1065,7 @@ function enterClassroom(id, name) {
         }
     });
 
-     // New Socket.IO event: Assessment has started (server-side push)
+    // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
         console.log('[Assessment] Received assessment_started event:', data);
         // Only act if the user is currently viewing or has set this assessment to take
@@ -1096,8 +1094,6 @@ function enterClassroom(id, name) {
         }
     });
 }
-
-
  /**
  * Toggles the visibility of broadcast buttons and notifies participants.
  * @param {boolean} isBroadcasting - True if broadcast is active.
