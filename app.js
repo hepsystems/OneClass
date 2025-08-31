@@ -722,6 +722,126 @@ function enterClassroom(id, name) {
             assessmentTimerDisplay.classList.remove('active', 'warning', 'critical');
         }
     }
+
+   function initializeSocketIo() {
+    if (socket && socket.connected) {
+        console.log('[Socket.IO] Already connected.');
+        return;
+    }
+
+    const socketUrl = window.location.protocol + '//' + document.domain + ':' + location.port;
+    socket = io(socketUrl, {
+        withCredentials: true,
+        extraHeaders: { "my-custom-header": "Socket.IO" }
+    });
+
+    socket.on('connect', () => {
+        console.log('[Socket.IO] Connected to server.');
+        showNotification('Connected to server.');
+        if (currentClassroom) {
+            socket.emit('join_classroom', { classroomId: currentClassroom.id });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('[Socket.IO] Disconnected from server.');
+        showNotification('Disconnected from server.', true);
+        Object.values(peerConnections).forEach(pcObj => {
+            if (pcObj.pc) pcObj.pc.close();
+        });
+        peerConnections = {};
+    });
+
+    socket.on('message', (data) => {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    });
+
+    socket.on('broadcast_started', (data) => {
+        console.log(`[WebRTC] Broadcast has started in classroom ${data.classroomId}.`);
+        if (currentUser.role !== 'admin') {
+            document.getElementById('start-broadcast-btn').style.display = 'none';
+            showNotification('Admin has started the broadcast.');
+        }
+    });
+
+    socket.on('broadcast_ended', () => {
+        console.log('[WebRTC] Broadcast has ended.');
+        if (currentUser.role !== 'admin') {
+            document.getElementById('start-broadcast-btn').style.display = 'inline-block';
+            showNotification('Broadcast has ended.');
+            // Close all peer connections
+            Object.values(peerConnections).forEach(pcObj => {
+                if (pcObj.pc) pcObj.pc.close();
+            });
+            peerConnections = {};
+            if (remoteVideoContainer) {
+                remoteVideoContainer.innerHTML = ''; // Clear all remote videos
+            }
+        }
+    });
+
+    socket.on('user_joined', async (data) => {
+        const remoteUserId = data.userId;
+        console.log(`[WebRTC] New user joined: ${remoteUserId}`);
+        if (currentUser.role === 'admin' && localStream) {
+            console.log(`[WebRTC] Admin is creating an offer for new participant: ${remoteUserId}`);
+            const pc = createPeerConnection(remoteUserId);
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit('webrtc_offer', { recipient_id: remoteUserId, offer: offer });
+            } catch (error) {
+                console.error('[WebRTC] Error creating or sending offer:', error);
+            }
+        }
+    });
+
+    socket.on('webrtc_offer', async (data) => {
+        const senderId = data.senderId;
+        const offer = data.offer;
+        console.log(`[WebRTC] Received offer from ${senderId}`);
+        const pc = createPeerConnection(senderId);
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit('webrtc_answer', { recipient_id: senderId, answer: answer });
+    });
+
+    socket.on('webrtc_answer', async (data) => {
+        const senderId = data.senderId;
+        const answer = data.answer;
+        console.log(`[WebRTC] Received answer from ${senderId}`);
+        const pcObj = peerConnections[senderId];
+        if (pcObj && pcObj.pc && pcObj.pc.remoteDescription === null) {
+            await pcObj.pc.setRemoteDescription(new RTCSessionDescription(answer));
+        } else {
+            console.warn(`[WebRTC] Answer received but no peer connection or remote description already set for ${senderId}.`);
+        }
+    });
+
+    socket.on('webrtc_ice_candidate', async (data) => {
+        const senderId = data.senderId;
+        const candidate = data.candidate;
+        const pcObj = peerConnections[senderId];
+        if (pcObj && pcObj.pc) {
+            console.log(`[WebRTC] Received ICE candidate from ${senderId}`);
+            try {
+                await pcObj.pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (error) {
+                console.error('[WebRTC] Error adding received ICE candidate:', error);
+            }
+        }
+    });
+} 
 /**
  * Initializes the Socket.IO connection and sets up all event listeners for real-time communication.
  * This function ensures that previous connections are properly closed before a new one is established.
