@@ -1016,13 +1016,12 @@ function initializeSocketIO() {
   // Keep a map of RTCPeerConnections by user_id
 const peerConnections = {};
 
-// --- Utility: Create PeerConnection ---
 function createPeerConnection(remoteUserId) {
     const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     });
 
-    // Handle ICE candidates from this peer
+    // Send ICE candidates to remote peer via server
     pc.onicecandidate = (event) => {
         if (event.candidate) {
             socket.emit('webrtc_ice_candidate', {
@@ -1033,7 +1032,7 @@ function createPeerConnection(remoteUserId) {
         }
     };
 
-    // Handle remote tracks (audio/video)
+    // Handle remote video/audio tracks
     pc.ontrack = (event) => {
         let videoWrapper = document.getElementById(`video-wrapper-${remoteUserId}`);
         if (!videoWrapper) {
@@ -1053,6 +1052,9 @@ function createPeerConnection(remoteUserId) {
 
     return pc;
 }
+
+
+   
 
 // --- When Admin Sends Offer to Student ---
 socket.on('webrtc_offer', async (data) => {
