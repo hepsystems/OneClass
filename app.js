@@ -1310,32 +1310,7 @@ async function handleWebRTCSignal(signal) {
     }
 }
 
-   /**
- * Periodically polls the server for any pending WebRTC signals.
- * This is a fallback mechanism for signals sent while a client was offline or
- * before their Socket.IO connection was fully established.
- */
-async function pollForWebRTCSignals() {
-    if (!currentUser || !currentUser.id) {
-        // console.log('[WebRTC] Cannot poll for signals: currentUser not available.');
-        return; // Don't poll if not logged in
-    }
-
-    try {
-        const response = await fetch('/api/webrtc-signals');
-        if (!response.ok) {
-            console.error(`[WebRTC] Failed to poll for signals. Status: ${response.status}`);
-            return;
-        }
-        const signals = await response.json();
-        if (signals.length > 0) {
-            console.log(`[WebRTC] Fetched ${signals.length} new signals from server.`);
-            signals.forEach(signal => handleWebRTCSignal(signal));
-        }
-    } catch (error) {
-        console.error('[WebRTC] Error polling for signals:', error);
-    }
-}
+ 
  
 
   /**
