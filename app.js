@@ -1016,42 +1016,6 @@ function initializeSocketIO() {
   // Keep a map of RTCPeerConnections by user_id
 const peerConnections = {};
 
-function createPeerConnection(remoteUserId) {
-    const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    // Send ICE candidates to remote peer via server
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit('webrtc_ice_candidate', {
-                classroomId: currentClassroomId,
-                recipient_id: remoteUserId,
-                candidate: event.candidate
-            });
-        }
-    };
-
-    // Handle remote video/audio tracks
-    pc.ontrack = (event) => {
-        let videoWrapper = document.getElementById(`video-wrapper-${remoteUserId}`);
-        if (!videoWrapper) {
-            videoWrapper = document.createElement('div');
-            videoWrapper.id = `video-wrapper-${remoteUserId}`;
-            const videoEl = document.createElement('video');
-            videoEl.autoplay = true;
-            videoEl.playsInline = true;
-            videoEl.srcObject = event.streams[0];
-            videoWrapper.appendChild(videoEl);
-            document.getElementById('remote-videos-container').appendChild(videoWrapper);
-        } else {
-            const videoEl = videoWrapper.querySelector('video');
-            if (videoEl) videoEl.srcObject = event.streams[0];
-        }
-    };
-
-    return pc;
-}
 
 
    
@@ -1131,39 +1095,7 @@ socket.on('webrtc_peer_disconnected', (data) => {
         peerConnections[peerUserId].pc.close();
         delete peerConnections[peerUserId];
         const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-        if (videoWrapper) videoWrapper.remove();
-    }
-});
-
-// --- Admin: Start Broadcast to Student ---
-async function startBroadcastTo(studentId) {
-    if (!peerConnections[studentId]) {
-        peerConnections[studentId] = { pc: createPeerConnection(studentId) };
-    }
-
-    if (localStream) {
-        localStream.getTracks().forEach(track => {
-            peerConnections[studentId].pc.addTrack(track, localStream);
-        });
-    }
-
-    const offer = await peerConnections[studentId].pc.createOffer();
-    await peerConnections[studentId].pc.setLocalDescription(offer);
-
-    socket.emit('webrtc_offer', {
-        classroomId: currentClassroomId,
-        recipient_id: studentId,
-        offer: offer
-    });
-}
-
-// --- Emit Peer Disconnected When Needed ---
-function disconnectPeer(peerUserId) {
-    socket.emit('webrtc_peer_disconnected', {
-        peer_user_id: peerUserId,
-        classroomId: currentClassroomId
-    });
-}
+        if (videoWrapper) videoWrapper.remo
 
 
     // New Socket.IO event: Assessment has started (server-side push)
@@ -1344,59 +1276,7 @@ function toggleBroadcastButtons(isBroadcasting, broadcastType) {
 
 
     
-/**
- * Handles the start broadcast action, initiating local media stream based on broadcast type.
- * @param {string} broadcastType - 'video_audio' for video and audio, or 'audio_only'.
- */
-async function startBroadcast(broadcastType) {
-    console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
-    if (!currentUser || currentUser.role !== 'admin') {
-        showNotification("Only administrators can start a broadcast.", true);
-        console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
-        return;
-    }
 
-    if (!currentClassroom || !currentClassroom.id) {
-        showNotification("Please join a classroom before starting a broadcast.", true);
-        console.warn('[Broadcast] No classroom joined for broadcast.');
-        return;
-    }
-
-    // Stop existing stream to prevent duplicates
-    if (localStream && localStream.active) {
-        console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
-        stopLocalStream();
-        toggleBroadcastButtons(false);
-    }
-
-    try {
-        // Dynamically set media constraints based on the provided broadcastType
-        const constraints = {
-            audio: true,
-            video: (broadcastType === 'video_audio')
-        };
-        
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log(`[Broadcast] Obtained local stream with video: ${constraints.video}, audio: true`);
-        
-        if (localVideo) {
-            localVideo.srcObject = localStream;
-            localVideo.muted = true;
-            localVideo.style.display = constraints.video ? 'block' : 'none';
-        }
-
-        showNotification("Broadcast started successfully!");
-        // Pass the broadcastType to the function that updates the UI
-        toggleBroadcastButtons(true, broadcastType);
-        await broadcastToAllPeers();
-        
-    } catch (error) {
-        console.error('[Broadcast] Error starting broadcast:', error);
-        showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
-        toggleBroadcastButtons(false);
-        stopLocalStream();
-    }
-}
 /**
  * Stops the video/audio broadcast initiated by the admin.
  * Cleans up local media resources and updates the UI for all participants.
