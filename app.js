@@ -1013,90 +1013,130 @@ function initializeSocketIO() {
         pushToUndoStack();
     });
 
-  // Keep a map of RTCPeerConnections by user_id
-const peerConnections = {};
+    // WebRTC signaling: Offer (from initiating peer, usually admin broadcaster)
+    socket.on('webrtc_offer', async (data) => {
+        console.log(`[WebRTC] Received WebRTC Offer from: ${data.username} (UserID: ${data.offerer_user_id}, SID: ${data.offerer_socket_id}) to ${currentUser.id}`);
 
+        const offererUserId = data.offerer_user_id;       // The user_id of the offerer (admin)
+        const offererSocketId = data.offerer_socket_id;   // The Socket.IO SID of the offerer (admin)
+        const peerUsername = data.username || `Peer ${offererUserId.substring(0, 4)}`;
 
-
-   
-
-// --- When Admin Sends Offer to Student ---
-socket.on('webrtc_offer', async (data) => {
-    console.log(`[WebRTC] Offer from ${data.username} (UserID: ${data.offerer_user_id})`);
-
-    const fromUserId = data.offerer_user_id;
-    const offer = data.offer;
-
-    if (!peerConnections[fromUserId]) {
-        peerConnections[fromUserId] = { pc: createPeerConnection(fromUserId) };
-    }
-
-    try {
-        await peerConnections[fromUserId].pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-        // If student needs to send audio/video back
-        if (localStream) {
-            localStream.getTracks().forEach(track => {
-                peerConnections[fromUserId].pc.addTrack(track, localStream);
-            });
-        }
-
-        const answer = await peerConnections[fromUserId].pc.createAnswer();
-        await peerConnections[fromUserId].pc.setLocalDescription(answer);
-
-        // Send answer back to admin
-        socket.emit('webrtc_answer', {
-            classroomId: currentClassroomId,
-            recipient_id: fromUserId,
-            answer: answer
-        });
-
-        console.log(`[WebRTC] Answer sent to Admin ${fromUserId}`);
-    } catch (err) {
-        console.error('[WebRTC] Error processing offer:', err);
-    }
-});
-
-// --- When Student Sends Answer Back to Admin ---
-socket.on('webrtc_answer', async (data) => {
-    if (data.sender_user_id === currentUser.id) return;
-    console.log(`[WebRTC] Answer from ${data.username} (UserID: ${data.sender_user_id})`);
-
-    const fromUserId = data.sender_user_id;
-    if (peerConnections[fromUserId] && peerConnections[fromUserId].pc) {
-        try {
-            await peerConnections[fromUserId].pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        } catch (err) {
-            console.error('[WebRTC] Error applying answer:', err);
-        }
-    }
-});
-
-// --- ICE Candidates (both directions) ---
-socket.on('webrtc_ice_candidate', async (data) => {
-    if (data.sender_user_id === currentUser.id) return;
-    const fromUserId = data.sender_user_id;
-
-    if (peerConnections[fromUserId] && peerConnections[fromUserId].pc && data.candidate) {
-        try {
-            await peerConnections[fromUserId].pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } catch (err) {
-            if (!err.message.includes('wrong state')) {
-                console.error('[WebRTC] ICE candidate error:', err);
+        // Create a new peer connection if one doesn't exist for this offerer's USER_ID
+        // This is crucial for participants: they need to create a PC to respond to the admin's offer.
+        if (!peerConnections[offererUserId] || !peerConnections[offererUserId].pc) { // Key by user_id
+            console.log(`[WebRTC] No valid existing PC for offerer UserId ${offererUserId}. Creating new peer connection as receiver.`);
+            // This is the participant's side, so they are the receiver (isCaller = false)
+            await createPeerConnection(offererUserId, false, peerUsername, offererSocketId); 
+        } else {
+            // If PC already exists, update the socketId if it's different/newer
+            if (offererSocketId && peerConnections[offererUserId].socketId !== offererSocketId) {
+                peerConnections[offererUserId].socketId = offererSocketId;
+                console.log(`[WebRTC] Updating existing PC for UserId ${offererUserId} with new SocketId: ${offererSocketId}`);
             }
+            console.log(`[WebRTC] Reusing existing valid PC for offerer UserId ${offererUserId}.`);
         }
-    }
-});
 
-// --- Peer Disconnected ---
-socket.on('webrtc_peer_disconnected', (data) => {
-    const peerUserId = data.peer_user_id;
-    if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
-        peerConnections[peerUserId].pc.close();
-        delete peerConnections[peerUserId];
-        const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
-        if (videoWrapper) videoWrapper.remo
+        try {
+            const pcInfo = peerConnections[offererUserId]; // Look up PC by user_id
+            if (!pcInfo || !pcInfo.pc) {
+                console.error(`[WebRTC] PeerConnection object not found for offerer UserId ${offererUserId} AFTER creation/lookup. This is a critical error.`);
+                showNotification(`WebRTC error: Peer connection missing for ${peerUsername}.`, true);
+                return;
+            }
+            const pc = pcInfo.pc;
 
+            // Set remote description from the offer
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            console.log(`[WebRTC] Set remote description (offer) for UserId ${offererUserId}.`);
+
+            // Create and set local answer
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            console.log(`[WebRTC] Created and set local description (answer) for UserId ${offererUserId}.`);
+
+            // Send the answer back to the offering peer
+            socket.emit('webrtc_answer', {
+                classroomId: currentClassroom.id,
+                recipient_id: offererUserId, // *** CRUCIAL: Send answer back to the offerer's USER_ID ***
+                answer: pc.localDescription
+            });
+            console.log(`[WebRTC] Sent WebRTC Answer to user: ${offererUserId} (via SID: ${offererSocketId}) from ${currentUser.id}`);
+        } catch (error) {
+            console.error(`[WebRTC] Error handling WebRTC offer for UserId ${offererUserId}:`, error);
+            showNotification(`WebRTC error with ${peerUsername}: ${error.message}`, true);
+        }
+    });
+
+    // WebRTC signaling: Answer (from receiving peer)
+    socket.on('webrtc_answer', async (data) => {
+        // This handler is primarily for the OFFERER (admin) to receive the student's answer.
+        // If a participant receives this, it's likely an echo or misroute, but we'll handle defensively.
+        if (data.sender_user_id === currentUser.id) return; // Ignore answers from self (shouldn't happen with server logic)
+        console.log(`[WebRTC] Received WebRTC Answer from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
+
+        const senderUserId = data.sender_user_id; // The UserID of the student who sent the answer
+        const senderSocketId = data.sender_socket_id;
+        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id (this should be the admin's PC with the student)
+
+        if (pcInfo && pcInfo.pc) {
+            pcInfo.socketId = senderSocketId; // Update socketId if needed
+            try {
+                await pcInfo.pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                console.log(`[WebRTC] Set remote description (answer) for peer UserID ${senderUserId} (SID: ${senderSocketId}).`);
+            } catch (error) {
+                console.error('[WebRTC] Error handling WebRTC answer:', error);
+                showNotification(`WebRTC error with ${senderUserId}: ${error.message}`, true);
+            }
+        } else {
+             console.warn(`[WebRTC] PeerConnection not found for sender UserID ${senderUserId} to apply answer. This might be expected if a participant received an answer meant for the admin.`);
+        }
+    });
+
+    // WebRTC signaling: ICE Candidate (network information exchange)
+    socket.on('webrtc_ice_candidate', async (data) => {
+        if (data.sender_user_id === currentUser.id) return; // Ignore candidates from self
+        console.log(`[WebRTC] Received ICE Candidate from: ${data.username} (UserID: ${data.sender_user_id}, SID: ${data.sender_socket_id}) to ${currentUser.id}`);
+        const senderUserId = data.sender_user_id; // Use userId to look up PC
+        const senderSocketId = data.sender_socket_id;
+        
+        const pcInfo = peerConnections[senderUserId]; // Look up PC by user_id
+        if (pcInfo && pcInfo.pc && data.candidate) {
+            pcInfo.socketId = senderSocketId; // Update socketId if needed
+            try {
+                await pcInfo.pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                 console.log(`[WebRTC] Added ICE candidate from UserID ${senderUserId} (SID: ${senderSocketId}).`);
+            } catch (error) {
+                if (!error.message.includes('wrong state') && !error.message.includes('remote answer sdp')) {
+                    console.error('[WebRTC] Error adding ICE candidate:', error);
+                    showNotification(`WebRTC ICE error with ${senderUserId}: ${error.message}`, true);
+                }
+            }
+        } else {
+            console.warn(`[WebRTC] PeerConnection not found for UserID ${senderUserId} or no candidate data. Candidate might be for an uninitialized PC.`);
+        }
+    });
+
+    // WebRTC peer disconnected signal from server
+    socket.on('webrtc_peer_disconnected', (data) => {
+        console.log(`[WebRTC] Peer disconnected signal received for UserID: ${data.peer_user_id}`); // peer_user_id is now the actual user ID
+        const peerUserId = data.peer_user_id;
+        // Close peer connection and remove video element
+        if (peerConnections[peerUserId] && peerConnections[peerUserId].pc) {
+            console.log(`[WebRTC] Received 'webrtc_peer_disconnected'. Closing PC and removing video for UserId: ${peerUserId}`);
+            peerConnections[peerUserId].pc.close();
+            delete peerConnections[peerUserId];
+            // Video element ID uses peerUserId
+            const videoWrapper = document.getElementById(`video-wrapper-${peerUserId}`);
+            if (videoWrapper) {
+                videoWrapper.remove();
+                console.log(`[WebRTC] Removed video element for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
+            } else {
+                console.warn(`[WebRTC] Video element not found for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
+            }
+        } else {
+            console.warn(`[WebRTC] Peer connection not found for UserId: ${peerUserId} on 'webrtc_peer_disconnected'.`);
+        }
+    });
 
     // New Socket.IO event: Assessment has started (server-side push)
     socket.on('assessment_started', (data) => {
@@ -1126,109 +1166,6 @@ socket.on('webrtc_peer_disconnected', (data) => {
             }
         }
     });
-}
-// Map of peer connections
-const peerConnections = {};
-
-// --- Create PeerConnection for a remote user ---
-function createPeerConnection(remoteUserId) {
-    const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
-
-    // Send ICE candidates to remote peer via server
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            socket.emit('webrtc_ice_candidate', {
-                classroomId: currentClassroomId,
-                recipient_id: remoteUserId,
-                candidate: event.candidate
-            });
-        }
-    };
-
-    // Handle remote video/audio tracks from peer
-    pc.ontrack = (event) => {
-        let videoWrapper = document.getElementById(`video-wrapper-${remoteUserId}`);
-        if (!videoWrapper) {
-            videoWrapper = document.createElement('div');
-            videoWrapper.id = `video-wrapper-${remoteUserId}`;
-            const videoEl = document.createElement('video');
-            videoEl.autoplay = true;
-            videoEl.playsInline = true;
-            videoEl.srcObject = event.streams[0];
-            videoWrapper.appendChild(videoEl);
-            document.getElementById('remote-videos-container').appendChild(videoWrapper);
-        } else {
-            const videoEl = videoWrapper.querySelector('video');
-            if (videoEl) videoEl.srcObject = event.streams[0];
-        }
-    };
-
-    return pc;
-}
-
-// --- Broadcast from Admin to All Participants ---
-async function broadcastToAllPeers(participants) {
-    if (!localStream) {
-        console.error("[WebRTC] No localStream found for admin broadcast.");
-        return;
-    }
-
-    console.log(`[WebRTC] Admin broadcasting to ${participants.length} participants...`);
-
-    for (const p of participants) {
-        const remoteUserId = p.userId;
-        const username = p.username || `User-${remoteUserId.substring(0, 5)}`;
-
-        try {
-            // Create PeerConnection for each participant
-            if (!peerConnections[remoteUserId]) {
-                peerConnections[remoteUserId] = { pc: createPeerConnection(remoteUserId) };
-            }
-            const pc = peerConnections[remoteUserId].pc;
-
-            // Add local video/audio tracks
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-            // Create SDP offer
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
-            // Send offer to this participant via server
-            socket.emit('webrtc_offer', {
-                classroomId: currentClassroomId,
-                recipient_id: remoteUserId,
-                offer: offer
-            });
-
-            console.log(`[WebRTC] Sent offer to ${username} (${remoteUserId})`);
-        } catch (err) {
-            console.error(`[WebRTC] Error broadcasting to ${username}:`, err);
-        }
-    }
-}
-
-// --- Start Broadcast when Admin clicks Start Button ---
-async function startBroadcast() {
-    try {
-        console.log("[Broadcast] Attempting to start broadcast...");
-
-        // Get admin's camera + microphone
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        console.log("[Broadcast] Obtained local stream.");
-
-        // Fetch participants from server or state
-        const participants = classroomParticipants || [];
-        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
-
-        // Broadcast offers to everyone
-        await broadcastToAllPeers(participants);
-
-        console.log("[Broadcast] Broadcast started.");
-    } catch (err) {
-        console.error("[Broadcast] Error starting broadcast:", err);
-    }
 }
 
  /**
@@ -1276,7 +1213,59 @@ function toggleBroadcastButtons(isBroadcasting, broadcastType) {
 
 
     
+/**
+ * Handles the start broadcast action, initiating local media stream based on broadcast type.
+ * @param {string} broadcastType - 'video_audio' for video and audio, or 'audio_only'.
+ */
+async function startBroadcast(broadcastType) {
+    console.log(`[Broadcast] Attempting to start a ${broadcastType} broadcast...`);
+    if (!currentUser || currentUser.role !== 'admin') {
+        showNotification("Only administrators can start a broadcast.", true);
+        console.warn('[Broadcast] Non-admin user attempted to start broadcast.');
+        return;
+    }
 
+    if (!currentClassroom || !currentClassroom.id) {
+        showNotification("Please join a classroom before starting a broadcast.", true);
+        console.warn('[Broadcast] No classroom joined for broadcast.');
+        return;
+    }
+
+    // Stop existing stream to prevent duplicates
+    if (localStream && localStream.active) {
+        console.warn('[Broadcast] Local stream already active. Stopping previous stream before starting new.');
+        stopLocalStream();
+        toggleBroadcastButtons(false);
+    }
+
+    try {
+        // Dynamically set media constraints based on the provided broadcastType
+        const constraints = {
+            audio: true,
+            video: (broadcastType === 'video_audio')
+        };
+        
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log(`[Broadcast] Obtained local stream with video: ${constraints.video}, audio: true`);
+        
+        if (localVideo) {
+            localVideo.srcObject = localStream;
+            localVideo.muted = true;
+            localVideo.style.display = constraints.video ? 'block' : 'none';
+        }
+
+        showNotification("Broadcast started successfully!");
+        // Pass the broadcastType to the function that updates the UI
+        toggleBroadcastButtons(true, broadcastType);
+        await broadcastToAllPeers();
+        
+    } catch (error) {
+        console.error('[Broadcast] Error starting broadcast:', error);
+        showNotification(`Failed to start broadcast: ${error.message}. Please check camera/mic permissions.`, true);
+        toggleBroadcastButtons(false);
+        stopLocalStream();
+    }
+}
 /**
  * Stops the video/audio broadcast initiated by the admin.
  * Cleans up local media resources and updates the UI for all participants.
@@ -1317,68 +1306,77 @@ function endBroadcast() {
 // A queue to store ICE candidates before the remote description is set.
 const iceCandidateQueue = [];
 
-// Function to process WebRTC signals fetched from the server
-async function handleWebRTCSignal(signals) {
-    if (!signals || signals.length === 0) {
-        return;
-    }
+async function handleWebRTCSignal(signal) {
+    const peerUserId = signal.fromUserId;
+    
+    // Check if a peer connection already exists for this user
+    let peerConnection = peerConnections[peerUserId] ? peerConnections[peerUserId].pc : null;
 
-    console.log(`[WebRTC] Processing ${signals.length} pending signal(s).`);
+    if (signal.type === 'offer') {
+        console.log(`[WebRTC] Received offer from peer UserId: ${peerUserId}`);
 
-    for (const signal of signals) {
-        const fromUserId = signal.fromUserId;
-        const signalData = signal.signalData;
-
-        // Ensure a peer connection exists for the sender, creating one if not
-        if (!peerConnections[fromUserId]) {
-            createPeerConnection(fromUserId);
+        // 1. Create a new peer connection if it doesn't exist
+        if (!peerConnection) {
+            peerConnection = createPeerConnection(peerUserId, false, signal.username, signal.socketId);
         }
-        const pc = peerConnections[fromUserId].pc;
 
-        try {
-            switch (signal.type) {
-                case 'offer':
-                    console.log(`[WebRTC] Received offer from UserId: ${fromUserId}.`);
+        // 2. Set the remote description (the offer)
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+        console.log(`[WebRTC] Set remote description (offer) for peer UserId ${peerUserId}`);
 
-                    // Set the remote offer and create an answer
-                    await pc.setRemoteDescription(new RTCSessionDescription(signalData));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
+        // 3. Create an answer
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        console.log(`[WebRTC] Created and set local answer for peer UserId: ${peerUserId}`);
 
-                    // Send the answer back to the admin via the server
-                    socket.emit('webrtc_signal', {
-                        type: 'answer',
-                        payload: answer,
-                        toUserId: fromUserId
-                    });
+        // 4. Send the answer back to the admin
+        socket.emit('webrtc_signal', {
+            type: 'answer',
+            payload: peerConnection.localDescription,
+            toUserId: peerUserId
+        });
 
-                    // Process any queued ICE candidates for this peer
-                    processQueuedIceCandidates(fromUserId);
-                    break;
-
-                case 'answer':
-                    console.log(`[WebRTC] Received answer from UserId: ${fromUserId}.`);
-                    await pc.setRemoteDescription(new RTCSessionDescription(signalData));
-                    processQueuedIceCandidates(fromUserId);
-                    break;
-
-                case 'ice_candidate':
-                    console.log(`[WebRTC] Received ICE candidate from UserId: ${fromUserId}.`);
-                    if (pc.remoteDescription) {
-                        await pc.addIceCandidate(new RTCIceCandidate(signalData));
-                    } else {
-                        // Queue the candidate if the remote description hasn't been set yet
-                        iceCandidateQueues[fromUserId] = iceCandidateQueues[fromUserId] || [];
-                        iceCandidateQueues[fromUserId].push(signalData);
-                    }
-                    break;
-
-                default:
-                    console.warn(`[WebRTC] Unknown signal type received: ${signal.type}`);
-                    break;
+        // 5. Process any queued ICE candidates
+        while (iceCandidateQueue.length > 0) {
+            const candidate = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
             }
-        } catch (error) {
-            console.error(`[WebRTC] Error processing signal from ${fromUserId}:`, error);
+        }
+
+    } else if (signal.type === 'answer') {
+        // Step 1: Set the remote description (the answer)
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.payload));
+        console.log(`[WebRTC] Set remote description (answer) for peer UserId ${peerUserId}`);
+
+        // Step 2: Process any queued ICE candidates
+        while (iceCandidateQueue.length > 0) {
+            const candidate = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                console.log(`[WebRTC] Added queued ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding queued ICE candidate:`, error);
+            }
+        }
+
+    } else if (signal.type === 'candidate') {
+        // Check if the remote description has been set
+        if (peerConnection && peerConnection.remoteDescription) {
+            // Add the candidate directly if the remote description is ready
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(signal.payload));
+                console.log(`[WebRTC] Added ICE candidate for peer UserId: ${peerUserId}`);
+            } catch (error) {
+                console.error(`[WebRTC] Error adding ICE candidate:`, error);
+            }
+        } else {
+            // Queue the candidate if the remote description is not yet ready
+            iceCandidateQueue.push(signal.payload);
+            console.log(`[WebRTC] Queued ICE candidate for peer UserId: ${peerUserId}`);
         }
     }
 }
@@ -1431,8 +1429,53 @@ function stopLocalStream() {
 }
   
 
+/**
+ * Sets up a new RTCPeerConnection for a participant to receive a broadcast.
+ * This function should be called for each incoming broadcast offer.
+ */
+function createPeerConnection(peerUserId, isCaller, peerUsername, socketId) {
+    const pc = new RTCPeerConnection(iceServers);
 
- /** Dynamically creates a video element for a remote peer and adds it to the DOM.
+    // This listener is crucial for handling incoming media streams
+    pc.ontrack = (event) => {
+        console.log('[WebRTC] Remote track received:', event.track.kind);
+        const remoteVideoElement = document.getElementById(`video-${peerUserId}`);
+
+        if (!remoteVideoElement) {
+            console.warn(`[WebRTC] Remote video element not found for user ${peerUserId}. Creating a new one.`);
+            createRemoteVideoElement(peerUserId, peerUsername);
+        }
+
+        const videoElement = document.getElementById(`video-${peerUserId}`);
+        if (event.track.kind === 'video') {
+            videoElement.srcObject = event.streams[0];
+            videoElement.style.display = 'block'; // Ensure the element is visible
+            console.log(`[WebRTC] Remote video stream attached for peer UserId: ${peerUserId}.`);
+        } else if (event.track.kind === 'audio') {
+            console.log(`[WebRTC] Remote audio track received for peer UserId: ${peerUserId}.`);
+        }
+    };
+
+    // Other event listeners (onicecandidate, etc.) would go here.
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            console.log(`[WebRTC] Sending ICE Candidate from ${currentUser.id} to UserId: ${peerUserId}.`);
+            socket.emit('webrtc_signal', {
+                type: 'candidate',
+                payload: event.candidate,
+                toUserId: peerUserId
+            });
+        }
+    };
+
+    // Store the connection in the global object
+    peerConnections[peerUserId] = { pc, username: peerUsername, socketId };
+    
+    return pc;
+}
+
+/**
+ * Dynamically creates a video element for a remote peer and adds it to the DOM.
  */
 function createRemoteVideoElement(peerUserId, peerUsername) {
     const remoteVideosContainer = document.getElementById('remote-videos-container');
@@ -1460,7 +1503,59 @@ function createRemoteVideoElement(peerUserId, peerUsername) {
 
     console.log(`[UI] Created remote video element for peer: ${peerUsername}`);
 }
+/**
+ * Initiates WebRTC offers to all active participants in the current classroom.
+ * This function is called by the admin to start broadcasting their stream.
+ */
+async function broadcastToAllPeers() {
+    try {
+        const response = await fetch(`/api/classrooms/${currentClassroom.id}/participants`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch participants. Status: ${response.status}`);
+        }
+        const participants = await response.json();
+        console.log(`[WebRTC] Fetched ${participants.length} participants for broadcasting.`);
 
+        // 1. Check if the localStream is available
+        if (!localStream) {
+            console.error('[WebRTC] Local stream is not available. Cannot broadcast to peers.');
+            showNotification('Failed to start broadcast: Local media stream is not active.', true);
+            return;
+        }
+
+        for (const participant of participants) {
+            // Do not create a peer connection for the admin user themselves
+            if (participant.id !== currentUser.id) {
+                console.log(`[WebRTC] Admin broadcasting. Creating offer for peer UserID: ${participant.id}, Username: ${participant.username}`);
+
+                // 2. Create the peer connection
+                const peerConnection = createPeerConnection(participant.id, true, participant.username, null);
+
+                // 3. Add the local stream's tracks to the connection
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                    console.log(`[WebRTC] Added local track (${track.kind}) to peer connection for ${participant.username}.`);
+                });
+                
+                // 4. Create the offer and set local description
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                console.log(`[WebRTC] Created and set local offer for peer UserId: ${participant.id}`);
+
+                // 5. Send the offer to the peer via the signaling server
+                socket.emit('webrtc_signal', {
+                    type: 'offer',
+                    payload: peerConnection.localDescription,
+                    toUserId: participant.id
+                });
+            }
+        }
+        console.log('[Broadcast] All initial offers created and sent to participants.');
+    } catch (error) {
+        console.error('[WebRTC] Error broadcasting to all peers:', error);
+        showNotification(`Failed to send broadcast offers to participants: ${error.message}`, true);
+    }
+}
 
     
     // --- Video Zoom Functions ---
@@ -4093,4 +4188,3 @@ async function pollForWebRTCSignals() {
         console.log('[App] Local video zoom initialized.');
     }
 });
-)
