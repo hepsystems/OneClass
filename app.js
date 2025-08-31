@@ -1301,8 +1301,7 @@ function endBroadcast() {
     showNotification('Broadcast ended.');
 }
 
-// A queue to store ICE candidates before the remote description is set.
-const iceCandidateQueue = [];
+
 
 // A queue to store ICE candidates before the remote description is set.
 const iceCandidateQueue = [];
