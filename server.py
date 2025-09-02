@@ -1,5 +1,5 @@
 # server.py
-
+import pytz 
 # --- IMPORTANT: Gevent Monkey Patching MUST be at the very top ---
 # Gevent monkey patching is essential for Flask-SocketIO to work efficiently
 # with concurrent I/O operations, especially for WebRTC and long-polling.
@@ -506,6 +506,8 @@ def delete_library_file(fileId):
     print(f"Attempted to delete file {fileId} but not found in DB (after filesystem check).")
     return jsonify({"error": "File not found"}), 404
 
+
+
 # --- Assessment Management ---
 
 @app.route('/api/assessments', methods=['POST'])
@@ -526,7 +528,7 @@ def create_assessment():
     class_room_id = data.get('classroomId')
     title = data.get('title')
     description = data.get('description')
-    scheduled_at_str = data.get('scheduled_at') # Expected ISO format string.
+    scheduled_at_str = data.get('scheduled_at') # Expected ISO format string from frontend.
     duration_minutes = data.get('duration_minutes')
     questions_data = data.get('questions')
 
@@ -541,8 +543,8 @@ def create_assessment():
         return jsonify({"error": "Questions must be a non-empty list"}), 400
 
     try:
-        # Convert ISO format string to datetime object (UTC assumed from frontend .toISOString()).
-        scheduled_at = datetime.fromisoformat(scheduled_at_str.replace('Z', '+00:00')) # Handle 'Z' for UTC.
+        # **FIXED LOGIC**: Convert ISO format string to a timezone-aware UTC datetime object.
+        scheduled_at = datetime.fromisoformat(scheduled_at_str.replace('Z', '+00:00')).astimezone(pytz.utc)
     except ValueError:
         print(f"CREATE /api/assessments: Invalid scheduled_at format: '{scheduled_at_str}'. Expected ISO 8601.")
         return jsonify({"error": "Invalid scheduled_at format. Expected YYYY-MM-DDTHH:MM:SS.sssZ (ISO 8601 UTC)"}), 400
@@ -562,7 +564,7 @@ def create_assessment():
         "classroomId": class_room_id,
         "title": title,
         "description": description,
-        "scheduled_at": scheduled_at,
+        "scheduled_at": scheduled_at, # Correctly store the UTC-aware datetime
         "duration_minutes": duration_minutes,
         "creator_id": user_id,
         "creator_username": username,
