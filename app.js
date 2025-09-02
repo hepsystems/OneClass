@@ -2825,176 +2825,175 @@ function getCanvasCoords(e) {
     }
 
 
-    /**
-     * Loads and displays all assessments for the current classroom.
-     * Categorizes them by status (Upcoming, Active, Ended) and provides actions.
-     * Also manages visibility of assessment creation form for admins.
-     */
-    async function loadAssessments() {
-        if (!currentClassroom || !currentClassroom.id) {
-            if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
-            console.warn('[Assessments] Cannot load assessments: No current classroom.');
-            return;
+   /**
+ * Loads and displays all assessments for the current classroom.
+ * Categorizes them by status (Upcoming, Active, Ended) and provides actions.
+ * Also manages visibility of assessment creation form for admins.
+ */
+async function loadAssessments() {
+    if (!currentClassroom || !currentClassroom.id) {
+        if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>Select a classroom to view assessments.</p>';
+        console.warn('[Assessments] Cannot load assessments: No current classroom.');
+        return;
+    }
+
+    // Ensure correct sections are visible/hidden
+    if (takeAssessmentContainer) takeAssessmentContainer.classList.add('hidden');
+    if (viewSubmissionsContainer) viewSubmissionsContainer.classList.add('hidden');
+    if (assessmentListContainer) assessmentListContainer.classList.remove('hidden');
+
+    // Admin-specific UI for assessment creation
+    if (currentUser && currentUser.role === 'admin') {
+        if (assessmentCreationForm) {
+            assessmentCreationForm.classList.remove('hidden');
+            assessmentCreationForm.classList.add('admin-feature-highlight');
+            if (questionsContainer && questionsContainer.children.length === 0) {
+                addQuestionField(); // Add an initial question field if none exist
+            }
+        }
+    } else {
+        if (assessmentCreationForm) {
+            assessmentCreationForm.classList.add('hidden');
+            assessmentCreationForm.classList.remove('admin-feature-highlight');
+        }
+    }
+
+    try {
+        const response = await fetch(`/api/assessments/${currentClassroom.id}`);
+        if (!response.ok) {
+            if (response.status === 404) {
+                console.log('[Assessments] No assessments found for this classroom.');
+                if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>No assessments available in this classroom yet.</p>';
+                return;
+            }
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        let assessments = await response.json();
+
+        const searchTerm = assessmentSearchInput.value.toLowerCase();
+        if (searchTerm) {
+            assessments = assessments.filter(assessment =>
+                assessment.title.toLowerCase().includes(searchTerm) ||
+                (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
+            );
         }
 
-        // Ensure correct sections are visible/hidden
-        if (takeAssessmentContainer) takeAssessmentContainer.classList.add('hidden');
-        if (viewSubmissionsContainer) viewSubmissionsContainer.classList.add('hidden');
-        if (assessmentListContainer) assessmentListContainer.classList.remove('hidden');
+        if (assessmentListDiv) assessmentListDiv.innerHTML = ''; // Clear existing list
 
-        // Admin-specific UI for assessment creation
-        if (currentUser && currentUser.role === 'admin') {
-            if (assessmentCreationForm) {
-                assessmentCreationForm.classList.remove('hidden');
-                assessmentCreationForm.classList.add('admin-feature-highlight');
-                if (questionsContainer && questionsContainer.children.length === 0) {
-                    addQuestionField(); // Add an initial question field if none exist
-                }
-            }
+        if (assessments.length === 0) {
+            if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>No assessments matching your search criteria.</p>';
         } else {
-            if (assessmentCreationForm) {
-                assessmentCreationForm.classList.add('hidden');
-                assessmentCreationForm.classList.remove('admin-feature-highlight');
-            }
+            const now = new Date();
+            assessments.forEach(assessment => {
+                // Defensive parsing and validation for scheduled_at and duration_minutes
+                const scheduledTime = new Date(assessment.scheduled_at);
+                const durationMinutes = parseInt(assessment.duration_minutes, 10);
+
+                let statusText = '';
+                let actionButton = '';
+                let isTakeable = false; // Flag to enable/disable Take Assessment button
+
+                // Check for invalid date/duration data
+                if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
+                    statusText = `<span class="assessment-status-invalid">(Invalid Schedule Data)</span>`;
+                    actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
+                    showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
+                } else {
+                    const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60000);
+
+                    if (now < scheduledTime) {
+                        statusText = `<span class="assessment-status-upcoming">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
+                    } else if (now >= scheduledTime && now <= endTime) {
+                        statusText = `<span class="assessment-status-active">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
+                        isTakeable = true; // Assessment is active and can be taken
+                        actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
+                    } else {
+                        statusText = `<span class="assessment-status-ended">(Ended: ${endTime.toLocaleString()})</span>`;
+                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
+                    }
+                }
+
+                // If user has already submitted, disable the "Take Assessment" button
+                if (assessment.has_submitted) {
+                    isTakeable = false;
+                    actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Submitted</button>`;
+                }
+
+
+                const assessmentItem = document.createElement('div');
+                assessmentItem.classList.add('assessment-item');
+                assessmentItem.innerHTML = `
+                    <div>
+                        <h4>${assessment.title} ${statusText}</h4>
+                        <p>${assessment.description || 'No description provided.'}</p>
+                        <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div class="assessment-actions">
+                        ${currentUser && currentUser.role === 'admin' ?
+                            // Admin actions: View Submissions, Delete
+                            `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
+                            <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
+                            // User actions: Take Assessment (or disabled status)
+                            actionButton
+                        }
+                    </div>
+                `;
+                if (assessmentListDiv) assessmentListDiv.appendChild(assessmentItem);
+            });
         }
 
-        try {
-            const response = await fetch(`/api/assessments/${currentClassroom.id}`);
-            if (!response.ok) {
-                if (response.status === 404) {
-                    console.log('[Assessments] No assessments found for this classroom.');
-                    if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>No assessments available in this classroom yet.</p>';
-                    return;
-                }
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            let assessments = await response.json();
-
-            const searchTerm = assessmentSearchInput.value.toLowerCase();
-            if (searchTerm) {
-                assessments = assessments.filter(assessment =>
-                    assessment.title.toLowerCase().includes(searchTerm) ||
-                    (assessment.description && assessment.description.toLowerCase().includes(searchTerm))
-                );
-            }
-
-            if (assessmentListDiv) assessmentListDiv.innerHTML = ''; // Clear existing list
-
-            if (assessments.length === 0) {
-                if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>No assessments matching your search criteria.</p>';
-            } else {
-                const now = new Date();
-                assessments.forEach(assessment => {
-                    // Defensive parsing and validation for scheduled_at and duration_minutes
-                    const scheduledTime = new Date(assessment.scheduled_at);
-                    const durationMinutes = parseInt(assessment.duration_minutes, 10);
-
-                    let statusText = '';
-                    let actionButton = '';
-                    let isTakeable = false; // Flag to enable/disable Take Assessment button
-
-                    // Check for invalid date/duration data
-                    if (isNaN(scheduledTime.getTime()) || isNaN(durationMinutes) || durationMinutes <= 0) {
-                        statusText = `<span class="assessment-status-invalid">(Invalid Schedule Data)</span>`;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Invalid Schedule</button>`;
-                        showNotification(`Assessment "${assessment.title}" has invalid scheduling data.`, true);
-                    } else {
-                        const endTime = new Date(scheduledTime.getTime() + durationMinutes * 60000);
-
-                        if (now < scheduledTime) {
-                            statusText = `<span class="assessment-status-upcoming">(Upcoming: ${scheduledTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Upcoming</button>`;
-                        } else if (now >= scheduledTime && now <= endTime) {
-                            statusText = `<span class="assessment-status-active">(Active - Ends: ${endTime.toLocaleTimeString()})</span>`;
-                            isTakeable = true; // Assessment is active and can be taken
-                            actionButton = `<button class="take-assessment-btn btn-primary" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}" data-assessment-description="${assessment.description}">Take Assessment</button>`;
-                        } else {
-                            statusText = `<span class="assessment-status-ended">(Ended: ${endTime.toLocaleString()})</span>`;
-                            actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Ended</button>`;
-                        }
-                    }
-
-                    // If user has already submitted, disable the "Take Assessment" button
-                    if (assessment.has_submitted) {
-                        isTakeable = false;
-                        actionButton = `<button class="take-assessment-btn btn-secondary" disabled>Submitted</button>`;
-                    }
-
-
-                    const assessmentItem = document.createElement('div');
-                    assessmentItem.classList.add('assessment-item');
-                    assessmentItem.innerHTML = `
-                        <div>
-                            <h4>${assessment.title} ${statusText}</h4>
-                            <p>${assessment.description || 'No description provided.'}</p>
-                            <p>Created by: ${getDisplayName(assessment.creator_username, assessment.creator_role || 'user')} on ${new Date(assessment.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div class="assessment-actions">
-                            ${currentUser && currentUser.role === 'admin' ?
-                                // Admin actions: View Submissions, Delete
-                                `<button class="view-submissions-btn btn-info" data-assessment-id="${assessment.id}" data-assessment-title="${assessment.title}">View Submissions</button>
-                                <button class="delete-assessment-btn btn-danger" data-assessment-id="${assessment.id}">Delete</button>` :
-                                // User actions: Take Assessment (or disabled status)
-                                actionButton
-                            }
-                        </div>
-                    `;
-                    if (assessmentListDiv) assessmentListDiv.appendChild(assessmentItem);
-                });
-            }
-
-            // Attach event listeners for Take Assessment buttons
-            document.querySelectorAll('.take-assessment-btn').forEach(button => {
-                // Check 'isTakeable' flag and 'disabled' attribute to ensure button is truly clickable
-                if (!button.disabled) { // Only add listener if button is active
-                    button.addEventListener('click', (e) => {
-                        const assessmentId = e.target.dataset.assessmentId;
-                        const assessmentTitle = e.target.dataset.assessmentTitle;
-                        const assessmentDescription = e.target.dataset.assessmentDescription;
-                        takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
-                    });
-                }
-            });
-
-            // Attach event listeners for View Submissions buttons (admin only)
-            document.querySelectorAll('.view-submissions-btn').forEach(button => {
+        // Attach event listeners for Take Assessment buttons
+        document.querySelectorAll('.take-assessment-btn').forEach(button => {
+            // Check 'isTakeable' flag and 'disabled' attribute to ensure button is truly clickable
+            if (!button.disabled) { // Only add listener if button is active
                 button.addEventListener('click', (e) => {
                     const assessmentId = e.target.dataset.assessmentId;
                     const assessmentTitle = e.target.dataset.assessmentTitle;
-                    viewSubmissions(assessmentId, assessmentTitle);
+                    const assessmentDescription = e.target.dataset.assessmentDescription;
+                    takeAssessment(assessmentId, assessmentTitle, assessmentDescription);
                 });
-            });
+            }
+        });
 
-            // Attach event listeners for Delete Assessment buttons (admin only)
-            document.querySelectorAll('.delete-assessment-btn').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const assessmentId = e.target.dataset.assessmentId;
-                    // Custom confirmation (replace with modal in a real app)
-                    if (window.confirm('Are you sure you want to delete this assessment? This will also delete all submissions.')) {
-                        try {
-                            const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
-                            const result = await response.json();
-                            if (response.ok) {
-                                showNotification(result.message);
-                                loadAssessments(); // Reload the list after deletion
-                            } else {
-                                showNotification(`Error deleting assessment: ${result.error}`, true);
-                            }
-                        } catch (error) {
-                            console.error('Error deleting assessment:', error);
-                            showNotification('An unexpected error occurred during deletion.', true);
+        // Attach event listeners for View Submissions buttons (admin only)
+        document.querySelectorAll('.view-submissions-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const assessmentId = e.target.dataset.assessmentId;
+                const assessmentTitle = e.target.dataset.assessmentTitle;
+                viewSubmissions(assessmentId, assessmentTitle);
+            });
+        });
+
+        // Attach event listeners for Delete Assessment buttons (admin only)
+        document.querySelectorAll('.delete-assessment-btn').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                const assessmentId = e.target.dataset.assessmentId;
+                // Custom confirmation (replace with modal in a real app)
+                if (window.confirm('Are you sure you want to delete this assessment? This will also delete all submissions.')) {
+                    try {
+                        const response = await fetch(`/api/assessments/${assessmentId}`, { method: 'DELETE' });
+                        const result = await response.json();
+                        if (response.ok) {
+                            showNotification(result.message);
+                            loadAssessments(); // Reload the list after deletion
+                        } else {
+                            showNotification(`Error deleting assessment: ${result.error}`, true);
                         }
+                    } catch (error) {
+                        console.error('Error deleting assessment:', error);
+                        showNotification('An unexpected error occurred during deletion.', true);
                     }
-                });
+                }
             });
-        } catch (error) {
-            console.error('Error loading assessments:', error);
-            if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>Failed to load assessments. Please check your network connection.</p>';
-            showNotification('Failed to load assessments.', true);
-        }
-        updateUIBasedOnRole(); // Ensure role-based UI is updated after loading
+        });
+    } catch (error) {
+        console.error('Error loading assessments:', error);
+        if (assessmentListDiv) assessmentListDiv.innerHTML = '<p>Failed to load assessments. Please check your network connection.</p>';
+        showNotification('Failed to load assessments.', true);
     }
-
+    updateUIBasedOnRole(); // Ensure role-based UI is updated after loading
+}
     /**
      * Displays a specific assessment for the current user to take.
      * Fetches questions and initializes a countdown timer.
