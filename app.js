@@ -3131,66 +3131,75 @@ function getCanvasCoords(e) {
             showNotification('Failed to load assessment questions.', true);
         }
     }
-
-    /**
-     * Starts the countdown timer for an assessment, updating the UI every second.
-     * Automatically submits the assessment when time runs out.
-     * @param {Date} endTime - The exact Date object when the assessment should end.
-     */
-    function startAssessmentTimer(endTime) {
-        if (assessmentTimerInterval) {
-            clearInterval(assessmentTimerInterval); // Clear any existing timer
-        }
-
-        assessmentEndTime = endTime; // Store the official end time
-
-        function updateTimer() {
-            const now = new Date().getTime();
-            const timeLeft = assessmentEndTime.getTime() - now;
-
-            if (timeLeft <= 0) {
-                clearInterval(assessmentTimerInterval); // Stop the timer
-                if (assessmentTimerDisplay) {
-                    assessmentTimerDisplay.textContent = 'Time Left: 00:00:00 - Automatically Submitted!';
-                    assessmentTimerDisplay.classList.remove('warning', 'critical', 'active', 'upcoming');
-                    assessmentTimerDisplay.classList.add('ended');
-                }
-                showNotification("Time's up! Your assessment has been automatically submitted.", false);
-                submitAnswers(true); // Automatically submit the assessment
-                // Disable all inputs to prevent further changes
-                if (takeAssessmentForm) {
-                    takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
-                }
-                if (submitAnswersBtn) submitAnswersBtn.disabled = true;
-                console.log('[Assessment] Assessment time elapsed. Auto-submitting.');
-                return;
-            }
-
-            // Calculate hours, minutes, seconds remaining
-            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-            const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-            if (assessmentTimerDisplay) assessmentTimerDisplay.textContent = `Time Left: ${displayTime}`;
-
-            // Add visual cues for low time remaining
-            if (assessmentTimerDisplay) {
-                assessmentTimerDisplay.classList.remove('warning', 'critical'); // Reset classes first
-                if (timeLeft < 60 * 1000) { // Less than 1 minute
-                    assessmentTimerDisplay.classList.add('critical');
-                } else if (timeLeft < 5 * 60 * 1000) { // Less than 5 minutes
-                    assessmentTimerDisplay.classList.add('warning');
-                }
-            }
-        }
-
-        updateTimer(); // Initial call to display immediately
-        assessmentTimerInterval = setInterval(updateTimer, 1000); // Update every second
-        if (assessmentTimerDisplay) assessmentTimerDisplay.classList.add('active'); // Indicate timer is running
-        console.log('[Assessment] Assessment timer started.');
+/**
+ * Starts a countdown timer for an assessment, updating the UI every second.
+ *
+ * This function is the complete, correct logic for the client side.
+ * It takes the raw UTC time and duration from the server,
+ * correctly calculates the local end time, and manages the timer.
+ * * @param {string} scheduledAtUTCString - The assessment start time in UTC (ISO string format).
+ * @param {number} durationMinutes - The duration of the assessment in minutes.
+ */
+function startAssessmentTimer(scheduledAtUTCString, durationMinutes) {
+    if (assessmentTimerInterval) {
+        clearInterval(assessmentTimerInterval); // Clear any existing timer
     }
 
+    // CRUCIAL FIX: Convert the UTC time from the server to a local Date object.
+    // The browser's Date object will handle the timezone conversion automatically.
+    const scheduledAt = new Date(scheduledAtUTCString);
+    const durationMilliseconds = durationMinutes * 60 * 1000;
+    
+    // Calculate the exact end time of the assessment in the user's local timezone.
+    assessmentEndTime = new Date(scheduledAt.getTime() + durationMilliseconds);
+
+    console.log(`[Assessment] Timer starting. Scheduled at (local): ${scheduledAt.toLocaleString()}`);
+    console.log(`[Assessment] End time calculated at (local): ${assessmentEndTime.toLocaleString()}`);
+
+    // Update the timer display every second
+    assessmentTimerInterval = setInterval(() => {
+        const now = new Date();
+        const timeLeft = assessmentEndTime - now;
+
+        if (timeLeft <= 0) {
+            clearInterval(assessmentTimerInterval);
+            if (assessmentTimerDisplay) {
+                assessmentTimerDisplay.textContent = 'Time Left: 00:00:00 - Automatically Submitted!';
+                assessmentTimerDisplay.classList.remove('warning', 'critical', 'active', 'upcoming');
+                assessmentTimerDisplay.classList.add('ended');
+            }
+            showNotification("Time's up! Your assessment has been automatically submitted.", false);
+            submitAnswers(true);
+            if (takeAssessmentForm) {
+                takeAssessmentForm.querySelectorAll('input, textarea, button').forEach(el => el.disabled = true);
+            }
+            if (submitAnswersBtn) submitAnswersBtn.disabled = true;
+            console.log('[Assessment] Assessment time elapsed. Auto-submitting.');
+            return;
+        }
+
+        // Calculate hours, minutes, seconds remaining
+        const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+        const displayTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        if (assessmentTimerDisplay) assessmentTimerDisplay.textContent = `Time Left: ${displayTime}`;
+
+        // Add visual cues for low time remaining
+        if (assessmentTimerDisplay) {
+            assessmentTimerDisplay.classList.remove('warning', 'critical');
+            if (timeLeft < 60 * 1000) {
+                assessmentTimerDisplay.classList.add('critical');
+            } else if (timeLeft < 5 * 60 * 1000) {
+                assessmentTimerDisplay.classList.add('warning');
+            }
+        }
+    }, 1000);
+
+    if (assessmentTimerDisplay) assessmentTimerDisplay.classList.add('active');
+    console.log('[Assessment] Assessment timer started.');
+}
     /**
      * Helper function to format milliseconds into a HH:MM:SS string.
      * @param {number} ms - The number of milliseconds.
