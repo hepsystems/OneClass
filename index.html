@@ -41,108 +41,31 @@
         </section>
 
         <section id="dashboard-section" class="hidden">
-            <header>
-                <button id="hamburger-menu-btn"><i class="fa fa-bars"></i></button>
-                <h1>One Class</h1>
-            </header>
+            <div class="main-nav">
+                <button id="nav-dashboard" class="active-nav">Dashboard</button>
+                <button id="nav-classroom">Classroom</button>
+                <button id="nav-settings">Settings</button>
+                <button id="logout-btn">Logout</button>
+            </div>
 
-            <aside id="sidebar" class="hidden">
-                <button id="close-sidebar-btn" class="close-btn"><i class="fa fa-times"></i></button>
-                <nav>
-                    <button id="nav-dashboard" class="sidebar-nav-btn active-nav-btn"><i class="fa fa-tachometer-alt"></i> Dashboard</button>
-                    <button id="nav-classrooms" class="sidebar-nav-btn"><i class="fa fa-chalkboard"></i> Classrooms</button>
-                    <button id="nav-assessments" class="sidebar-nav-btn"><i class="fa fa-edit"></i> Assessments</button>
-                    <button id="nav-settings" class="sidebar-nav-btn"><i class="fa fa-cog"></i> Settings</button>
-                    <button id="logout-btn" class="sidebar-nav-btn"><i class="fa fa-sign-out-alt"></i> Logout</button>
-                </nav>
-            </aside>
+            <h2>Dashboard</h2>
+            <p>Welcome, <span id="current-username-display"></span>!</p>
+            <p>Classroom ID: <span id="classroom-id-display">N/A</span></p>
 
-            <div class="main-content">
-                <h2 id="dashboard-title">Dashboard</h2>
-                <div id="dashboard-overview">
-                    <p>Current User: <span id="current-username-display"></span></p>
-                    <p>Classroom ID: <span id="classroom-id-display">N/A</span></p>
-                    <p id="user-role-display"></p>
-                </div>
-                
-                <div id="classroom-actions-container">
-                    <button id="create-classroom-btn" class="btn-primary" data-admin-only>Create New Classroom</button>
-                    <button id="join-classroom-btn" class="btn-secondary">Join Classroom</button>
-                    <button id="toggle-broadcast-btn" class="btn-broadcast" data-admin-only><span id="broadcast-status-text">Start Broadcast</span></button>
+            <div id="create-join-classroom">
+                <div id="create-classroom-section" data-admin-only>
+                    <h3>Create New Classroom</h3>
+                    <input type="text" id="new-classroom-name" placeholder="Classroom Name">
+                    <button id="create-classroom-btn" class="btn-success">Create Classroom</button>
+                    <p id="classroom-message"></p>
                 </div>
 
-                <div id="content-container">
-                    <div id="classrooms-container" class="hidden">
-                        <h3>Your Classrooms</h3>
-                        <div id="my-classrooms-list" class="classroom-list"></div>
-                        <h3>Join a Classroom</h3>
-                        <form id="join-classroom-form">
-                            <input type="text" id="join-classroom-id" placeholder="Enter Classroom ID" required>
-                            <button type="submit" class="btn-success">Join</button>
-                        </form>
-                    </div>
-
-                    <div id="assessments-container" class="hidden">
-                        <div id="assessment-list-container">
-                            <h3 id="assessment-list-title">Assessments</h3>
-                            <button id="create-assessment-btn" class="btn-success" data-admin-only>Create New Assessment</button>
-                            <div id="assessment-list"></div>
-                        </div>
-
-                        <div id="create-assessment-container" class="hidden" data-admin-only>
-                            <h4>Create Assessment</h4>
-                            <form id="create-assessment-form">
-                                <label for="assessment-title">Title:</label>
-                                <input type="text" id="assessment-title" required>
-                                <label for="assessment-time-limit">Time Limit (minutes):</label>
-                                <input type="number" id="assessment-time-limit" min="1" required>
-                                <div id="questions-container"></div>
-                                <button type="button" id="add-question-btn" class="btn-secondary">Add Question</button>
-                                <button type="submit" class="btn-success">Save Assessment</button>
-                            </form>
-                            <button id="back-to-assessment-list-btn" class="btn-secondary">Back to Assessments</button>
-                        </div>
-
-                        <div id="take-assessment-container" class="hidden">
-                            <h4 id="take-assessment-title"></h4>
-                            <div id="timer-display">Time Left: --:--:--</div>
-                            <form id="take-assessment-form"></form>
-                            <button id="submit-answers-btn" class="btn-success">Submit Answers</button>
-                            <p id="assessment-submission-message"></p>
-                            <button id="back-to-assessment-list-btn" class="btn-secondary">Back to Assessments</button>
-                        </div>
-
-                        <div id="view-submissions-container" class="hidden" data-admin-only>
-                            <h4 id="submissions-assessment-title"></h4>
-                            <div id="submissions-list"></div>
-                            <button id="back-to-assessment-list-from-submissions-btn" class="btn-secondary">Back to Assessments</button>
-                        </div>
-                    </div>
-
-                    <section id="ai-assistant-section" class="hidden">
-                        <h2>AI Classroom Assistant</h2>
-                        <div id="ai-assistant-container">
-                            <textarea id="ai-input-text" placeholder="Enter text to summarize or use for content generation..."></textarea>
-                            <div class="button-group">
-                                <button id="summarize-btn">Summarize Text</button>
-                                <button id="generate-quiz-btn">Generate Quiz Questions</button>
-                            </div>
-                            <div id="ai-output" class="content-box">
-                                <p>AI Output will appear here.</p>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section id="ai-chatbot-section" class="hidden">
-                        <h2>AI Chatbot</h2>
-                        <div id="ai-chat-container">
-                            <div id="ai-chat-log" class="chat-log-box"></div>
-                            <form id="ai-chat-form">
-                                <input type="text" id="ai-chat-input" placeholder="Ask the AI a question...">
-                                <button type="submit">Send</button>
-                            </form>
-                        </div>
-                    </section>
+                <div id="join-classroom-section">
+                    <h3>Your Classrooms & Available Classrooms</h3>
+                    <input type="text" id="classroom-search-input" class="search-input" placeholder="Search classrooms...">
+                    <ul id="classroom-list">
+                        <li>Loading classrooms...</li>
+                    </ul>
                 </div>
             </div>
         </section>
@@ -184,7 +107,8 @@
                             <div class="video-overlay">Click to zoom</div>
                         </div>
 
-                        <div id="remote-video-container"></div>
+                        <div id="remote-video-container">
+                            </div>
                     </div>
 
                     <canvas id="whiteboard-canvas"></canvas>
@@ -229,7 +153,8 @@
 
                 <div id="chat-section" class="classroom-sub-section hidden">
                     <h3>Classroom Chat</h3>
-                    <div id="chat-messages"></div>
+                    <div id="chat-messages">
+                        </div>
                     <div class="chat-input-area">
                         <input type="text" id="chat-input" placeholder="Type your message...">
                         <button id="send-chat-button" class="btn-primary">Send</button>
@@ -264,7 +189,8 @@
                             <input type="number" id="assessment-duration-minutes" min="1" value="60" required>
                             
                             <h5>Questions:</h5>
-                            <div id="questions-container"></div>
+                            <div id="questions-container">
+                                </div>
                             <button type="button" id="add-question-btn" class="btn-secondary">Add Question</button>
                             <button type="submit" id="submit-assessment-btn" class="btn-primary">Create Assessment</button>
                         </form>
@@ -283,7 +209,8 @@
                         <h4 id="take-assessment-title"></h4>
                         <p id="take-assessment-description"></p>
                         <div id="assessment-timer">Time Left: --:--:--</div>
-                        <form id="take-assessment-form"></form>
+                        <form id="take-assessment-form">
+                            </form>
                         <button id="submit-answers-btn" class="btn-success">Submit Answers</button>
                         <p id="assessment-submission-message"></p>
                         <button id="back-to-assessment-list-btn" class="btn-secondary">Back to Assessments</button>
