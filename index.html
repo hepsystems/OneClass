@@ -7,208 +7,197 @@
     <link rel="stylesheet" href="/style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="app">
-        <section id="auth-section" class="active">
-            <h2>Login / Register</h2>
-            <div id="login-container">
-                <h3>Login</h3>
-                <form id="login-form">
-                    <input type="email" id="login-email" placeholder="Email" required>
-                    <input type="password" id="login-password" placeholder="Password" required>
-                    <button type="submit">Login</button>
-                </form>
-                <p>Don't have an account? <a href="#" id="show-register-link">Register here</a></p>
+        <header class="bg-gray-800 text-white p-4 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <button id="open-sidebar-btn" class="text-white focus:outline-none focus:ring-2 focus:ring-gray-400 p-2 rounded-md">
+                    <i class="fa-solid fa-bars fa-lg"></i>
+                </button>
+                <h1 id="page-title" class="text-xl font-bold">Loading...</h1>
             </div>
-
-            <div id="register-container" class="hidden">
-                <h3>Register</h3>
-                <form id="register-form">
-                    <input type="text" id="register-username" placeholder="Username" required>
-                    <input type="email" id="register-email" placeholder="Email" required>
-                    <input type="password" id="register-password" placeholder="Password" required>
-                    <label for="register-role">Register as:</label>
-                    <select id="register-role">
-                        <option value="user">Student</option>
-                        <option value="admin">Administrator</option>
-                    </select>
-                    <button type="submit">Register</button>
-                </form>
-                <p>Already have an account? <a href="#" id="show-login-link">Login here</a></p>
+            <div id="auth-display" class="flex items-center space-x-4">
+                <span id="current-username-display" class="font-medium text-lg"></span>
+                <button id="logout-btn" class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md hidden">Logout</button>
             </div>
-            <p id="auth-message"></p>
-        </section>
+        </header>
 
-        <section id="dashboard-section" class="hidden">
-            <div class="main-nav">
-                <button id="nav-dashboard" class="active-nav">Dashboard</button>
-                <button id="nav-classroom">Classroom</button>
-                <button id="nav-settings">Settings</button>
-                <button id="logout-btn">Logout</button>
-            </div>
+        <!-- Main content sections -->
+        <main class="flex-1 overflow-y-auto p-4">
 
-            <h2>Dashboard</h2>
-            <p>Welcome, <span id="current-username-display"></span>!</p>
-            <p>Classroom ID: <span id="classroom-id-display">N/A</span></p>
-
-            <div id="create-join-classroom">
-                <div id="create-classroom-section" data-admin-only>
-                    <h3>Create New Classroom</h3>
-                    <input type="text" id="new-classroom-name" placeholder="Classroom Name">
-                    <button id="create-classroom-btn" class="btn-success">Create Classroom</button>
-                    <p id="classroom-message"></p>
-                </div>
-
-                <div id="join-classroom-section">
-                    <h3>Your Classrooms & Available Classrooms</h3>
-                    <input type="text" id="classroom-search-input" class="search-input" placeholder="Search classrooms...">
-                    <ul id="classroom-list">
-                        <li>Loading classrooms...</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
-
-        <section id="classroom-section" class="hidden">
-            <div class="classroom-header">
-                <button id="hamburger-menu-btn" class="hamburger-menu"><i class="fas fa-bars"></i></button>
-                <h2>Classroom: <span id="class-name-value"></span> (ID: <span id="class-code"></span>)</h2>
-                <button id="back-to-dashboard" class="btn-secondary">Back to Dashboard</button>
-            </div>
-
-            <div id="classroom-sidebar" class="sidebar hidden">
-                <button id="close-sidebar-btn" class="close-btn">&times;</button>
-                <button id="nav-chat" class="active-nav"><i class="fas fa-comments"></i> Chat</button>
-                <button id="nav-whiteboard"><i class="fas fa-chalkboard"></i> Whiteboard</button>
-                <button id="nav-library"><i class="fas fa-book"></i> Library</button>
-                <button id="nav-assessments"><i class="fas fa-clipboard-list"></i> Assessments</button>
-                <div id="video-broadcast-section" data-admin-only>
-                    <h4>Video Broadcast</h4>
-                    <div class="broadcast-options">
-                        <label><input type="radio" name="broadcastType" value="audio_only" checked> Audio Only</label>
-                        <label><input type="radio" name="broadcastType" value="video_audio"> Video & Audio</label>
-                    </div>
-                    <button id="start-broadcast" class="btn-success"><i class="fas fa-play"></i> Start Broadcast</button>
-                    <button id="end-broadcast" class="btn-danger" disabled><i class="fas fa-stop"></i> End Broadcast</button>
-                    <p id="broadcast-role-message" class="role-message hidden"></p>
-                </div>
-            </div>
-
-            <div class="classroom-content-wrapper">
-                <div id="notifications-container" class="notification-message"></div>
-
-                <div id="whiteboard-area" class="classroom-sub-section active">
-                    <p id="whiteboard-role-message" class="role-message hidden"></p>
-                    
-                    <div id="video-streams-wrapper">
-                        <div id="local-video-container" class="video-wrapper">
-                            <video id="local-video" autoplay muted></video>
-                            <div class="video-overlay">Click to zoom</div>
-                        </div>
-
-                        <div id="remote-video-container">
-                            </div>
-                    </div>
-
-                    <canvas id="whiteboard-canvas"></canvas>
-
-                    <div id="whiteboard-control-panel">
-                        <div id="whiteboard-tools-container">
-                            <div class="tool-group">
-                                <button class="tool-button active" data-tool="pen" id="toolPen" title="Pen"><i class="fas fa-pen"></i></button>
-                                <button class="tool-button" data-tool="eraser" id="toolEraser" title="Eraser"><i class="fas fa-eraser"></i></button>
-                                <button class="tool-button" data-tool="line" id="toolLine" title="Line"><i class="fas fa-slash"></i></button>
-                                <button class="tool-button" data-tool="rectangle" id="toolRectangle" title="Rectangle"><i class="fas fa-square"></i></button>
-                                <button class="tool-button" data-tool="circle" id="toolCircle" title="Circle"><i class="fas fa-circle"></i></button>
-                                <button class="tool-button" data-tool="text" id="toolText" title="Text"><i class="fas fa-font"></i></button>
-                            </div>
-                            <div class="tool-group tool-settings">
-                                <label for="colorPicker">Color:</label>
-                                <input type="color" id="colorPicker" value="#FF0000">
-                                <label for="brushSize">Size:</label>
-                                <input type="range" id="brushSize" min="1" max="50" value="5">
-                            </div>
-                            <div class="tool-group action-buttons">
-                                <button class="action-button undo-button" id="undoButton" title="Undo"><i class="fas fa-undo"></i></button>
-                                <button class="action-button redo-button" id="redoButton" title="Redo"><i class="fas fa-redo"></i></button>
-                                <button class="action-button clear-button" id="clearButton" title="Clear Page"><i class="fas fa-trash-alt"></i></button>
-                                <button class="action-button save-button" id="saveButton" title="Save Image"><i class="fas fa-save"></i></button>
-                            </div>
-                        </div>
-                        <button id="share-whiteboard-btn" class="btn-info">Generate Share Link</button>
-                        <div id="share-link-display" class="hidden">
-                            <input type="text" id="share-link-input" readonly>
-                            <button id="copy-share-link-btn" class="btn-success">Copy Link</button>
-                        </div>
-                    </div>
-
-                    <div id="whiteboard-navigation">
-                        <button id="prev-whiteboard-page-btn" class="btn-secondary"><i class="fas fa-chevron-left"></i></button>
-                        <span id="whiteboard-page-display">Page 1/1</span>
-                        <button id="next-whiteboard-page-btn" class="btn-secondary"><i class="fas fa-chevron-right"></i></button>
-                    </div>
-
-                </div>
-
-                <div id="chat-section" class="classroom-sub-section hidden">
-                    <h3>Classroom Chat</h3>
-                    <div id="chat-messages">
-                        </div>
-                    <div class="chat-input-area">
-                        <input type="text" id="chat-input" placeholder="Type your message...">
-                        <button id="send-chat-button" class="btn-primary">Send</button>
-                    </div>
-                </div>
-
-                <div id="library-section" class="classroom-sub-section hidden">
-                    <h3>Classroom Library</h3>
-                    <input type="text" id="library-search-input" class="search-input" placeholder="Search library files...">
-                    <div id="library-files-list">
-                        <p>No files uploaded yet.</p>
-                    </div>
-                    <p id="library-role-message" class="role-message hidden"></p>
-                    <div data-admin-only>
-                        <input type="file" id="library-file-input" multiple class="hidden">
-                        <button id="upload-library-files-btn" class="btn-success">Upload Files</button>
-                    </div>
-                </div>
-
-                <div id="assessments-section" class="classroom-sub-section hidden">
-                    <h3>Assessments</h3>
-                    <div id="assessment-creation-container" data-admin-only>
-                        <h4>Create New Assessment</h4>
-                        <form id="assessment-creation-form">
-                            <label for="assessment-title">Title:</label>
-                            <input type="text" id="assessment-title" required>
-                            <label for="assessment-description">Description (Optional):</label>
-                            <textarea id="assessment-description" rows="3"></textarea>
-                            <label for="assessment-scheduled-at">Scheduled Date & Time:</label>
-                            <input type="datetime-local" id="assessment-scheduled-at" required>
-                            <label for="assessment-duration-minutes">Duration (minutes):</label>
-                            <input type="number" id="assessment-duration-minutes" min="1" value="60" required>
-                            
-                            <h5>Questions:</h5>
-                            <div id="questions-container">
-                                </div>
-                            <button type="button" id="add-question-btn" class="btn-secondary">Add Question</button>
-                            <button type="submit" id="submit-assessment-btn" class="btn-primary">Create Assessment</button>
+            <!-- Authentication Section -->
+            <section id="auth-section" class="active">
+                <div class="max-w-md mx-auto my-10 p-6 bg-white rounded-lg shadow-xl">
+                    <h2 class="text-2xl font-bold text-center mb-6">Login / Register</h2>
+                    <p id="auth-message" class="text-red-500 text-center mb-4 hidden"></p>
+                    <div id="login-container">
+                        <h3 class="text-xl font-semibold text-center mb-4">Login</h3>
+                        <form id="login-form" class="space-y-4">
+                            <input type="email" id="login-email" placeholder="Email" required class="w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="password" id="login-password" placeholder="Password" required class="w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">Login</button>
                         </form>
-                        <p id="assessment-creation-message"></p>
+                        <p class="text-center mt-4">Don't have an account? <a href="#" id="show-register-link" class="text-indigo-600 hover:underline">Register here</a></p>
                     </div>
 
-                    <div id="assessment-list-container">
-                        <h4>Available Assessments</h4>
-                        <input type="text" id="assessment-search-input" class="search-input" placeholder="Search assessments...">
+                    <div id="register-container" class="hidden">
+                        <h3 class="text-xl font-semibold text-center mb-4">Register</h3>
+                        <form id="register-form" class="space-y-4">
+                            <input type="text" id="register-username" placeholder="Username" required class="w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="email" id="register-email" placeholder="Email" required class="w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="password" id="register-password" placeholder="Password" required class="w-full px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                            <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700">Register</button>
+                        </form>
+                        <p class="text-center mt-4">Already have an account? <a href="#" id="show-login-link" class="text-indigo-600 hover:underline">Login here</a></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="hidden">
+                <div class="container mx-auto p-4">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Your Dashboard</h2>
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-semibold mb-4">Classroom ID: <span id="classroom-id-display" class="font-mono text-gray-600">N/A</span></h3>
+                        <div id="dashboard-actions" class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                            <div class="w-full sm:w-1/2 p-4 bg-gray-100 rounded-lg shadow">
+                                <h4 class="text-lg font-bold mb-2">Join a Classroom</h4>
+                                <form id="join-classroom-form" class="space-y-2">
+                                    <input type="text" id="join-classroom-id" placeholder="Enter Classroom ID" required class="w-full px-4 py-2 border rounded-md">
+                                    <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">Join</button>
+                                </form>
+                                <p id="join-classroom-message" class="mt-2 text-sm text-center"></p>
+                            </div>
+                            <div class="w-full sm:w-1/2 p-4 bg-gray-100 rounded-lg shadow" data-admin-only>
+                                <h4 class="text-lg font-bold mb-2">Create a New Classroom</h4>
+                                <form id="create-classroom-form" class="space-y-2">
+                                    <input type="text" id="create-classroom-name" placeholder="Classroom Name" required class="w-full px-4 py-2 border rounded-md">
+                                    <button type="submit" class="w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600">Create</button>
+                                </form>
+                                <p id="create-classroom-message" class="mt-2 text-sm text-center"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Classroom Section -->
+            <section id="classroom-section" class="hidden grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
+                <!-- Main Classroom Content -->
+                <div class="md:col-span-2 flex flex-col space-y-4">
+                    <div class="flex-1 bg-white rounded-lg shadow-xl overflow-hidden relative">
+                        <!-- Video Container -->
+                        <div id="local-video-container" class="w-full h-full relative">
+                            <video id="local-video" muted playsinline class="w-full h-full object-contain rounded-lg"></video>
+                            <span id="video-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500 text-lg hidden">No Video Stream</span>
+                        </div>
+                        <video id="remote-video" playsinline class="absolute top-4 left-4 w-32 h-24 sm:w-48 sm:h-36 object-cover rounded-lg shadow-lg border-2 border-white"></video>
+                    </div>
+                    <div class="flex-1 bg-white rounded-lg shadow-xl p-4 flex flex-col relative overflow-hidden">
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Whiteboard</h3>
+                        <div id="whiteboard-toolbar" class="flex flex-wrap space-x-2 space-y-2 mb-2 p-2 bg-gray-100 rounded-md">
+                            <div class="flex items-center space-x-2">
+                                <label for="color-picker" class="text-gray-700">Color:</label>
+                                <input type="color" id="color-picker" class="rounded-md">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <label for="stroke-width" class="text-gray-700">Width:</label>
+                                <input type="range" id="stroke-width" min="1" max="20" value="3" class="w-24">
+                            </div>
+                            <button id="draw-tool-btn" class="btn-tool bg-indigo-500 hover:bg-indigo-600 text-white rounded-md px-4 py-2"><i class="fas fa-pencil-alt"></i> Draw</button>
+                            <button id="text-tool-btn" class="btn-tool bg-indigo-500 hover:bg-indigo-600 text-white rounded-md px-4 py-2"><i class="fas fa-font"></i> Text</button>
+                            <button id="clear-whiteboard-btn" class="btn-tool bg-red-500 hover:bg-red-600 text-white rounded-md px-4 py-2"><i class="fas fa-eraser"></i> Clear</button>
+                            <button id="save-whiteboard-btn" class="btn-tool bg-green-500 hover:bg-green-600 text-white rounded-md px-4 py-2"><i class="fas fa-save"></i> Save</button>
+                        </div>
+                        <div class="relative flex-1 rounded-lg border border-gray-300">
+                            <canvas id="whiteboard" class="w-full h-full rounded-lg"></canvas>
+                            <div id="draggable-text" contenteditable="true" class="absolute hidden bg-white p-2 border border-blue-500 rounded-md shadow resize-none overflow-hidden" style="min-width: 50px; min-height: 25px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar for Chat and Participants -->
+                <div class="md:col-span-1 flex flex-col space-y-4">
+                    <div class="flex-1 flex flex-col bg-white rounded-lg shadow-xl overflow-hidden">
+                        <div class="p-4 bg-gray-100 border-b border-gray-200">
+                            <h3 class="text-xl font-bold text-gray-800">Classroom Chat</h3>
+                        </div>
+                        <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+                            <!-- Chat messages will be appended here -->
+                        </div>
+                        <div class="p-4 bg-gray-100 border-t border-gray-200 flex items-center space-x-2">
+                             <input type="text" id="chat-input" placeholder="Type a message or use /ai for assistance..." class="flex-1 px-4 py-2 border rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                             <button id="sendMessageBtn" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700"><i class="fa-solid fa-paper-plane"></i></button>
+                             <button id="summarize-chat-btn" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md text-sm">
+                                 <i class="fa-solid fa-file-lines"></i> Summarize
+                             </button>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-xl p-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-xl font-bold text-gray-800">Participants</h3>
+                            <span id="participants-count" class="text-sm text-gray-500">0</span>
+                        </div>
+                        <ul id="participants-list" class="space-y-1">
+                            <!-- Participant list items will be appended here -->
+                        </ul>
+                    </div>
+                    <div class="bg-white rounded-lg shadow-xl p-4" data-admin-only>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Admin Tools</h3>
+                        <div id="admin-tools" class="flex flex-col space-y-2">
+                            <button id="broadcast-toggle-btn" class="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md">Start Broadcast</button>
+                            <p id="broadcast-status-display" class="text-center text-sm mt-2">Broadcast: Off</p>
+                            <button id="leave-classroom-btn" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md">Leave Classroom</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Assessments Section -->
+            <section id="assessments-section" class="hidden">
+                <div class="container mx-auto p-4">
+                    <h2 class="text-3xl font-bold mb-6 text-center">Assessments</h2>
+
+                    <!-- Assessment List & Creation Section -->
+                    <div id="assessment-list-container" class="bg-white rounded-lg shadow-xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">Available Assessments</h3>
+                            <input type="text" id="assessment-search-input" placeholder="Search assessments..." class="px-3 py-2 border rounded-md">
+                        </div>
                         <div id="assessment-list">
-                            <p id="no-assessments-message">No assessments available.</p>
+                            <p>Loading assessments...</p>
+                        </div>
+                        <div id="assessment-creation-form" class="mt-8 p-6 bg-gray-100 rounded-lg shadow-inner" data-admin-only>
+                            <h4 class="text-2xl font-bold mb-4">Create New Assessment</h4>
+                            <p id="assessment-creation-message" class="text-sm mb-4"></p>
+                            <input type="text" id="assessment-title" placeholder="Assessment Title" class="w-full px-4 py-2 mb-2 border rounded-md">
+                            <textarea id="assessment-description" placeholder="Assessment Description" class="w-full px-4 py-2 mb-2 border rounded-md"></textarea>
+                            <div class="flex flex-wrap items-center mb-4 space-y-2 sm:space-y-0 sm:space-x-4">
+                                <div>
+                                    <label for="assessment-scheduled-at" class="block text-sm font-medium text-gray-700">Scheduled Start Time:</label>
+                                    <input type="datetime-local" id="assessment-scheduled-at" required class="w-full px-3 py-2 mt-1 border rounded-md">
+                                </div>
+                                <div>
+                                    <label for="assessment-duration-minutes" class="block text-sm font-medium text-gray-700">Duration (minutes):</label>
+                                    <input type="number" id="assessment-duration-minutes" min="1" required class="w-full px-3 py-2 mt-1 border rounded-md">
+                                </div>
+                            </div>
+                            <h5 class="text-xl font-semibold mt-4 mb-2">Questions</h5>
+                            <div id="questions-container" class="space-y-4 mb-4">
+                                <!-- Question fields will be added here dynamically -->
+                            </div>
+                            <button type="button" id="add-question-btn" class="btn-secondary w-full sm:w-auto">Add Question</button>
+                            <button type="button" id="submit-assessment-btn" class="btn-primary w-full sm:w-auto mt-2 sm:mt-0">Create Assessment</button>
                         </div>
                     </div>
 
-                    <div id="take-assessment-container" class="hidden" data-user-only>
-                        <h4 id="take-assessment-title"></h4>
-                        <p id="take-assessment-description"></p>
-                        <div id="assessment-timer">Time Left: --:--:--</div>
+                    <!-- Take Assessment Section -->
+                    <div id="take-assessment-container" class="hidden bg-white rounded-lg shadow-xl p-6">
+                        <h3 id="take-assessment-title" class="text-2xl font-bold mb-2"></h3>
+                        <p id="take-assessment-description" class="text-gray-600 mb-4"></p>
+                        <div id="assessment-timer-display" class="font-bold text-lg mb-4">Time Left: --:--:--</div>
                         <form id="take-assessment-form">
                             </form>
                         <button id="submit-answers-btn" class="btn-success">Submit Answers</button>
@@ -216,27 +205,43 @@
                         <button id="back-to-assessment-list-btn" class="btn-secondary">Back to Assessments</button>
                     </div>
 
-                    <div id="view-submissions-container" class="hidden" data-admin-only>
-                        <h4 id="submissions-assessment-title"></h4>
+                    <!-- View Submissions Section -->
+                    <div id="view-submissions-container" class="hidden bg-white rounded-lg shadow-xl p-6" data-admin-only>
+                        <h4 id="submissions-assessment-title" class="text-2xl font-bold mb-4"></h4>
                         <div id="submissions-list"></div>
-                        <button id="back-to-assessment-list-from-submissions-btn" class="btn-secondary">Back to Assessments</button>
+                        <button id="back-to-assessment-list-from-submissions-btn" class="btn-secondary mt-4">Back to Assessments</button>
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section id="settings-section" class="hidden">
-            <h2>User Settings</h2>
-            <form id="update-profile-form">
-                <label for="settings-username">Username:</label>
-                <input type="text" id="settings-username">
-                <label for="settings-email">Email:</label>
-                <input type="email" id="settings-email" disabled>
-                <button type="submit">Update Profile</button>
-            </form>
-            <button id="back-to-dashboard-from-settings">Back to Dashboard</button>
-        </section>
+            <!-- Settings Section -->
+            <section id="settings-section" class="hidden">
+                <div class="max-w-xl mx-auto my-10 p-6 bg-white rounded-lg shadow-xl">
+                    <h2 class="text-2xl font-bold text-center mb-6">User Settings</h2>
+                    <form id="update-profile-form" class="space-y-4">
+                        <div class="flex flex-col">
+                            <label for="settings-username" class="text-sm font-medium text-gray-700">Username:</label>
+                            <input type="text" id="settings-username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="settings-email" class="text-sm font-medium text-gray-700">Email:</label>
+                            <input type="email" id="settings-email" disabled class="mt-1 block w-full rounded-md border-gray-300 shadow-sm bg-gray-100">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600">Update Profile</button>
+                    </form>
+                    <button id="back-to-dashboard-from-settings" class="w-full mt-4 bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600">Back to Dashboard</button>
+                </div>
+            </section>
+        </main>
     </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex justify-center items-center z-50 hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div>
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="notification-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
 
     <script src="app.js"></script>
 </body>
