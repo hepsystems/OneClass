@@ -2562,22 +2562,6 @@ function getCanvasCoords(e) {
 
     // --- Chat Functions ---
 
-    /**
-     * Sets up event listeners for the chat input and send button.
-     */
-    function setupChatControls() {
-        if (sendMessageBtn) {
-            sendMessageBtn.addEventListener('click', sendMessage);
-        }
-        if (chatInput) {
-            chatInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault(); // Prevent default newline behavior in input
-                    sendMessage();
-                }
-            });
-        }
-    }
 
    // Function to send a chat message
 const sendMessage = (message, type = 'text', fileUrl = null) => {
