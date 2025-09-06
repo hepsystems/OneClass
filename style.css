@@ -88,7 +88,7 @@ body {
 }
 
 .app-logo {
-    width: 150px; /* Adjust the size of the logo */
+    width: 60px; /* Adjust the size of the logo */
     height: auto;
     display: block;
     margin: 0 auto;
@@ -106,21 +106,21 @@ section {
 /* Headings */
 h2, h3, h4 {
     color: var(--text-color);
-    font-weight: 700;
+    font-weight: 400;
     margin-bottom: var(--spacing-lg);
 }
 h2 {
-    font-size: 2.2em;
+    font-size: 1.2em;
     border-bottom: 3px solid var(--body-bg);
     padding-bottom: var(--spacing-sm);
 }
 h3 {
-    font-size: 1.8em;
+    font-size: 1.5em;
     border-bottom: 2px dashed var(--border-color);
     padding-bottom: var(--spacing-sm);
 }
 h4 {
-    font-size: 1.4em;
+    font-size: 1.2em;
 }
 
 /* Visibility Classes */
@@ -150,7 +150,7 @@ h4 {
     border-radius: var(--border-radius-lg);
     margin-bottom: var(--spacing-md);
     color: #1e7e34;
-    font-weight: 600;
+    font-weight: 400;
 }
 
 /* Base Button Styles - ENHANCED */
@@ -158,7 +158,7 @@ h4 {
     border: none;
     border-radius: var(--border-radius-md);
     cursor: pointer;
-    font-weight: 600;
+    font-weight: 400;
     padding: var(--spacing-sm) var(--spacing-lg);
     font-size: 1.1em;
     transition: background-color var(--transition-normal), transform var(--transition-fast), box-shadow var(--transition-normal);
@@ -359,13 +359,13 @@ h4 {
 }
 
 #dashboard-section p {
-    font-size: 1.2em;
+    font-size: 1.0em;
     margin-bottom: var(--spacing-md);
     color: var(--light-text-color);
 }
 
 #current-username-display, #classroom-id-display {
-    font-weight: 700;
+    font-weight: 500;
     color: var(--primary-color);
 }
 
@@ -398,7 +398,7 @@ h4 {
     margin-top: var(--spacing-md);
     font-weight: bold;
     color: var(--success-color);
-    font-size: 1.1em;
+    font-size: 1.0em;
 }
 
 #classroom-list {
@@ -471,7 +471,7 @@ h4 {
 .hamburger-menu {
     background: none;
     border: none;
-    font-size: 32px;
+    font-size: 25px;
     cursor: pointer;
     color: var(--light-text-color);
     padding: var(--spacing-sm);
@@ -507,7 +507,7 @@ h4 {
 
 .sidebar button {
     padding: 20px 30px;
-    font-size: 1.2em;
+    font-size: 1.0em;
     color: var(--sidebar-text);
     display: block;
     background: none;
@@ -629,12 +629,50 @@ h4 {
     background-color: #fefefe;
 }
 
+
 #online-users-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow-y: auto;
+  background-color: #2c3e50; /* Dark blue background */
+  border: none; /* Remove border */
+  border-radius: 10px; /* Larger rounded corners */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.2); /* Deeper shadow */
+  padding: 20px; /* Increased padding */
+  max-height: 400px; /* Increased maximum height */
 }
+
+/* Style individual list items */
+#online-users-list li {
+  padding: 10px;
+  border-bottom: 1px solid #4f5f6f; /* Darker border */
+  color: #fff; /* White text color */
+  transition: background-color 0.2s ease-in-out;
+}
+
+#online-users-list li:hover {
+  background-color: #34495e; /* Darker blue on hover */
+}
+
+#online-users-list li:last-child {
+  border-bottom: none;
+}
+
+/* Optional: Add a scrollbar style */
+#online-users-list::-webkit-scrollbar {
+  width: 8px;
+  background-color: #2c3e50;
+}
+
+#online-users-list::-webkit-scrollbar-thumb {
+  background-color: #4f5f6f;
+  border-radius: 10px;
+}
+
+#online-users-list::-webkit-scrollbar-thumb:hover {
+  background-color: #5c6f7f;
+    }
 
 #online-users-list li {
     padding: var(--spacing-sm) var(--spacing-md);
