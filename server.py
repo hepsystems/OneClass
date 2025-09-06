@@ -1601,6 +1601,79 @@ def handle_chat_message(data):
     
     print(f"Chat message from '{username}' ({user_id}) in classroom {classroom_id}: '{message_text}'.")
 
+# New: Handle message editing
+@socketio.on('edit_message')
+def handle_edit_message(data):
+    message_id = data.get('messageId')
+    new_text = data.get('newText')
+    classroom_id = data.get('classroom_id')
+
+    if not all([message_id, new_text, classroom_id]):
+        print("Edit message failed: Missing data.")
+        return
+
+    # Assuming you have a chat_messages_collection
+    try:
+        from bson.objectid import ObjectId
+        chat_messages_collection.update_one(
+            {'_id': ObjectId(message_id)},
+            {'$set': {'message': new_text}}
+        )
+        # Emit the update to all clients in the room
+        emit('message_edited', {'messageId': message_id, 'newText': new_text}, room=classroom_id)
+    except Exception as e:
+        print(f"Error editing message: {e}")
+
+# New: Handle message deletion
+@socketio.on('delete_message')
+def handle_delete_message(data):
+    message_id = data.get('messageId')
+    classroom_id = data.get('classroom_id')
+
+    if not all([message_id, classroom_id]):
+        print("Delete message failed: Missing data.")
+        return
+
+    try:
+        from bson.objectid import ObjectId
+        chat_messages_collection.delete_one({'_id': ObjectId(message_id)})
+        # Emit the deletion event to all clients in the room
+        emit('message_deleted', {'messageId': message_id}, room=classroom_id)
+    except Exception as e:
+        print(f"Error deleting message: {e}")
+
+# New: Handle whiteboard snapshots
+@socketio.on('whiteboard_snapshot')
+def handle_whiteboard_snapshot(data):
+    classroom_id = data.get('classroom_id')
+    user_id = data.get('user_id')
+    username = data.get('username')
+    image_data = data.get('imageData')
+
+    if not all([classroom_id, user_id, username, image_data]):
+        print("Whiteboard snapshot failed: Missing data.")
+        return
+
+    # Save the snapshot as a message in the database
+    new_message = {
+        'classroom_id': classroom_id,
+        'user_id': user_id,
+        'username': username,
+        'message': 'Whiteboard Snapshot',
+        'timestamp': datetime.utcnow(),
+        'type': 'whiteboard_snapshot',
+        'imageData': image_data
+    }
+    result = chat_messages_collection.insert_one(new_message)
+    message_id = str(result.inserted_id)
+
+    # Emit the new message to all clients in the room
+    new_message['_id'] = message_id
+    new_message['timestamp'] = new_message['timestamp'].isoformat()
+    emit('message', new_message, room=classroom_id)
+
+    print(f"Whiteboard snapshot shared by {username} in classroom {classroom_id}.")
+
 # --- Whiteboard Socket.IO Event Handlers ---
 @socketio.on('draw')
 def handle_draw(data):
