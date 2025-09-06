@@ -2565,15 +2565,12 @@ function getCanvasCoords(e) {
 
    // Function to send a chat message
 const sendMessage = (message, type = 'text', fileUrl = null) => {
-    // We will get currentClassroomId from localStorage to ensure it's always available
     const currentClassroomId = localStorage.getItem('current_classroom_id');
     const userRole = localStorage.getItem('user_role');
     const username = localStorage.getItem('username');
     const userId = localStorage.getItem('user_id');
 
     if (message.trim() !== '' && socket && currentClassroomId && username && userId) {
-        console.log('[Chat] Sending message:', message);
-        
         const messageData = {
             classroom_id: currentClassroomId,
             user_id: userId,
@@ -2584,74 +2581,18 @@ const sendMessage = (message, type = 'text', fileUrl = null) => {
             type: type,
             fileUrl: fileUrl
         };
-        
         socket.emit('message', messageData);
         if (type === 'text') {
-            chatInput.value = ''; // Only clear the input for text messages
+            chatInput.value = '';
         }
     } else {
         console.warn('[Chat] Cannot send message: Message empty, socket not connected, or classroom/user info missing.');
-        // Assuming a showNotification function exists
         showNotification('Could not send message. Please ensure you are in a classroom and logged in.', true);
     }
 };
 
-// Listeners for all chat actions
-sendChatButton.addEventListener('click', () => {
-    sendMessage(chatInput.value);
-});
-
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        sendMessage(chatInput.value);
-    }
-});
-
-// New Tool 1: File Upload
-fileUploadInput.addEventListener('change', async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            const response = await fetch('/api/upload-file', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-            if (response.ok) {
-                // Send a chat message with the file details
-                sendMessage(`**File shared:** ${data.fileName}`, 'file', data.fileUrl);
-            } else {
-                console.error('File upload failed:', data.error);
-            }
-        } catch (error) {
-            console.error('File upload error:', error);
-        }
-    }
-});
-
-// New Tool 2: Whiteboard Snapshot
-whiteboardSnapshotBtn.addEventListener('click', () => {
-    const whiteboardCanvas = document.getElementById('whiteboard-canvas');
-    if (whiteboardCanvas) {
-        const imageData = whiteboardCanvas.toDataURL('image/png');
-        socket.emit('whiteboard_snapshot', {
-            classroom_id: localStorage.getItem('current_classroom_id'),
-            user_id: localStorage.getItem('user_id'),
-            username: localStorage.getItem('username'),
-            imageData: imageData
-        });
-        // Display a temporary message to the user
-        renderMessage({
-            message: 'Sending whiteboard snapshot...',
-            username: 'System',
-            role: 'system'
-        });
-    }
-}); 
-
-    function renderMessage(data) {
+// Function to render a single message in the chat
+function renderMessage(data) {
     const isCurrentUser = data.user_id === localStorage.getItem('user_id');
     const messageContainer = document.createElement('div');
     messageContainer.classList.add('chat-message-container');
@@ -2667,10 +2608,8 @@ whiteboardSnapshotBtn.addEventListener('click', () => {
 
     let messageContent = data.message;
     if (data.type === 'file') {
-        // Render a clickable link for file messages
         messageContent = `**File Shared:** <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer">${data.message.replace('**File shared:** ', '')}</a>`;
     } else if (data.type === 'whiteboard_snapshot') {
-        // Render an image for whiteboard snapshots
         messageContent = `<div class="snapshot-container"><img src="${data.imageData}" alt="Whiteboard Snapshot" class="whiteboard-image"></div>`;
     }
 
@@ -2686,7 +2625,6 @@ whiteboardSnapshotBtn.addEventListener('click', () => {
 
     messageBubble.appendChild(contentDiv);
 
-    // Add Edit and Delete buttons for the current user
     if (isCurrentUser) {
         const actionButtons = document.createElement('div');
         actionButtons.classList.add('message-actions');
@@ -2696,8 +2634,7 @@ whiteboardSnapshotBtn.addEventListener('click', () => {
         `;
         messageBubble.appendChild(actionButtons);
     }
-    
-    // Append the final structure
+
     if (isCurrentUser) {
         messageContainer.appendChild(messageBubble);
         messageContainer.appendChild(avatar);
@@ -2707,9 +2644,30 @@ whiteboardSnapshotBtn.addEventListener('click', () => {
     }
 
     chatMessages.appendChild(messageContainer);
-    chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
+// Functions for message editing and deletion
+const editMessage = (messageId) => {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
+    const newText = prompt("Edit your message:", messageElement.innerText);
+    if (newText && newText.trim() !== "") {
+        socket.emit('edit_message', {
+            messageId: messageId,
+            newText: newText,
+            classroom_id: localStorage.getItem('current_classroom_id')
+        });
+    }
+};
+
+const deleteMessage = (messageId) => {
+    if (confirm("Are you sure you want to delete this message?")) {
+        socket.emit('delete_message', {
+            messageId: messageId,
+            classroom_id: localStorage.getItem('current_classroom_id')
+        });
+    }
+};
     // --- Library Functions ---
 
     /**
@@ -4114,6 +4072,17 @@ function startAssessmentTimer(scheduledAtUTCString, durationMinutes) {
             }
         });
     }
+
+
+   // Event Listeners for the Chat section
+if (sendChatButton) {
+    sendChatButton.addEventListener('click', () => sendMessage(chatInput.value));
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage(chatInput.value);
+        }
+    });
+} 
 
     // --- Broadcast Controls Listeners ---
     if (startBroadcastBtn) {
