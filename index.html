@@ -82,16 +82,27 @@
                             </div>
 
                             <div id="chat-section">
-                                <div id="chat-messages">
+                                <div id="chat-messages" class="custom-scrollbar">
                                     </div>
                                 <div id="chat-input-area">
                                     <div class="chat-tools">
-                                        <button id="emoji-picker-btn" class="chat-tool-btn"><i class="fas fa-smile"></i></button>
-                                        <label for="file-upload-input" class="chat-tool-btn"><i class="fas fa-paperclip"></i></label>
+                                        <button id="emoji-picker-btn" class="chat-tool-btn" title="Emoji">
+                                            <i class="fas fa-smile"></i>
+                                        </button>
+                                        <label for="file-upload-input" class="chat-tool-btn" title="Attach file">
+                                            <i class="fas fa-paperclip"></i>
+                                        </label>
                                         <input type="file" id="file-upload-input" class="hidden">
+                                        <button id="whiteboard-snapshot-btn" class="chat-tool-btn" title="Share whiteboard">
+                                            <i class="fas fa-image"></i>
+                                        </button>
                                     </div>
-                                    <input type="text" id="chat-input" placeholder="Type a message...">
-                                    <button id="send-chat-button">Send</button>
+                                    <div class="input-container">
+                                        <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                                        <button id="send-chat-button" title="Send">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
