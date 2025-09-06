@@ -662,7 +662,7 @@ function enterClassroom(id, name) {
 
     initializeSocketIO(); // Establish Socket.IO connection for real-time updates
     setupWhiteboardControls(); // Prepare whiteboard canvas and tools
-    setupChatControls(); // Prepare chat input and send button
+   
 
     // Reset broadcast buttons state and visibility based on user role
     if (currentUser && currentUser.role === 'admin') {
