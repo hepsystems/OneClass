@@ -34,6 +34,9 @@ from apscheduler.schedulers.gevent import GeventScheduler
 from apscheduler.executors.gevent import GeventExecutor
 
 # --- Flask-Caching for in-memory or Redis-based caching ---
+f# New: File Upload API Endpoint
+import os
+from werkzeug.utils import secure_filename 
 from flask_caching import Cache
 
 # --- Flask App Initialization ---
@@ -47,6 +50,12 @@ app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'dev_secret_key_fo
 app.config["MONGO_URI"] = os.environ.get('MONGO_URI', 'mongodb://localhost:27017/oneclass_db')
 # Sets the lifetime of permanent sessions, making user sessions persist across browser restarts.
 app.permanent_session_lifetime = timedelta(days=7)
+
+
+UPLOAD_FOLDER = 'static/uploads'  # Use a path accessible by the frontend
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
 
 # --- CORS and SocketIO Setup ---
 # CORS allows cross-origin requests from any origin during development,
@@ -151,6 +160,24 @@ def get_user_data(user_id):
 
 # --- API Endpoints ---
 # Routes for serving static files required by the frontend.
+
+
+
+
+@app.route('/api/upload-file', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(file_path)
+
+    # Return the URL where the file can be accessed
+    return jsonify({'fileName': filename, 'fileUrl': f'/{UPLOAD_FOLDER}/{filename}'}), 200
 
 @app.route('/')
 def index():
