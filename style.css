@@ -88,12 +88,10 @@ body {
 }
 
 .app-logo {
-  width: 50px;
+  width: 200px;
   height: auto;
   display: block;
   margin: 0 auto;
-  #border-radius: 50%; /* Make the logo circular */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
 }
 
 section {
