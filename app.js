@@ -2598,6 +2598,65 @@ function getCanvasCoords(e) {
         }
     }
 
+    function renderMessage(data) {
+    const isCurrentUser = data.user_id === localStorage.getItem('user_id');
+    const messageContainer = document.createElement('div');
+    messageContainer.classList.add('chat-message-container');
+    messageContainer.classList.add(isCurrentUser ? 'current-user' : 'other-user');
+    messageContainer.setAttribute('data-message-id', data._id); // Crucial for editing/deleting
+
+    const avatar = document.createElement('div');
+    avatar.classList.add('chat-avatar');
+    avatar.textContent = data.username.charAt(0).toUpperCase();
+
+    const messageBubble = document.createElement('div');
+    messageBubble.classList.add('chat-message-bubble');
+
+    let messageContent = data.message;
+    if (data.type === 'file') {
+        // Render a clickable link for file messages
+        messageContent = `**File Shared:** <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer">${data.message.replace('**File shared:** ', '')}</a>`;
+    } else if (data.type === 'whiteboard_snapshot') {
+        // Render an image for whiteboard snapshots
+        messageContent = `<div class="snapshot-container"><img src="${data.imageData}" alt="Whiteboard Snapshot" class="whiteboard-image"></div>`;
+    }
+
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('chat-content');
+    contentDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-username">${data.username}</span>
+            <span class="message-timestamp">${new Date(data.timestamp).toLocaleTimeString()}</span>
+        </div>
+        <div class="message-text">${messageContent}</div>
+    `;
+
+    messageBubble.appendChild(contentDiv);
+
+    // Add Edit and Delete buttons for the current user
+    if (isCurrentUser) {
+        const actionButtons = document.createElement('div');
+        actionButtons.classList.add('message-actions');
+        actionButtons.innerHTML = `
+            <button class="edit-btn" onclick="editMessage('${data._id}')"><i class="fas fa-edit"></i></button>
+            <button class="delete-btn" onclick="deleteMessage('${data._id}')"><i class="fas fa-trash"></i></button>
+        `;
+        messageBubble.appendChild(actionButtons);
+    }
+    
+    // Append the final structure
+    if (isCurrentUser) {
+        messageContainer.appendChild(messageBubble);
+        messageContainer.appendChild(avatar);
+    } else {
+        messageContainer.appendChild(avatar);
+        messageContainer.appendChild(messageBubble);
+    }
+
+    chatMessages.appendChild(messageContainer);
+    chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+}
+
     // --- Library Functions ---
 
     /**
