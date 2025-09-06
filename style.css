@@ -747,8 +747,8 @@ h4 {
     flex: 1; /* This is the key change. Makes each button grow */
     border-radius: 0; /* Remove border-radius from individual buttons for a continuous look */
     /* Remove the fixed width and height from the .whiteboard-tool class */
-    /* width: 80px; */
-    /* height: 80px; */
+     width: 80px; 
+     height: 80px;
 }
 
 .whiteboard-tool:hover {
