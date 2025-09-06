@@ -63,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn'); // Note: This might be integrated with generation now.
 
    // --- Chat Section Elements ---
-    const chatSection = document.getElementById('chat-section');
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
     const sendChatButton = document.getElementById('send-chat-button');
