@@ -69,7 +69,7 @@ body {
     background-color: var(--app-bg);
     padding: var(--spacing-xxl);
     border-radius: var(--border-radius-xl);
-    box-shadow: 0 8px 25px var(--medium-shadow);
+    box-shadow: 2px 8px 25px var(--medium-shadow);
     width: 95%;
     max-width: auto;
     margin-top: var(--spacing-xxl);
