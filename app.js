@@ -850,21 +850,48 @@ function initializeSocketIO() {
         }
     });
 
-    // Event for receiving new chat messages
-    socket.on('message', (data) => {
-        console.log('Received chat message:', data);
-        renderChatMessage(data);
-    });
+   update this
 
-    // Event for receiving chat history on joining a classroom
-    socket.on('chat_history', (history) => {
-        console.log('Received chat history:', history);
-        if (chatMessages) chatMessages.innerHTML = ''; // Clear previous messages
-        history.forEach(msg => {
-            renderChatMessage(msg, true); // Pass true to indicate it's history
-        });
-        if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message after all history
+
+   // New: Event for receiving new chat messages (updated to handle new message types)
+socket.on('message', (data) => {
+    console.log('Received chat message:', data);
+    renderMessage(data);
+});
+
+// New: Event for receiving chat history on joining a classroom
+socket.on('chat_history', (history) => {
+    console.log('Received chat history:', history);
+    if (chatMessages) chatMessages.innerHTML = ''; // Clear previous messages
+    history.forEach(msg => {
+        renderMessage(msg, true); // Pass true to indicate it's history
     });
+    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to latest message
+});
+
+// New: Listen for a message being edited from the server
+socket.on('message_edited', (data) => {
+    console.log('Message edited:', data);
+    const messageElement = document.querySelector(`[data-message-id="${data.messageId}"] .message-text`);
+    if (messageElement) {
+        messageElement.innerHTML = data.newText;
+    }
+});
+
+// New: Listen for a message being deleted from the server
+socket.on('message_deleted', (data) => {
+    console.log('Message deleted:', data);
+    const messageElement = document.querySelector(`[data-message-id="${data.messageId}"]`);
+    if (messageElement) {
+        messageElement.remove();
+    }
+});
+
+// New: Listen for a whiteboard snapshot from the server
+socket.on('whiteboard_snapshot', (data) => {
+    console.log('Received whiteboard snapshot:', data);
+    renderMessage(data);
+}); 
 
     // Event when a user joins the classroom
     socket.on('user_joined', (data) => {
