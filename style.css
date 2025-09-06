@@ -88,11 +88,14 @@ body {
 }
 
 .app-logo {
-    width: auto; /* Adjust the size of the logo */
-    height: auto;
-    display: block;
-    margin: 0 auto;
+  width: 100px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 50%; /* Make the logo circular */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
 }
+
 section {
     padding: var(--spacing-xl);
     border: 1px solid var(--border-color);
