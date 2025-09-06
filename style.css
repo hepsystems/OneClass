@@ -71,7 +71,7 @@ body {
     border-radius: var(--border-radius-xl);
     box-shadow: 0 8px 25px var(--medium-shadow);
     width: 95%;
-    max-width: 1500px;
+    max-width: auto;
     margin-top: var(--spacing-xxl);
     margin-bottom: var(--spacing-xxl);
     box-sizing: border-box;
@@ -88,7 +88,7 @@ body {
 }
 
 .app-logo {
-    width: 40; /* Adjust the size of the logo */
+    width: 50; /* Adjust the size of the logo */
     height: auto;
     display: block;
     margin: 0 auto;
