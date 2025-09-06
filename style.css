@@ -89,7 +89,7 @@ body {
 
 .app-logo {
     width: 50; /* Adjust the size of the logo */
-    height: auto;
+    height: 50;
     display: block;
     margin: 0 auto;
 }
