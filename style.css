@@ -88,8 +88,8 @@ body {
 }
 
 .app-logo {
-    width: 50; /* Adjust the size of the logo */
-    height: 50;
+    width: auto; /* Adjust the size of the logo */
+    height: auto;
     display: block;
     margin: 0 auto;
 }
