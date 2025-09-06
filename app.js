@@ -3980,7 +3980,6 @@ function startAssessmentTimer(scheduledAtUTCString, durationMinutes) {
             console.log('[Nav] Navigating to Chat sub-section.');
             showClassroomSubSection(chatSection);
             updateNavActiveState(navChat);
-            setupChatControls(); // Ensure chat controls are ready
         });
     }
     if (navWhiteboard) {
