@@ -435,18 +435,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // New function for message editing
-const editMessage = (messageId) => {
-    const messageElement = document.querySelector(`[data-message-id="${messageId}"] .message-text`);
-    const newText = prompt("Edit your message:", messageElement.innerText);
-    if (newText && newText.trim() !== "") {
-        socket.emit('edit_message', {
-            messageId: messageId,
-            newText: newText,
-            classroom_id: currentClassroomId
-        });
-    }
-};
+  
 
 // New function for message deletion
 const deleteMessage = (messageId) => {
