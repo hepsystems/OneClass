@@ -2576,27 +2576,93 @@ function getCanvasCoords(e) {
         }
     }
 
-    /**
-     * Sends a chat message to the server via Socket.IO.
-     * Includes sender's details and the current classroom ID.
-     */
-    function sendMessage() {
-        const message = chatInput.value.trim();
-        if (message && socket && currentClassroom && currentClassroom.id && currentUser) {
-            console.log('[Chat] Sending message:', message);
-            socket.emit('message', {
-                classroomId: currentClassroom.id,
-                message: message,
-                username: currentUser.username, // Sender's username
-                role: currentUser.role, // Sender's role
-                userId: currentUser.id // Sender's ID
+   // Function to send a chat message
+const sendMessage = (message, type = 'text', fileUrl = null) => {
+    // We will get currentClassroomId from localStorage to ensure it's always available
+    const currentClassroomId = localStorage.getItem('current_classroom_id');
+    const userRole = localStorage.getItem('user_role');
+    const username = localStorage.getItem('username');
+    const userId = localStorage.getItem('user_id');
+
+    if (message.trim() !== '' && socket && currentClassroomId && username && userId) {
+        console.log('[Chat] Sending message:', message);
+        
+        const messageData = {
+            classroom_id: currentClassroomId,
+            user_id: userId,
+            username: username,
+            role: userRole,
+            message: message,
+            timestamp: new Date().toISOString(),
+            type: type,
+            fileUrl: fileUrl
+        };
+        
+        socket.emit('message', messageData);
+        if (type === 'text') {
+            chatInput.value = ''; // Only clear the input for text messages
+        }
+    } else {
+        console.warn('[Chat] Cannot send message: Message empty, socket not connected, or classroom/user info missing.');
+        // Assuming a showNotification function exists
+        showNotification('Could not send message. Please ensure you are in a classroom and logged in.', true);
+    }
+};
+
+// Listeners for all chat actions
+sendChatButton.addEventListener('click', () => {
+    sendMessage(chatInput.value);
+});
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage(chatInput.value);
+    }
+});
+
+// New Tool 1: File Upload
+fileUploadInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch('/api/upload-file', {
+                method: 'POST',
+                body: formData
             });
-            chatInput.value = ''; // Clear the input field after sending
-        } else {
-            console.warn('[Chat] Cannot send message: Message empty, socket not connected, or classroom/user info missing.');
-            showNotification('Could not send message. Please ensure you are in a classroom and logged in.', true);
+            const data = await response.json();
+            if (response.ok) {
+                // Send a chat message with the file details
+                sendMessage(`**File shared:** ${data.fileName}`, 'file', data.fileUrl);
+            } else {
+                console.error('File upload failed:', data.error);
+            }
+        } catch (error) {
+            console.error('File upload error:', error);
         }
     }
+});
+
+// New Tool 2: Whiteboard Snapshot
+whiteboardSnapshotBtn.addEventListener('click', () => {
+    const whiteboardCanvas = document.getElementById('whiteboard-canvas');
+    if (whiteboardCanvas) {
+        const imageData = whiteboardCanvas.toDataURL('image/png');
+        socket.emit('whiteboard_snapshot', {
+            classroom_id: localStorage.getItem('current_classroom_id'),
+            user_id: localStorage.getItem('user_id'),
+            username: localStorage.getItem('username'),
+            imageData: imageData
+        });
+        // Display a temporary message to the user
+        renderMessage({
+            message: 'Sending whiteboard snapshot...',
+            username: 'System',
+            role: 'system'
+        });
+    }
+}); 
 
     function renderMessage(data) {
     const isCurrentUser = data.user_id === localStorage.getItem('user_id');
