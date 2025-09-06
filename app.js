@@ -876,7 +876,7 @@ function initializeSocketIO() {
         }
     });
 
-   update this
+
 
 
    // New: Event for receiving new chat messages (updated to handle new message types)
