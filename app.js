@@ -62,10 +62,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn'); // Note: This might be integrated with generation now.
 
-    // Chat Functionality Elements
+   // --- Chat Section Elements ---
+    const chatSection = document.getElementById('chat-section');
+    const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
-    const sendMessageBtn = document.getElementById('send-chat-button');
-    const chatMessages = document.getElementById('chat-messages'); // Container for chat messages
+    const sendChatButton = document.getElementById('send-chat-button');
+    const emojiPickerBtn = document.getElementById('emoji-picker-btn');
+    const fileUploadInput = document.getElementById('file-upload-input');
+    const whiteboardSnapshotBtn = document.getElementById('whiteboard-snapshot-btn');
 
     // Whiteboard Elements
     const whiteboardCanvas = document.getElementById('whiteboard-canvas');
